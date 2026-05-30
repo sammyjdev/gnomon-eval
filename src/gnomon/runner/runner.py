@@ -5,8 +5,10 @@ depends on the domain contracts (RagTarget, Judge), never on concrete
 implementations, so swapping the target or judge is a wiring change, not a
 runner change.
 
-Judge-call accounting is explicit (RNF-06): exactly len(cases) * judge_runs
-calls per metric the judge reports, and no model call outside that.
+Judge-call accounting is explicit (RNF-06): the runner calls judge.score()
+exactly len(cases) * config.judge_runs times. A judge may issue its own model
+calls per metric inside score() — the Ollama judge makes one model call per
+metric per run, i.e. len(cases) * judge_runs * len(metrics) model calls total.
 """
 
 from collections import defaultdict
