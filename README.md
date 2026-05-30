@@ -1,4 +1,4 @@
-# RAG Eval Harness
+# GNOMON
 
 > Avalia um pipeline RAG e reporta qualidade com o intervalo de confiança junto, mais custo e latência, rodando offline com Ollama.
 
@@ -12,7 +12,7 @@
 
 ```bash
 git clone [TODO: url do repositório]
-cd rag-eval-harness
+cd gnomon-eval
 docker compose up -d        # sobe Ollama e baixa o modelo na primeira execução
 [TODO: comando único de avaliação de exemplo, ex: make eval-example]
 ```
