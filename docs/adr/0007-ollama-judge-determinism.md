@@ -9,7 +9,7 @@ RNF-01 é reprodutibilidade dentro da variância medida, não bit-exact. O juiz 
 
 ## Decisão
 
-O juiz fixa `options.seed = seed + run` e `temperature = 0.0` por chamada. Isso produz uma sequência fixa para um mesmo modelo e host. A suíte de reprodutibilidade continua usando o StubJudge (determinístico puro); a reprodutibilidade do juiz real é verificada como tolerância de variância, não igualdade de valores. O cache (cuja chave inclui seed e run) reforça a estabilidade dentro de uma mesma máquina.
+O juiz fixa `options.seed = seed + run` e `temperature = 0.0` por chamada. Isso produz uma sequência fixa para um mesmo modelo e host. Todas as métricas da v1 são pontuadas numa **única chamada de modelo por `score()`** (o modelo devolve um objeto JSON com uma chave por métrica), não uma chamada por métrica — o custo real de chamadas é `len(cases) * judge_runs`, sem multiplicador por métrica (RNF-06). A suíte de reprodutibilidade continua usando o StubJudge (determinístico puro); a reprodutibilidade do juiz real é verificada como tolerância de variância, não igualdade de valores. O cache (cuja chave inclui seed e run) reforça a estabilidade dentro de uma mesma máquina.
 
 ## Consequências
 
@@ -32,3 +32,4 @@ O juiz fixa `options.seed = seed + run` e `temperature = 0.0` por chamada. Isso 
 | Seed fixo igual para todos os runs | Todas as runs de uma pergunta seriam idênticas; a variância medida seria zero e o IC seria inútil. |
 | Não fixar seed nem temperatura | Introduz variância não controlada no juiz, que se confunde com variância do RAG e infla o IC sem valor real. |
 | Verificar reprodutibilidade por igualdade bit-exact | Incompatível com RNF-01 e com a realidade de modelos quantizados em hardware variado; a tolerância de variância é a métrica correta. |
+| Uma chamada de modelo por métrica | Dobra (×nº de métricas) o custo e a latência por run, crítico no Ollama offline (ADR-004). Uma única chamada que pontua todas as métricas via JSON é mais barata; o custo de um prompt um pouco maior é desprezível frente a uma segunda inferência completa. |

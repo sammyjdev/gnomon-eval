@@ -1,32 +1,36 @@
-"""Judge prompts for the v1 metrics (RF-05).
+"""Judge prompt for the v1 metrics (RF-05).
 
-Each prompt asks the model for a single float in [0, 1] inside a JSON object,
-so the judge can parse a score deterministically instead of scraping prose.
+A single prompt asks the model to score every v1 metric at once and return one
+JSON object keyed by metric name, so one model call scores the whole case
+(RNF-06 cost: len(cases) * judge_runs model calls, not multiplied by the
+number of metrics). The parser validates the object against V1_METRICS.
 """
 
 from gnomon.domain.models import EvalCase, RagResponse
+from gnomon.metrics.names import V1_METRICS
 
-_INSTRUCTION = (
-    'Return ONLY a JSON object of the form {{"score": <float 0..1>}}. No prose, no explanation.'
-)
-
-_TEMPLATES = {
+# Per-metric descriptions. Keys must stay in sync with V1_METRICS — adding a
+# metric there means adding its description here.
+_METRIC_DESCRIPTIONS = {
     "faithfulness": (
-        "Rate how well the ANSWER is grounded in the CONTEXTS (1.0 = every claim "
-        "is supported, 0.0 = unsupported).\n\n"
-        "QUESTION: {question}\nANSWER: {answer}\nCONTEXTS: {contexts}\n\n" + _INSTRUCTION
+        "how well the ANSWER is grounded in the CONTEXTS "
+        "(1.0 = every claim supported, 0.0 = unsupported)"
     ),
     "context_precision": (
-        "Rate how relevant the retrieved CONTEXTS are to the QUESTION (1.0 = all "
-        "relevant, 0.0 = none relevant).\n\n"
-        "QUESTION: {question}\nCONTEXTS: {contexts}\n\n" + _INSTRUCTION
+        "how relevant the CONTEXTS are to the QUESTION (1.0 = all relevant, 0.0 = none relevant)"
     ),
 }
 
+_METRIC_LINES = "\n".join(f"- {m}: {_METRIC_DESCRIPTIONS[m]}" for m in V1_METRICS)
+_JSON_SHAPE = ", ".join(f'"{m}": <float 0..1>' for m in V1_METRICS)
 
-def build_prompt(metric: str, case: EvalCase, response: RagResponse) -> str:
-    return _TEMPLATES[metric].format(
-        question=case.question,
-        answer=response.answer,
-        contexts="\n- " + "\n- ".join(response.contexts),
+
+def build_prompt(case: EvalCase, response: RagResponse) -> str:
+    return (
+        "You are grading a RAG answer on these metrics, each a float in [0, 1]:\n"
+        f"{_METRIC_LINES}\n\n"
+        f"QUESTION: {case.question}\n"
+        f"ANSWER: {response.answer}\n"
+        f"CONTEXTS:\n- " + "\n- ".join(response.contexts) + "\n\n"
+        f"Return ONLY a JSON object: {{{_JSON_SHAPE}}}. No prose, no explanation."
     )
