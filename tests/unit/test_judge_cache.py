@@ -33,3 +33,12 @@ def test_different_model_is_a_miss():
     cache = JudgeCache()
     cache.put(CASE, RESPONSE, "judge-x", seed=42, run=0, scores=SCORES)
     assert cache.get(CASE, RESPONSE, "judge-y", seed=42, run=0) is None
+
+
+def test_different_contexts_is_a_miss():
+    # The identity includes the retrieved contexts: same answer, different
+    # contexts must NOT collide (context_precision depends on contexts).
+    other = RagResponse(answer="a", contexts=["DIFFERENT"], total_tokens=10, latency_ms=1.0)
+    cache = JudgeCache()
+    cache.put(CASE, RESPONSE, "judge-x", seed=42, run=0, scores=SCORES)
+    assert cache.get(CASE, other, "judge-x", seed=42, run=0) is None

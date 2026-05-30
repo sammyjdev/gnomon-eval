@@ -6,8 +6,8 @@ function of (seed, case, run). That is exactly what lets the reproducibility
 suite assert "same seed, same result" and what lets the metrics layer compute
 a non-trivial confidence interval.
 
-Phase 2 replaces this with an Ollama-backed judge behind the same contract;
-the cache identity tuple (case, response, judge model, seed) lands there.
+The Ollama-backed judge (gnomon.judge.ollama) is the real Phase-2 judge behind
+the same contract; its cache identity tuple is (case, response, judge model, seed, run).
 """
 
 import hashlib
