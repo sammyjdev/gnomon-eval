@@ -29,6 +29,14 @@ Quatro decisões fixadas no brainstorming governam este design:
    tracker de issues. O documento é seguido à mão. Se a convenção não bastar,
    automatizar é evolução futura, registrada como tal.
 4. **Contexto AXON: `personal`.** O projeto entra no vault sob ctx `personal`.
+5. **Cadência AXON: por bloco conclusivo.** A sincronização com o vault (`pb
+   index` + `save_adr` + memória de sessão) roda ao fechar um **bloco
+   conclusivo** — um marco ou fase coesa —, não a cada fatia. Política de
+   conteúdo: sempre adicionar ao vault documentos novos e alterações,
+   incrementalmente; nunca re-registrar em massa o que não mudou.
+6. **Nome `gnomon` em tudo, já.** A divergência `gnomon` (pacote) vs `rag_eval`
+   (docs) resolve-se agora: todos os docs são alinhados para `gnomon` /
+   `gnomon-eval`. Não fica como pendência para depois.
 
 ## O loop de 4 estágios
 
@@ -57,42 +65,46 @@ projeto; não cria critério novo. Uma fatia está pronta quando:
    (direção de dependência, honestidade estatística, reprodutibilidade,
    custo/latência de primeira classe, fail-closed, offline-first, honestidade
    documental — conforme a fatia toca cada uma).
-5. Houve decisão não-óbvia → ADR atualizado/criado; afirmação nova no README →
-   tem comando que a reproduz (RNF-05).
-6. Documentação no AXON feita (estágio 4): decisão via `save_adr`, código
-   reindexado, sessão capturada.
+5. Houve decisão não-óbvia → ADR atualizado/criado (em `docs/adr/`); afirmação
+   nova no README → tem comando que a reproduz (RNF-05).
+
+Os passos 1–5 valem **por fatia**. A sincronização com o AXON não roda a cada
+fatia — roda ao fechar um bloco conclusivo (ver Integração AXON).
 
 ## Integração AXON
 
 O AXON é onde o estágio de Documentação ganha permanência e busca semântica.
+A sincronização é por **bloco conclusivo**, não por fatia, e é sempre
+incremental: adiciona documentos novos e alterações, sem re-registrar em massa.
 
-**Recorrente, a cada fatia (estágio 4):**
-- `save_adr(project="gnomon-eval", ...)` para cada decisão de design relevante →
-  vira ADR pesquisável no vault e alimenta `get_adrs`.
-- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` após a fatia → o
-  `search_code` passa a enxergar o código novo, substituindo `read` cego (regra
-  de ouro do AXON.md).
-- Captura de memória de sessão ao fim → `get_session_memory` retoma o contexto
+**Ao fechar um bloco conclusivo (estágio 4):**
+- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` → reindexa o código e
+  os docs alterados; `search_code` passa a enxergá-los, substituindo `read` cego
+  (regra de ouro do AXON.md).
+- `save_adr(project="gnomon-eval", ...)` para cada decisão **nova** do bloco →
+  vira ADR pesquisável e alimenta `get_adrs`. Decisões já registradas não são
+  re-enviadas.
+- Captura de memória de sessão do bloco → `get_session_memory` retoma o contexto
   entre sessões.
 
-**Onboarding único (executado uma vez, junto desta entrega):**
+**Bloco conclusivo 0 — onboarding + Fase 1 (executado junto desta entrega):**
 1. `git init` + commit inicial da Fase 1. *(Feito.)*
-2. `pb scan ~/dev` (atualiza o manifesto de projetos) +
-   `pb index /Users/samdev/dev/gnomon-eval --ctx personal` (indexa o código).
-3. Registrar via `save_adr`, sob `project="gnomon-eval"`:
-   - Os 4 ADRs existentes (0001 adapter, 0002 não-determinismo, 0003
-     offline-first, 0004 custo/latência), para que vivam no vault além dos
-     arquivos markdown.
+2. Alinhar os docs para `gnomon` / `gnomon-eval` (decisão 6): `ARCHITECTURE.md`
+   (`src/rag_eval/` → `src/gnomon/`) e `README.md` (`rag-eval-harness` →
+   `gnomon-eval`), com mudanças cirúrgicas, sem reescrever o resto.
+3. `pb scan ~/dev` + `pb index /Users/samdev/dev/gnomon-eval --ctx personal` →
+   indexa código e docs. Os 4 ADRs em markdown entram aqui como documentos
+   pesquisáveis; **não** são re-registrados via `save_adr` (política
+   incremental).
+4. `save_adr(project="gnomon-eval", ...)` só para as decisões novas, que ainda
+   não têm ADR próprio:
    - Os dois pontos abertos do ADR-002 (N de runs, granularidade de cache).
-   - As três decisões novas tomadas na Fase 1:
-     - **Clamp do IC a [0,1]** para métricas limitadas (média crua, intervalo
-       clampado).
-     - **Recomendação N=8 condicional**: piso de computabilidade é 2, mas N=2 é
-       inútil para gate (t crítico 12.7); cotovelo em N≈8–10 para σ≈0.046 do
-       stub; número final depende de medir a variância do juiz Ollama real.
-     - **Nome `gnomon`** (pacote importável) vs `rag_eval` dos docs — divergência
-       a reconciliar.
-4. Capturar memória de sessão da Fase 1.
+   - Clamp do IC a [0,1] para métricas limitadas (média crua, intervalo
+     clampado).
+   - Recomendação N=8 condicional (piso de computabilidade é 2, mas N=2 é inútil
+     para gate — t crítico 12.7; cotovelo em N≈8–10 para σ≈0.046 do stub; número
+     final depende de medir o juiz Ollama real).
+5. Capturar memória de sessão da Fase 1.
 
 ## Artefato e localização
 
@@ -120,5 +132,7 @@ Entregável B: o onboarding AXON acima, executado.
 - **AXON desatualizado em relação ao código.** Se `pb index` não rodar ao fim da
   fatia, `search_code` mente. Mitigação: indexação é item explícito da Definição
   de Pronto (passo 6).
-- **Divergência de nome (`gnomon` vs `rag_eval`).** Registrada como decisão a
-  reconciliar; não bloqueia o loop, mas precisa virar ADR resolvido antes da v1.
+- **Divergência de nome (`gnomon` vs `rag_eval`).** Resolvida neste bloco
+  (decisão 6): docs alinhados para `gnomon`. Risco residual: referências a
+  `rag_eval` que escapem da varredura — mitigação: `grep` por `rag_eval` e
+  `rag-eval-harness` ao fim do alinhamento, garantindo zero ocorrências.
