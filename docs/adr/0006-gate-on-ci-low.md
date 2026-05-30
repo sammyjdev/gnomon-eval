@@ -18,11 +18,12 @@ O gate passa só se `ci_low >= threshold`. O limite inferior do intervalo de con
 - Métrica ausente é falha explícita, o que impede configurações incompletas de passar despercebidas.
 
 **Negativas / trade-offs:**
-- Gate mais rígido com N pequeno, porque o IC é mais largo. Com poucos runs, métricas reais acima do threshold podem falhar o gate por incerteza alta.
-- Mitiga-se subindo N (ver ADR-002, ponto aberto do N de runs). O operador precisa entender que aumentar N reduz a largura do IC e, portanto, a rigidez do gate.
+- Gate mais rígido com poucos casos, porque o IC é mais largo. Com poucos casos no dataset, métricas reais acima do threshold podem falhar o gate por incerteza alta.
+- Mitiga-se com **mais casos** no dataset (ADR-008). Subir o N de *runs* do juiz **não** estreita o IC — runs apenas reduzem ruído dentro de um caso; a largura do IC é função do número de casos.
 
 **Neutras / a observar:**
 - A escolha de `ci_low` como critério é conservadora por design. Operadores que aceitam risco maior podem definir thresholds mais baixos, mas o critério de comparação permanece `ci_low`.
+- O `ci_low` agora vem do bootstrap percentílico sobre os casos (ADR-008), limitado a [0,1] por construção. O clamp do IC ao range da métrica (decisão original deste ADR) foi **aposentado**: o bootstrap não produz limites fora de [0,1].
 
 ## Alternativas consideradas
 

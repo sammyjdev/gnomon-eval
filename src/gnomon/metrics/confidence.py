@@ -1,93 +1,62 @@
-"""Turn N judge scores into a MetricResult with a confidence interval.
+"""Aggregate per-case judge scores into a MetricResult (RF-06, RNF-03, ADR-008).
 
-Small-N regime: the judge runs are few, so the interval is a Student-t
-interval, not a normal approximation. Reporting a normal interval for n=5
-would understate the uncertainty and quietly violate RNF-03.
+Each case contributes one score per metric: the runner averages the judge's N
+runs within a case, so runs *denoise* the case's score, they are not counted as
+independent samples (counting N identical deterministic runs as N observations
+would fake a tighter interval than the data supports — a RNF-03 violation).
 
-The interval is clamped to the metric's [0, 1] range: a faithfulness
-"upper bound" of 1.48 is an artifact of the t critical value at low df, not
-a meaningful claim about a bounded metric.
+The dataset is a sample of questions, so the confidence interval is taken over
+the CASES: a seeded percentile bootstrap of the per-case mean. Because every
+bootstrap resample is a mean of scores already in [0, 1], the interval is
+bounded by construction — no clamp, and no t-interval blow-up to amputate at
+low n (ADR-008 supersedes the t-interval + clamp of ADR-006). Fewer than two
+cases cannot bound a population and is rejected.
 """
 
-import math
+import random
 
 from gnomon.domain.models import MetricResult
 
-# VAL-04: a confidence interval needs a sample variance, which needs n >= 2.
+# A confidence interval over the dataset needs at least two cases to have any
+# spread; one case says nothing about the population of questions.
+MIN_CASES = 2
+
+# Judge-run floor, kept for config validation (VAL-04): runs denoise a noisy
+# judge. With a deterministic judge (temperature 0) they are redundant.
 MIN_JUDGE_RUNS = 2
 
-# Two-sided Student-t critical values by degrees of freedom (df = n - 1).
-# df beyond the table fall back to the normal approximation (z at 95%).
-_T_CRITICAL_95 = {
-    1: 12.706,
-    2: 4.303,
-    3: 3.182,
-    4: 2.776,
-    5: 2.571,
-    6: 2.447,
-    7: 2.365,
-    8: 2.306,
-    9: 2.262,
-    10: 2.228,
-    11: 2.201,
-    12: 2.179,
-    13: 2.160,
-    14: 2.145,
-    15: 2.131,
-    16: 2.120,
-    17: 2.110,
-    18: 2.101,
-    19: 2.093,
-    20: 2.086,
-    21: 2.080,
-    22: 2.074,
-    23: 2.069,
-    24: 2.064,
-    25: 2.060,
-    26: 2.056,
-    27: 2.052,
-    28: 2.048,
-    29: 2.045,
-    30: 2.042,
-}
-_Z_95 = 1.960
-
-# Only 0.95 is supported in the v1 slice. Other levels are rejected rather
-# than silently computed against the wrong table.
-_SUPPORTED_LEVELS = {0.95: (_T_CRITICAL_95, _Z_95)}
-
-
-def _t_critical(df: int, level: float) -> float:
-    table, z = _SUPPORTED_LEVELS[level]
-    return table.get(df, z)
+_BOOTSTRAP_RESAMPLES = 2000
 
 
 def aggregate_metric(
-    metric: str, scores: list[float], *, confidence_level: float = 0.95
+    metric: str, case_scores: list[float], *, confidence_level: float = 0.95, seed: int
 ) -> MetricResult:
-    """Aggregate per-run judge scores into a mean and confidence interval."""
-    if confidence_level not in _SUPPORTED_LEVELS:
+    """Mean over cases with a seeded percentile-bootstrap confidence interval."""
+    n = len(case_scores)
+    if n < MIN_CASES:
         raise ValueError(
-            f"unsupported confidence level {confidence_level}; supported: "
-            f"{sorted(_SUPPORTED_LEVELS)}"
-        )
-    n = len(scores)
-    if n < MIN_JUDGE_RUNS:
-        raise ValueError(
-            f"need at least {MIN_JUDGE_RUNS} judge runs to compute a confidence "
-            f"interval for {metric!r}, got {n}"
+            f"need at least {MIN_CASES} cases to bootstrap a confidence interval "
+            f"for {metric!r}, got {n}"
         )
 
-    mean = sum(scores) / n
-    variance = sum((s - mean) ** 2 for s in scores) / (n - 1)
-    std_error = math.sqrt(variance) / math.sqrt(n)
-    margin = _t_critical(n - 1, confidence_level) * std_error
+    mean = sum(case_scores) / n
+    rng = random.Random(seed)
+    boot_means: list[float] = []
+    for _ in range(_BOOTSTRAP_RESAMPLES):
+        total = 0.0
+        for _ in range(n):
+            total += case_scores[rng.randrange(n)]
+        boot_means.append(total / n)
+    boot_means.sort()
 
+    alpha = 1.0 - confidence_level
+    lo_index = int((alpha / 2.0) * _BOOTSTRAP_RESAMPLES)
+    hi_index = int((1.0 - alpha / 2.0) * _BOOTSTRAP_RESAMPLES) - 1
     return MetricResult(
         metric=metric,
         mean=mean,
-        ci_low=max(0.0, mean - margin),
-        ci_high=min(1.0, mean + margin),
+        ci_low=boot_means[lo_index],
+        ci_high=boot_means[hi_index],
         n=n,
         confidence_level=confidence_level,
     )
