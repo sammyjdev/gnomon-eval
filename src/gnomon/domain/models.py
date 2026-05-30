@@ -52,7 +52,9 @@ class MetricResult(BaseModel):
     """Aggregated result for one metric: mean with confidence interval and N.
 
     Required fields enforce statistical honesty (RNF-03): there is no way to
-    represent a judge metric as a single number.
+    represent a judge metric as a single number. `n` is the number of cases the
+    interval is taken over (the dataset is the sample; runs denoise within a
+    case, see ADR-008), so n >= 2.
     """
 
     model_config = ConfigDict(frozen=True)

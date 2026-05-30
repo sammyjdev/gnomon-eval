@@ -21,6 +21,13 @@ CASE = EvalCase(
     expected_contexts=["The game master narrates the world to the players."],
 )
 
+CASE2 = EvalCase(
+    id="case-2",
+    question="Who adjudicates the rules?",
+    expected_answer="The game master adjudicates the rules.",
+    expected_contexts=["The game master adjudicates the rules at the table."],
+)
+
 
 def _target() -> MockTarget:
     return MockTarget(
@@ -33,7 +40,7 @@ def _target() -> MockTarget:
 
 def _run(seed: int) -> tuple[float, float, float]:
     cfg = EvalConfig(reproducible=True, seed=seed, judge_runs=8)
-    m = run_eval([CASE], _target(), StubJudge(), cfg).metric("faithfulness")
+    m = run_eval([CASE, CASE2], _target(), StubJudge(), cfg).metric("faithfulness")
     return (m.mean, m.ci_low, m.ci_high)
 
 

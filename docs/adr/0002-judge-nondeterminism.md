@@ -37,7 +37,7 @@ Modo reproduzível exige seed explícita. Execução em modo reproduzível sem s
 
 Dois parâmetros desta decisão ficam em aberto e dependem de medição com o modelo de juiz default antes de fixar:
 
-1. **N de runs do juiz por métrica.** Trade-off direto entre aperto do intervalo de confiança e custo de execução. A definição vem de medir a variância do juiz default e escolher o menor N que entregue um intervalo aceitável para decisão de gate.
+1. **N de runs do juiz por métrica.** ~~Trade-off entre aperto do IC e custo.~~ **Resolvido (ADR-008):** medimos a variância do juiz default (Ollama, `temperature=0`) e ela é **zero** — o juiz é determinístico por seed. Logo os N runs são cópias idênticas e **não** podem contar como amostras independentes (isso inflaria o `n` e estreitaria o IC artificialmente, violando RNF-03). N passou a ser um botão de *denoise* dentro do caso (útil só com juiz ruidoso, `temperature>0`); com `temperature=0`, N=1 basta. A largura do IC é função do **número de casos**, não de runs — ver ADR-008.
 2. **Granularidade do cache.** A decisão atual define a chave como (caso, resposta, modelo de juiz, seed). Resta confirmar se essa granularidade é a certa ou se vale uma chave mais grossa que compartilhe pontuações entre execuções semelhantes. A mais fina é mais segura contra contaminação; a mais grossa economiza mais. A escolha segura é a fina, e é o default até haver evidência de que o custo justifica afrouxar.
 
 ## Alternativas consideradas

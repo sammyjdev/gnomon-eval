@@ -31,6 +31,13 @@ CASE = EvalCase(
     expected_contexts=["The game master narrates the world to the players."],
 )
 
+CASE2 = EvalCase(
+    id="case-2",
+    question="Who adjudicates the rules?",
+    expected_answer="The game master adjudicates the rules.",
+    expected_contexts=["The game master adjudicates the rules at the table."],
+)
+
 
 def _target() -> MockTarget:
     return MockTarget(
@@ -43,10 +50,11 @@ def _target() -> MockTarget:
 
 def test_run_produces_faithfulness_metric_with_confidence_interval():
     cfg = EvalConfig(reproducible=True, seed=42, judge_runs=8)
-    report = run_eval([CASE], _target(), StubJudge(), cfg)
+    report = run_eval([CASE, CASE2], _target(), StubJudge(), cfg)
 
     faithfulness = report.metric("faithfulness")
-    assert faithfulness.n == 8
+    # n is the number of cases the interval is taken over (ADR-008), not runs.
+    assert faithfulness.n == 2
     assert faithfulness.confidence_level == 0.95
     assert 0.0 <= faithfulness.ci_low <= faithfulness.mean <= faithfulness.ci_high <= 1.0
 
@@ -54,9 +62,9 @@ def test_run_produces_faithfulness_metric_with_confidence_interval():
 def test_run_reports_cost_and_latency_alongside_quality():
     # ADR-004: cost + latency in the same report as quality, never separate.
     cfg = EvalConfig(reproducible=True, seed=42, judge_runs=8)
-    report = run_eval([CASE], _target(), StubJudge(), cfg)
+    report = run_eval([CASE, CASE2], _target(), StubJudge(), cfg)
 
-    assert report.total_tokens == 137
+    assert report.total_tokens == 137 * 2
     assert report.mean_latency_ms == pytest.approx(512.0)
     assert report.per_case_cost[0].case_id == "case-1"
     assert report.per_case_cost[0].total_tokens == 137
@@ -68,5 +76,5 @@ def test_judge_call_count_is_function_of_cases_and_runs():
     # and N of runs, no hidden model calls.
     cfg = EvalConfig(reproducible=True, seed=42, judge_runs=5)
     counting = _CountingJudge()
-    run_eval([CASE], _target(), counting, cfg)
-    assert counting.calls == 1 * 5
+    run_eval([CASE, CASE2], _target(), counting, cfg)
+    assert counting.calls == 2 * 5
