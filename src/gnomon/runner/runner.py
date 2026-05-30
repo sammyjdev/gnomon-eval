@@ -6,9 +6,10 @@ implementations, so swapping the target or judge is a wiring change, not a
 runner change.
 
 Judge-call accounting is explicit (RNF-06): the runner calls judge.score()
-exactly len(cases) * config.judge_runs times. A judge may issue its own model
-calls per metric inside score() — the Ollama judge makes one model call per
-metric per run, i.e. len(cases) * judge_runs * len(metrics) model calls total.
+exactly len(cases) * config.judge_runs times, and the Ollama judge makes one
+model call per score() (all metrics scored in that single call) — so the
+billable model-call count is exactly len(cases) * config.judge_runs, with no
+hidden per-metric multiplier.
 """
 
 from collections import defaultdict
