@@ -12,18 +12,18 @@ RESPONSE = RagResponse(answer="a", contexts=["c"], total_tokens=5, latency_ms=1.
 
 
 class ScriptedTransport:
-    """Returns a fixed Ollama-shaped body, recording options.seed per call."""
+    """Returns one Ollama-shaped body scoring all metrics, recording seed per call."""
 
-    def __init__(self, score=0.8, body_override=None):
-        self.score, self.body_override = score, body_override
+    def __init__(self, scores=None, body_override=None):
+        self.scores = scores if scores is not None else {m: 0.8 for m in V1_METRICS}
+        self.body_override = body_override
         self.seeds = []
 
     def post_json(self, url, payload, *, headers, timeout_s):
         self.seeds.append(payload["options"]["seed"])
         if self.body_override is not None:
             return 200, self.body_override
-        content = json.dumps({"score": self.score})
-        return 200, {"message": {"content": content}}
+        return 200, {"message": {"content": json.dumps(self.scores)}}
 
 
 def _judge(transport, cache=None):
@@ -33,16 +33,23 @@ def _judge(transport, cache=None):
 
 
 def test_scores_all_metrics_in_unit_range():
-    judge = _judge(ScriptedTransport(score=0.8))
+    judge = _judge(ScriptedTransport())
     scores = judge.score(CASE, RESPONSE, seed=42, run=0).scores
     assert set(scores) == set(V1_METRICS)
     assert all(0.0 <= v <= 1.0 for v in scores.values())
 
 
+def test_single_call_scores_all_metrics():
+    # RNF-06 cost: one model call per score(), not one per metric.
+    transport = ScriptedTransport()
+    _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
+    assert len(transport.seeds) == 1
+
+
 def test_seed_is_offset_by_run():
     transport = ScriptedTransport()
     _judge(transport).score(CASE, RESPONSE, seed=100, run=3)
-    assert all(s == 103 for s in transport.seeds)
+    assert transport.seeds == [103]
 
 
 def test_cache_hit_skips_transport():
@@ -61,7 +68,10 @@ def test_unparseable_model_output_is_protocol_error():
         _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
 
 
-def test_one_transport_call_per_metric():
-    transport = ScriptedTransport()
-    _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
-    assert len(transport.seeds) == len(V1_METRICS)
+def test_missing_metric_key_is_protocol_error():
+    # A response that omits one of the v1 metrics is a protocol error, not a
+    # silently-dropped metric.
+    partial = {V1_METRICS[0]: 0.8}
+    transport = ScriptedTransport(body_override={"message": {"content": json.dumps(partial)}})
+    with pytest.raises(JudgeProtocolError):
+        _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
