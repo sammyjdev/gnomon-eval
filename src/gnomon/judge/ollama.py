@@ -1,12 +1,13 @@
 """Ollama-backed judge (RF-04, ADR-002).
 
-Scores faithfulness and context_precision by asking a local Ollama model for
-a JSON score per metric. options.seed = seed + run gives a deterministic
-sequence per declared seed for a fixed model/host (ADR-007 — reproducibility
-within measured variance, not bit-exact). Scores route through JudgeCache so
-a repeat of the same (case, response, model, seed, run) does not re-call the
-model. A model answer that is not the agreed JSON shape raises a named error
-instead of fabricating a score.
+Scores faithfulness and context_precision in ONE call to a local Ollama model,
+which returns a JSON object keyed by metric name (RNF-06 cost: one model call
+per score(), not one per metric). options.seed = seed + run gives a
+deterministic sequence per declared seed for a fixed model/host (ADR-007 —
+reproducibility within measured variance, not bit-exact). Scores route through
+JudgeCache so a repeat of the same (case, response, model, seed, run) does not
+re-call the model. A model answer that is not the agreed JSON shape — or that
+omits a v1 metric — raises a named error instead of fabricating a score.
 """
 
 import json
@@ -27,7 +28,7 @@ class JudgeRuntimeError(JudgeError):
 
 
 class JudgeProtocolError(JudgeError):
-    """Model answer was not the agreed {"score": float} JSON shape."""
+    """Model answer was not the agreed JSON object keyed by metric name."""
 
 
 class OllamaJudge:
@@ -54,22 +55,18 @@ class OllamaJudge:
             if cached is not None:
                 return cached
 
-        scores = {
-            metric: self._score_one(metric, case, response, seed=seed, run=run)
-            for metric in V1_METRICS
-        }
-        result = MetricScores(scores=scores)
+        result = self._score_all(case, response, seed=seed, run=run)
 
         if self._cache is not None:
             self._cache.put(case, response, self.model_name, seed=seed, run=run, scores=result)
         return result
 
-    def _score_one(
-        self, metric: str, case: EvalCase, response: RagResponse, *, seed: int, run: int
-    ) -> float:
+    def _score_all(
+        self, case: EvalCase, response: RagResponse, *, seed: int, run: int
+    ) -> MetricScores:
         payload = {
             "model": self.model_name,
-            "messages": [{"role": "user", "content": build_prompt(metric, case, response)}],
+            "messages": [{"role": "user", "content": build_prompt(case, response)}],
             "format": "json",
             "stream": False,
             "options": {"seed": seed + run, "temperature": self._temperature},
@@ -85,7 +82,8 @@ class OllamaJudge:
 
         try:
             content = body["message"]["content"]
-            value = float(json.loads(content)["score"])
+            parsed = json.loads(content)
+            scores = {metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in V1_METRICS}
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise JudgeProtocolError(f"judge output not parseable for {metric!r}: {exc}") from exc
-        return max(0.0, min(1.0, value))
+            raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
+        return MetricScores(scores=scores)
