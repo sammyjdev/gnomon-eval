@@ -59,3 +59,9 @@ def test_unparseable_model_output_is_protocol_error():
     transport = ScriptedTransport(body_override={"message": {"content": "I think 0.8"}})
     with pytest.raises(JudgeProtocolError):
         _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
+
+
+def test_one_transport_call_per_metric():
+    transport = ScriptedTransport()
+    _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
+    assert len(transport.seeds) == len(V1_METRICS)

@@ -23,6 +23,7 @@ class TargetConfig(BaseModel):
     model: str | None = None
     api_key_env: str | None = None
     timeout_s: float = Field(default=30.0, gt=0.0)
+    contexts_field: str = "contexts"
 
 
 class JudgeConfig(BaseModel):

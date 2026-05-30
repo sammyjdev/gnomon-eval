@@ -19,6 +19,8 @@ INFRA_PACKAGES = {
     "gnomon.reporting",
     "gnomon.config",
     "gnomon.gate",
+    "gnomon.http",
+    "gnomon.cli",
 }
 
 

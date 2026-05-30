@@ -38,6 +38,7 @@ def build_target(cfg: TargetConfig) -> RagTarget:
         model=cfg.model,
         api_key=api_key,
         timeout_s=cfg.timeout_s,
+        contexts_field=cfg.contexts_field,
     )
 
 
