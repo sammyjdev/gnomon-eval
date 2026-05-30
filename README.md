@@ -2,28 +2,59 @@
 
 > Avalia um pipeline RAG e reporta qualidade com o intervalo de confiança junto, mais custo e latência, rodando offline com Ollama.
 
-## Pré-requisitos
+## Executar a avaliação (offline, um comando)
 
-- Python 3.11+
-- Docker 24+
-- Ollama (sobe via docker-compose; nenhuma chave de API paga no caminho default)
-
-## Setup local
+Pré-requisito: Docker. O caminho default usa um Ollama local como juiz, sem
+chave paga (RF-10). O exemplo avalia um **MockTarget** (respostas de RAG
+canônicas) pontuado pelo juiz Ollama real — não exige um serviço de RAG
+externo. Para avaliar um RAG real, troque o bloco `[target]` em
+`config/example.toml` para `kind = "openai_compat"` (instruções no próprio
+arquivo).
 
 ```bash
-git clone [TODO: url do repositório]
-cd gnomon-eval
-docker compose up -d        # sobe Ollama e baixa o modelo na primeira execução
-[TODO: comando único de avaliação de exemplo, ex: make eval-example]
+# 1. Sobe o Ollama e baixa o modelo do juiz
+docker compose up -d ollama
+docker compose exec ollama ollama pull llama3
+
+# 2. Roda a avaliação de exemplo (config + dataset versionados)
+docker compose run --rm harness
 ```
 
+Saída: relatório com, por métrica, média e intervalo de confiança (N runs do
+juiz), além de tokens e latência. O processo sai com código 0 se o gate passa,
+1 se alguma métrica fica abaixo do limite em `config/docker.toml` (RF-09).
+
 A primeira execução baixa o modelo do Ollama, o que leva alguns minutos. As seguintes usam o modelo já em cache.
+
+### Rodar no host (Ollama local, sem Docker para o harness)
+
+```bash
+pip install -e ".[dev]"
+# com um Ollama escutando em localhost:11434 e o modelo llama3 baixado:
+gnomon --config config/example.toml
+```
+
+### Check determinístico (sem Ollama, sem Docker)
+
+```bash
+pip install -e ".[dev]"
+python -m pytest -q          # 74 testes: unidade, reprodutibilidade e smoke do gate
+```
+
+### Reprodutibilidade (RF-11 / RNF-01)
+
+Mesma seed + mesma config + mesma máquina produzem os mesmos números dentro da
+variância reportada. Verificado por teste:
+
+```bash
+python -m pytest tests/reproducibility -q
+```
 
 ## O que isto faz
 
 Lê um dataset de casos de avaliação, roda cada caso contra um RAG alvo, pontua as respostas com um juiz LLM e reporta faithfulness e context precision, cada uma com intervalo de confiança, junto de custo em tokens e latência em milissegundos. O mesmo eval roda como teste de regressão no CI e falha o build quando uma métrica cai abaixo de um limite configurável.
 
-O exemplo avalia o RPG Master AI através da API REST OpenAI-compat que ele expõe. Trocar para outro RAG que fale o mesmo protocolo é mudar configuração.
+O exemplo avalia um MockTarget (respostas canônicas) pontuado por um juiz Ollama local, sem dependência externa. Trocar para um RAG real que fale o protocolo OpenAI-compat é mudar o bloco `[target]` em `config/example.toml`.
 
 ## Arquitetura
 
@@ -37,23 +68,23 @@ Config -> Runner -> [Target adapter] -> RAG alvo
                  -> [Gate] ---------> passa/falha no CI
 ```
 
-## Variáveis de ambiente
+## Configuração
 
-| Variável | Obrigatório | Descrição | Exemplo |
-|---|---|---|---|
-| `TARGET_BASE_URL` | sim | Endpoint OpenAI-compat do RAG alvo | `http://localhost:8080/v1` |
-| `JUDGE_MODEL` | sim | Modelo de juiz (default offline via Ollama) | `[TODO: modelo default]` |
-| `JUDGE_SEED` | sim em modo reproduzível | Seed do juiz; ausência em modo reproduzível falha | `42` |
-| `JUDGE_RUNS` | sim | N de execuções do juiz por métrica para o intervalo de confiança | `[TODO: N default, ver ADR-002]` |
-| `DATASET_PATH` | sim | Caminho do dataset de avaliação versionado | `datasets/rpg_master_example` |
-| `GATE_THRESHOLDS` | não | Limites por métrica para o gate de regressão | `faithfulness=0.80,context_precision=0.75` |
+Toda a configuração vive em arquivos TOML versionados:
+
+- `config/example.toml` — para rodar no host com Ollama em `localhost:11434`
+- `config/docker.toml` — para rodar via `docker compose run --rm harness` (judge aponta para o serviço `ollama` da rede compose)
+
+Os parâmetros de avaliação (seed, número de runs do juiz, limites do gate) estão documentados dentro dos próprios arquivos de config.
 
 ## Como rodar os testes
 
 ```bash
-[TODO: comando de unit tests, ex: pytest tests/unit]
-[TODO: comando de integração, ex: pytest tests/integration]
-[TODO: comando de reprodutibilidade, ex: pytest tests/reproducibility]
+pip install -e ".[dev]"
+python -m pytest -q                    # suite completa: 74 testes
+python -m pytest tests/unit -q         # só unitários
+python -m pytest tests/reproducibility -q   # só reprodutibilidade
+python -m pytest tests/gate -q         # só smoke do gate
 ```
 
 Os testes de reprodutibilidade verificam que a mesma seed produz o mesmo resultado dentro da variância reportada. Essa é a verificação executável da invariante central do projeto.
@@ -75,9 +106,8 @@ Answer relevance, context recall, dashboard temporal, comparação multi-target 
 
 ## Contribuindo
 
-[TODO: padrão de commit, fluxo de PR, gate de lint e testes como barreira de merge]
+Commits seguem Conventional Commits. O gate de CI roda `pytest` e `ruff check` — PRs precisam passar ambos.
 
 ## Licença
 
 [TODO: definir]
-```

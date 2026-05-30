@@ -1,0 +1,28 @@
+# Runnable offline example: a MockTarget (canned RAG responses) scored by a
+# real local Ollama judge. No external RAG service required.
+#
+# To evaluate a REAL RAG instead, replace the [target] block with:
+#   [target]
+#   kind = "openai_compat"
+#   base_url = "http://localhost:8000/v1"
+#   model = "your-rag-model"
+
+dataset_path = "datasets/rpg_master_example/cases.json"
+
+[eval]
+reproducible = true
+seed = 42
+judge_runs = 8
+confidence_level = 0.95
+
+[target]
+kind = "mock"
+
+[judge]
+provider = "ollama"
+model = "llama3"
+base_url = "http://localhost:11434"
+
+[gate]
+faithfulness = 0.5
+context_precision = 0.5
