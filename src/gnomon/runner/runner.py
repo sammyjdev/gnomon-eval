@@ -25,7 +25,7 @@ def run_eval(
 ) -> EvalReport:
     """Run every case against the target, score with the judge, aggregate."""
     per_case_cost: list[CaseCost] = []
-    scores_by_metric: dict[str, list[float]] = defaultdict(list)
+    case_scores_by_metric: dict[str, list[float]] = defaultdict(list)
 
     for case in cases:
         response = target.query(case.question)
@@ -36,13 +36,21 @@ def run_eval(
                 latency_ms=response.latency_ms,
             )
         )
+        # Denoise within the case: the case's score for a metric is the mean of
+        # its N judge runs (ADR-008). Runs are repeated measures of one case,
+        # not independent samples, so they are collapsed here, not pooled.
+        runs_by_metric: dict[str, list[float]] = defaultdict(list)
         for run in range(config.judge_runs):
             run_scores = judge.score(case, response, seed=config.seed, run=run)
             for metric_name, value in run_scores.scores.items():
-                scores_by_metric[metric_name].append(value)
+                runs_by_metric[metric_name].append(value)
+        for metric_name, values in runs_by_metric.items():
+            case_scores_by_metric[metric_name].append(sum(values) / len(values))
 
     metrics = [
-        aggregate_metric(name, values, confidence_level=config.confidence_level)
-        for name, values in scores_by_metric.items()
+        aggregate_metric(
+            name, case_scores, confidence_level=config.confidence_level, seed=config.seed
+        )
+        for name, case_scores in case_scores_by_metric.items()
     ]
     return EvalReport(metrics=metrics, per_case_cost=per_case_cost)

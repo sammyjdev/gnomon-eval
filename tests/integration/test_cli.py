@@ -12,10 +12,16 @@ def _stub_run_config(tmp_path):
             [
                 {
                     "id": "c1",
-                    "question": "q",
-                    "expected_answer": "a",
-                    "expected_contexts": ["ctx"],
-                }
+                    "question": "q1",
+                    "expected_answer": "a1",
+                    "expected_contexts": ["ctx1"],
+                },
+                {
+                    "id": "c2",
+                    "question": "q2",
+                    "expected_answer": "a2",
+                    "expected_contexts": ["ctx2"],
+                },
             ]
         ),
         encoding="utf-8",
@@ -38,5 +44,5 @@ def test_factories_build_contract_types(tmp_path):
 def test_run_from_config_returns_report_and_gate(tmp_path):
     cfg = _stub_run_config(tmp_path)
     report, gate = run_from_config(cfg)
-    assert report.metric("faithfulness").n == 8
+    assert report.metric("faithfulness").n == 2  # n = number of cases (ADR-008)
     assert gate.passed is True
