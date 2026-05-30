@@ -10,7 +10,7 @@ um conjunto de requisitos da spec.
 Cada fatia passa por quatro estágios em ordem:
 
 1. **Avaliação** — qual a próxima fatia? Vale agora? Quais RF/RNF/VAL ela fecha?
-   - Skills: `superpowers:brainstorming` (escopo), `Plan` (estratégia).
+   - Skills: `superpowers:brainstorming` (escopo), `superpowers:writing-plans` (estratégia).
    - Saída: fatia nomeada + lista de requisitos que satisfaz.
 2. **Evolução** — onde encaixa na arquitetura sem violar a direção de
    dependência? Precisa aprofundar algum módulo antes?
@@ -48,8 +48,8 @@ nunca re-registra em massa o que não mudou.
 - `pb index /Users/samdev/dev/gnomon-eval --ctx personal` — reindexa código e
   docs alterados. Depois disso, use `search_code` antes de `read` cego.
 - `save_adr(project="gnomon-eval", ...)` para cada decisão **nova** do bloco.
-- Captura de memória de sessão do bloco (o PostStop hook do Claude Code já roda
-  `pb session-save`).
+- Captura de memória de sessão do bloco (o PostStop hook do Claude Code roda
+  `pb session-save`, se configurado).
 
 ## Fora do loop (por ora)
 
