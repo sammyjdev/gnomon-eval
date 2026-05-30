@@ -125,5 +125,4 @@ Commits seguem Conventional Commits. O gate de CI roda `pytest` e `ruff check` �
 
 ## Licença
 
-<!-- LICENÇA PENDENTE: definir antes de tornar o repositório público. -->
-A definir.
+MIT — veja [LICENSE](LICENSE).
