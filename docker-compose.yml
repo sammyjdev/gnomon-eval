@@ -1,0 +1,19 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+  harness:
+    build: .
+    depends_on:
+      - ollama
+    # Runs on demand: `docker compose run --rm harness`.
+    # Uses config/docker.toml, whose judge points at the ollama service.
+    command: ["--config", "config/docker.toml"]
+    profiles: ["run"]
+
+volumes:
+  ollama:
