@@ -1,4 +1,4 @@
-# RAG Eval Harness — Requisitos
+# GNOMON — Requisitos
 
 Documento de requisitos da v1. Cada requisito tem um identificador para rastreio em spec, teste e ADR. Os requisitos funcionais descrevem o que o sistema faz. Os não funcionais descrevem as restrições de qualidade que governam como ele faz. As validações descrevem o que o sistema rejeita e como.
 

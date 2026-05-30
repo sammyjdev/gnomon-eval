@@ -1,4 +1,4 @@
-# RAG Eval Harness — Arquitetura
+# GNOMON — Arquitetura
 
 Documento de arquitetura da v1. Descreve os componentes, a direção de dependência entre eles, o fluxo de dados de uma execução e a estrutura de pastas do repositório.
 
@@ -80,7 +80,7 @@ Todas as setas apontam para o Domain. O Domain não aponta para ninguém. O Runn
 ## Estrutura de pastas
 
 ```
-rag-eval-harness/
+gnomon-eval/
 ├── README.md
 ├── pyproject.toml
 ├── ruff.toml
@@ -99,7 +99,7 @@ rag-eval-harness/
 │       ├── 0003-offline-first-ollama.md
 │       └── 0004-cost-latency-first-class.md
 ├── src/
-│   └── rag_eval/
+│   └── gnomon/
 │       ├── domain/             # modelos e interfaces, sem dependência de infra
 │       ├── targets/            # adapters; openai_compat é o primeiro
 │       ├── judge/              # juiz, seed control, cache

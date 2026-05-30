@@ -1,4 +1,4 @@
-# RAG Eval Harness
+# GNOMON
 
 > Mede a qualidade de um pipeline RAG e reporta o número honesto, com a variância junto, sem esconder o quanto o próprio juiz oscila.
 
