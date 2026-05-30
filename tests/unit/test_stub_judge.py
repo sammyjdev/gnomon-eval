@@ -12,6 +12,7 @@ hashlib, never the salted built-in hash().
 from gnomon.domain.interfaces import Judge
 from gnomon.domain.models import EvalCase, RagResponse
 from gnomon.judge.stub import StubJudge
+from gnomon.metrics.names import V1_METRICS
 
 CASE = EvalCase(
     id="case-1",
@@ -56,6 +57,15 @@ def test_different_seed_changes_the_sequence():
     assert s42 != s7
 
 
-def test_score_only_reports_faithfulness_in_the_slice():
-    scores = StubJudge().score(CASE, RESPONSE, seed=42, run=0).scores
-    assert set(scores) == {"faithfulness"}
+def test_stub_scores_all_v1_metrics():
+    judge = StubJudge()
+    scores = judge.score(CASE, RESPONSE, seed=42, run=0).scores
+    assert set(scores) == set(V1_METRICS)
+    assert all(0.0 <= v <= 1.0 for v in scores.values())
+
+
+def test_stub_two_metrics_are_independent():
+    # As duas metricas nao colapsam para o mesmo numero por run.
+    judge = StubJudge()
+    s = judge.score(CASE, RESPONSE, seed=42, run=1).scores
+    assert s["faithfulness"] != s["context_precision"]
