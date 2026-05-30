@@ -1,0 +1,22 @@
+# Same as example.toml but the judge points at the `ollama` compose service
+# (used by `docker compose run --rm harness`).
+
+dataset_path = "datasets/rpg_master_example/cases.json"
+
+[eval]
+reproducible = true
+seed = 42
+judge_runs = 8
+confidence_level = 0.95
+
+[target]
+kind = "mock"
+
+[judge]
+provider = "ollama"
+model = "llama3"
+base_url = "http://ollama:11434"
+
+[gate]
+faithfulness = 0.5
+context_precision = 0.5
