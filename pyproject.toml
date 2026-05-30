@@ -7,6 +7,7 @@ name = "gnomon-eval"
 version = "0.1.0"
 description = "Honest RAG evaluation harness: judge metrics with confidence intervals, cost and latency first-class, offline-first."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.6",
