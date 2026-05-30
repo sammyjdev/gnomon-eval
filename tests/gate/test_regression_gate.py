@@ -18,10 +18,16 @@ def test_gate_passes_on_the_deterministic_path(tmp_path):
             [
                 {
                     "id": "c1",
-                    "question": "q",
-                    "expected_answer": "a",
-                    "expected_contexts": ["ctx"],
-                }
+                    "question": "q1",
+                    "expected_answer": "a1",
+                    "expected_contexts": ["ctx1"],
+                },
+                {
+                    "id": "c2",
+                    "question": "q2",
+                    "expected_answer": "a2",
+                    "expected_contexts": ["ctx2"],
+                },
             ]
         ),
         encoding="utf-8",
