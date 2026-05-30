@@ -2,17 +2,25 @@
   {
     "id": "rpg-001",
     "question": "Who narrates the world to the players?",
-    "expected_answer": "The game master narrates the world.",
+    "expected_answer": "The game master narrates the world to the players.",
     "expected_contexts": [
-      "The game master narrates the world and adjudicates the rules."
+      "The game master narrates the world to the players."
     ]
   },
   {
     "id": "rpg-002",
-    "question": "What does a player roll to resolve an uncertain action?",
-    "expected_answer": "The player rolls dice against a difficulty set by the game master.",
+    "question": "Whose role is it to describe what the characters see and hear?",
+    "expected_answer": "The game master narrates the world to the players.",
     "expected_contexts": [
-      "Uncertain actions are resolved by a dice roll against a difficulty class."
+      "The game master narrates the world to the players."
+    ]
+  },
+  {
+    "id": "rpg-003",
+    "question": "At the table, who sets the scene and tells the players what is happening?",
+    "expected_answer": "The game master narrates the world to the players.",
+    "expected_contexts": [
+      "The game master narrates the world to the players."
     ]
   }
 ]
