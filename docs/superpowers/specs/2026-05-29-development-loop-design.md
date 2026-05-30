@@ -45,7 +45,7 @@ skill âncora e uma saída concreta que destrava o próximo.
 
 | Estágio | Pergunta que responde | Skill âncora | Saída |
 |---|---|---|---|
-| **1. Avaliação** | Qual a próxima fatia? Vale construir agora? Quais RF/RNF/VAL ela fecha? | `superpowers:brainstorming` (escopo) + `Plan` (estratégia) | Fatia nomeada + lista dos requisitos que ela satisfaz |
+| **1. Avaliação** | Qual a próxima fatia? Vale construir agora? Quais RF/RNF/VAL ela fecha? | `superpowers:brainstorming` (escopo) + `superpowers:writing-plans` (estratégia) | Fatia nomeada + lista dos requisitos que ela satisfaz |
 | **2. Evolução** | Onde encaixa na arquitetura sem violar a direção de dependência? Precisa aprofundar algum módulo antes? | `improve-codebase-architecture` | Ponto de encaixe + refactor pré-requisito (se houver) |
 | **3. Validação** | A fatia está correta e honesta? | `superpowers:test-driven-development` + `superpowers:verification-before-completion` | Suíte verde com RED→GREEN observado + gates do projeto passando |
 | **4. Documentação** | O que ficou decidido que não é óbvio no código? | `grill-with-docs` + AXON (`save_adr`, `pb index`) | ADR atualizado/novo + README honesto + decisão e código no vault |
