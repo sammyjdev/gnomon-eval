@@ -1,31 +1,31 @@
-# Loop de Desenvolvimento + Onboarding AXON — Plano de Implementação
+# Development Loop + AXON Onboarding — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Entregar o playbook do loop de desenvolvimento (`docs/DEVELOPMENT_LOOP.md`), alinhar a identidade do projeto para GNOMON nos docs, e fazer o onboarding do projeto no AXON (índice + ADRs novos + memória de sessão).
+**Goal:** Deliver the development loop playbook (`docs/DEVELOPMENT_LOOP.md`), align the project identity to GNOMON in the docs, and onboard the project into AXON (index + new ADRs + session memory).
 
-**Architecture:** Trabalho de processo e documentação, não código de produto. Nenhuma mudança em `src/gnomon/`. Três blocos independentes: (1) reconciliação de nome, (2) playbook, (3) onboarding AXON. A ordem importa: o nome é alinhado antes de indexar para o vault não capturar `rag_eval`.
+**Architecture:** Process and documentation work, not product code. No changes to `src/gnomon/`. Three independent milestones: (1) name reconciliation, (2) playbook, (3) AXON onboarding. Order matters: the name is aligned before indexing so the vault does not capture `rag_eval`.
 
-**Tech Stack:** Markdown, git, AXON (`pb` CLI + ferramentas MCP `mcp__axon__*`).
+**Tech Stack:** Markdown, git, AXON (`pb` CLI + MCP tools `mcp__axon__*`).
 
-**Nota sobre TDD:** Estas tarefas produzem docs e efeitos de operação (índice, ADRs no vault), não código executável. A Lei de Ferro do TDD não se aplica; cada tarefa usa **verificação explícita** (grep, saída de comando, `get_adrs`/`search_code`) no lugar do ciclo red-green.
-
----
-
-## Mapa de arquivos
-
-- Modify: `docs/ARCHITECTURE.md` — linhas 1, 83, 102 (título + árvore de pastas)
-- Modify: `docs/REQUIREMENTS.md` — linha 1 (título)
-- Modify: `docs/PRODUCT_OVERVIEW.md` — linha 1 (título)
-- Modify: `README.md` — linhas 1, 15 (título + path do clone)
-- Create: `docs/DEVELOPMENT_LOOP.md` — o playbook operacional do loop
-- Efeitos AXON (sem arquivo no repo): índice no Qdrant, ADRs no store, memória de sessão
+**Note on TDD:** These tasks produce docs and operational side effects (index, ADRs in the vault), not executable code. The Iron Law of TDD does not apply; each task uses **explicit verification** (grep, command output, `get_adrs`/`search_code`) in place of the red-green cycle.
 
 ---
 
-## Task 1: Reconciliar identidade para GNOMON nos docs
+## File map
 
-Resolve a decisão 6 do design. Mudanças cirúrgicas: só identificadores (path de pacote, path de repo, path de clone) e títulos H1. A prosa que descreve a categoria ("harness de avaliação RAG") fica intacta.
+- Modify: `docs/ARCHITECTURE.md` — lines 1, 83, 102 (title + folder tree)
+- Modify: `docs/REQUIREMENTS.md` — line 1 (title)
+- Modify: `docs/PRODUCT_OVERVIEW.md` — line 1 (title)
+- Modify: `README.md` — lines 1, 15 (title + clone path)
+- Create: `docs/DEVELOPMENT_LOOP.md` — the operational loop playbook
+- AXON effects (no file in the repo): index in Qdrant, ADRs in the store, session memory
+
+---
+
+## Task 1: Reconcile identity to GNOMON in the docs
+
+Resolves design decision 6. Surgical changes: only identifiers (package path, repo path, clone path) and H1 titles. Prose describing the category ("RAG evaluation harness") stays intact.
 
 **Files:**
 - Modify: `docs/ARCHITECTURE.md:1,83,102`
@@ -33,62 +33,62 @@ Resolve a decisão 6 do design. Mudanças cirúrgicas: só identificadores (path
 - Modify: `docs/PRODUCT_OVERVIEW.md:1`
 - Modify: `README.md:1,15`
 
-- [ ] **Step 1: Corrigir a árvore de pastas e identificadores em ARCHITECTURE.md**
+- [ ] **Step 1: Fix the folder tree and identifiers in ARCHITECTURE.md**
 
-Em `docs/ARCHITECTURE.md`, trocar a raiz da árvore (linha ~83) de:
+In `docs/ARCHITECTURE.md`, replace the tree root (line ~83) from:
 
 ```
 rag-eval-harness/
 ```
 
-para:
+to:
 
 ```
 gnomon-eval/
 ```
 
-E o pacote src (linha ~102) de:
+And the src package (line ~102) from:
 
 ```
-│   └── rag_eval/             # modelos e interfaces, sem dependência de infra
+│   └── rag_eval/             # models and interfaces, no infrastructure dependency
 ```
 
-para:
+to:
 
 ```
-│   └── gnomon/               # modelos e interfaces, sem dependência de infra
+│   └── gnomon/               # models and interfaces, no infrastructure dependency
 ```
 
-- [ ] **Step 2: Alinhar os títulos H1 para GNOMON**
+- [ ] **Step 2: Align the H1 titles to GNOMON**
 
-Trocar a linha 1 de cada arquivo:
+Replace line 1 of each file:
 
 - `docs/ARCHITECTURE.md`: `# RAG Eval Harness — Arquitetura` → `# GNOMON — Arquitetura`
 - `docs/REQUIREMENTS.md`: `# RAG Eval Harness — Requisitos` → `# GNOMON — Requisitos`
 - `docs/PRODUCT_OVERVIEW.md`: `# RAG Eval Harness` → `# GNOMON`
 - `README.md`: `# RAG Eval Harness` → `# GNOMON`
 
-- [ ] **Step 3: Corrigir o path do clone no README**
+- [ ] **Step 3: Fix the clone path in the README**
 
-Em `README.md` (linha ~15), trocar:
+In `README.md` (line ~15), replace:
 
 ```bash
 cd rag-eval-harness
 ```
 
-para:
+with:
 
 ```bash
 cd gnomon-eval
 ```
 
-- [ ] **Step 4: Verificar zero ocorrências de identificador antigo (fora do spec)**
+- [ ] **Step 4: Verify zero occurrences of the old identifier (outside the spec)**
 
 Run:
 ```bash
 grep -rn -e 'rag_eval' -e 'rag-eval-harness' docs README.md | grep -v 'superpowers/specs'
 ```
-Expected: nenhuma saída (exit 1). As únicas ocorrências restantes vivem no design doc em `docs/superpowers/specs/`, que discute a própria divergência e deve mantê-las.
+Expected: no output (exit 1). The only remaining occurrences live in the design doc at `docs/superpowers/specs/`, which discusses the divergence itself and must keep them.
 
 - [ ] **Step 5: Commit**
 
@@ -101,82 +101,82 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2: Escrever o playbook docs/DEVELOPMENT_LOOP.md
+## Task 2: Write the docs/DEVELOPMENT_LOOP.md playbook
 
-O artefato operacional A: o "como trabalhamos neste repo", derivado do design. Mais enxuto que o design (que registra o porquê).
+Operational artifact A: the "how we work in this repo", derived from the design. Leaner than the design doc (which records the why).
 
 **Files:**
 - Create: `docs/DEVELOPMENT_LOOP.md`
 
-- [ ] **Step 1: Criar o playbook com o conteúdo completo**
+- [ ] **Step 1: Create the playbook with the full content**
 
-Criar `docs/DEVELOPMENT_LOOP.md` com exatamente:
+Create `docs/DEVELOPMENT_LOOP.md` with exactly:
 
 ```markdown
-# Loop de desenvolvimento do GNOMON
+# GNOMON Development Loop
 
-Como o gnomon-eval evolui, fatia por fatia. Playbook leve: disciplina por
-convenção, não por trilho automático. A unidade de trabalho é a **fatia
-vertical** (tracer bullet) — um incremento ponta-a-ponta que toca várias
-camadas e fecha um conjunto de requisitos da spec.
+How gnomon-eval evolves, vertical slice by vertical slice. A lightweight playbook: discipline by
+convention, not by automated rails. The unit of work is the **vertical slice**
+(tracer bullet) — an end-to-end increment that touches multiple layers and closes
+a set of requirements from the spec.
 
-## O loop
+## The loop
 
-Cada fatia passa por quatro estágios em ordem:
+Each slice moves through four stages in order:
 
-1. **Avaliação** — qual a próxima fatia? Vale agora? Quais RF/RNF/VAL ela fecha?
-   - Skills: `superpowers:brainstorming` (escopo), `Plan` (estratégia).
-   - Saída: fatia nomeada + lista de requisitos que satisfaz.
-2. **Evolução** — onde encaixa na arquitetura sem violar a direção de
-   dependência? Precisa aprofundar algum módulo antes?
+1. **Assessment** — what is the next slice? Is it worth it now? Which RF/RNF/VAL does it close?
+   - Skills: `superpowers:brainstorming` (scope), `superpowers:writing-plans` (strategy).
+   - Output: named slice + list of requirements it satisfies.
+2. **Evolution** — where does it fit in the architecture without violating the
+   dependency direction? Does any module need to be deepened first?
    - Skill: `improve-codebase-architecture`.
-   - Saída: ponto de encaixe + refactor pré-requisito (se houver).
-3. **Validação** — a fatia está correta e honesta?
+   - Output: insertion point + prerequisite refactor (if any).
+3. **Validation** — is the slice correct and honest?
    - Skills: `superpowers:test-driven-development`,
      `superpowers:verification-before-completion`.
-   - Saída: suíte verde com RED→GREEN observado + gates do projeto passando.
-4. **Documentação** — o que ficou decidido que não é óbvio no código?
-   - Skill: `grill-with-docs`; AXON ao fechar blocos conclusivos.
-   - Saída: ADR atualizado/novo + README honesto.
+   - Output: green suite with RED→GREEN observed + project gates passing.
+4. **Documentation** — what was decided that is not obvious in the code?
+   - Skill: `grill-with-docs`; AXON when closing milestones.
+   - Output: updated/new ADR + honest README.
 
-Fechou a Definição de Pronto, volta ao estágio 1 para a fatia seguinte.
+When the Definition of Done is met, return to stage 1 for the next slice.
 
-## Definição de Pronto (por fatia)
+## Definition of Done (per slice)
 
-1. RED→GREEN observado para cada peça nova de produção (TDD — Lei de Ferro).
-2. `ruff check` e `ruff format --check` limpos.
-3. `pytest` verde, incluindo a suíte de reprodutibilidade.
-4. As regras inegociáveis tocadas pela fatia verificadas por teste.
-5. Decisão não-óbvia → ADR em `docs/adr/`; afirmação nova no README → tem
-   comando que a reproduz (RNF-05).
+1. RED→GREEN observed for each new production piece (TDD — Iron Law).
+2. `ruff check` and `ruff format --check` clean.
+3. `pytest` green, including the reproducibility suite.
+4. Non-negotiable invariants touched by the slice verified by test.
+5. Non-obvious decision → ADR in `docs/adr/`; new claim in the README → has a
+   command that reproduces it (RNF-05).
 
-As regras inegociáveis estão no kickoff e nos ADRs: direção de dependência,
-honestidade estatística, reprodutibilidade, custo/latência de primeira classe,
-offline-first, fail-closed, honestidade documental.
+The non-negotiable invariants are in the kickoff and in the ADRs: dependency direction,
+statistical honesty, reproducibility, cost/latency as first-class, offline-first, fail-closed,
+documentary honesty.
 
-## Sincronização com o AXON (por bloco conclusivo)
+## Synchronization with AXON (per milestone)
 
-O AXON não roda a cada fatia — roda ao fechar um **bloco conclusivo** (um marco
-ou fase coesa). Sempre incremental: adiciona documentos novos e alterações,
-nunca re-registra em massa o que não mudou.
+AXON does not run on every slice — it runs when closing a **milestone** (a
+cohesive phase or marker). Always incremental: adds new documents and changes,
+never re-registers in bulk what has not changed.
 
-- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` — reindexa código e
-  docs alterados. Depois disso, use `search_code` antes de `read` cego.
-- `save_adr(project="gnomon-eval", ...)` para cada decisão **nova** do bloco.
-- Captura de memória de sessão do bloco (o PostStop hook do Claude Code já roda
-  `pb session-save`).
+- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` — reindexes changed code and
+  docs. After that, use `search_code` before a blind `read`.
+- `save_adr(project="gnomon-eval", ...)` for each **new** decision in the milestone.
+- Session memory capture for the milestone (the Claude Code PostStop hook runs
+  `pb session-save`, if configured).
 
-## Fora do loop (por ora)
+## Outside the loop (for now)
 
-Automação dos estágios (slash-commands, hooks), tracker de issues. Evolução
-futura, só se a convenção leve não bastar.
+Stage automation (slash-commands, hooks), issue tracker. Future evolution, only
+if the lightweight convention proves insufficient.
 ```
 
-- [ ] **Step 2: Verificar que o playbook bate com o design**
+- [ ] **Step 2: Verify the playbook matches the design**
 
 Run:
 ```bash
-test -f docs/DEVELOPMENT_LOOP.md && grep -q 'bloco conclusivo' docs/DEVELOPMENT_LOOP.md && grep -q 'fatia vertical' docs/DEVELOPMENT_LOOP.md && echo OK
+test -f docs/DEVELOPMENT_LOOP.md && grep -q 'milestone' docs/DEVELOPMENT_LOOP.md && grep -q 'vertical slice' docs/DEVELOPMENT_LOOP.md && echo OK
 ```
 Expected: `OK`
 
@@ -191,113 +191,113 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 3: Onboarding AXON (bloco conclusivo 0)
+## Task 3: AXON Onboarding (milestone 0)
 
-Indexa o projeto no vault (ctx personal), registra as decisões novas como ADRs no AXON, e captura a memória da Fase 1. As mudanças de nome (Task 1) e o playbook (Task 2) já estão commitados antes deste passo, então o índice captura a identidade GNOMON correta.
+Indexes the project in the vault (ctx personal), registers new decisions as ADRs in AXON, and captures Phase 1 memory. The name changes (Task 1) and the playbook (Task 2) are already committed before this step, so the index captures the correct GNOMON identity.
 
 **Files:**
-- Efeitos AXON (sem arquivo versionado no repo)
+- AXON effects (no versioned file in the repo)
 
-- [ ] **Step 1: Atualizar o manifesto de projetos e indexar**
+- [ ] **Step 1: Update the project manifest and index**
 
 Run:
 ```bash
 pb scan ~/dev --depth 2
 pb index /Users/samdev/dev/gnomon-eval --ctx personal
 ```
-Expected: `scan` lista `gnomon-eval` entre os repos descobertos; `index` reporta arquivos indexados sem erro.
+Expected: `scan` lists `gnomon-eval` among the discovered repos; `index` reports indexed files without error.
 
-- [ ] **Step 2: Verificar que o código entrou no vault**
+- [ ] **Step 2: Verify the code entered the vault**
 
-Usar a ferramenta MCP `mcp__axon__search_code`:
+Use MCP tool `mcp__axon__search_code`:
 ```
 search_code(query="aggregate_metric confidence interval t-interval", ctx="personal")
 ```
-Expected: retorna nós de `src/gnomon/metrics/confidence.py` (a função `aggregate_metric`). Se voltar vazio, a indexação falhou — investigar antes de seguir.
+Expected: returns nodes from `src/gnomon/metrics/confidence.py` (the `aggregate_metric` function). If it returns empty, indexing failed — investigate before proceeding.
 
-- [ ] **Step 3: Registrar a decisão dos pontos abertos do ADR-002 (N de runs)**
+- [ ] **Step 3: Register the open point from ADR-002 (judge N runs)**
 
-Usar `mcp__axon__save_adr`:
+Use `mcp__axon__save_adr`:
 ```
 save_adr(
   project="gnomon-eval",
-  title="ADR-002 ponto aberto: N de runs do juiz por métrica",
-  context="As métricas usam um juiz LLM não-determinístico. O IC depende de N runs; mais N aperta o IC mas multiplica custo/tempo, crítico no Ollama offline.",
-  decision="Piso de computabilidade é N=2. N=2 é inútil para gate (t crítico 12.7 → IC largo demais). Recomendação provisória: começar com N=8 e re-medir com o juiz Ollama real; N final = menor N cujo meia-largura de IC < metade do menor espaçamento de threshold.",
-  rationale="Medição na fatia da Fase 1 (StubJudge, σ≈0.046): meia-largura cai de 0.21 (N=2) para ~0.036 (N=8) e ~0.029 (N=10); cotovelo em N≈8-10. O número real exige medir a variância do Ollama, ainda não feito."
+  title="ADR-002 open point: judge N runs per metric",
+  context="The metrics use a nondeterministic LLM judge. The CI depends on N runs; more N tightens the CI but multiplies cost/time, critical on offline Ollama.",
+  decision="The computability floor is N=2. N=2 is useless for a gate (t critical 12.7 → CI too wide). Provisional recommendation: start with N=8 and re-measure with the real Ollama judge; final N = smallest N whose CI half-width < half the smallest threshold spacing.",
+  rationale="Measurement on the Phase 1 slice (StubJudge, σ≈0.046): half-width drops from 0.21 (N=2) to ~0.036 (N=8) and ~0.029 (N=10); elbow at N≈8-10. The real number requires measuring Ollama's variance, not yet done."
 )
 ```
-Expected: retorna um id de ADR.
+Expected: returns an ADR id.
 
-- [ ] **Step 4: Registrar a decisão de granularidade de cache (ADR-002)**
-
-```
-save_adr(
-  project="gnomon-eval",
-  title="ADR-002 ponto aberto: granularidade do cache do juiz",
-  context="O juiz usa cache para reprodutibilidade. A granularidade da chave decide o trade-off contaminação vs economia.",
-  decision="Chave fina (caso, resposta, modelo de juiz, seed) é o default. Só afrouxar para chave mais grossa com evidência de que o custo justifica.",
-  rationale="A chave fina é a mais segura contra contaminação cruzada de pontuações. Cache ainda não implementado na Fase 1; decisão a confirmar com custo real do Ollama na Fase 2."
-)
-```
-Expected: retorna um id de ADR.
-
-- [ ] **Step 5: Registrar a decisão de clamp do IC**
+- [ ] **Step 4: Register the cache granularity decision (ADR-002)**
 
 ```
 save_adr(
   project="gnomon-eval",
-  title="Clamp do intervalo de confiança ao range da métrica",
-  context="Métricas como faithfulness são limitadas a [0,1]. Com N pequeno o t crítico é grande e o IC bruto pode ultrapassar 1.0 (ex: ci_high=1.49 para N=2).",
-  decision="A média é reportada crua; os limites do IC são clampados a [0,1]. Um 'limite superior' de 1.49 para métrica limitada é artefato do t crítico, não afirmação significativa.",
-  rationale="Mantém honestidade estatística (a incerteza aparece via ci_low) sem reportar número sem sentido para o leitor. Decisão tomada na Fase 1, não coberta pelos docs originais."
+  title="ADR-002 open point: judge cache granularity",
+  context="The judge uses a cache for reproducibility. The key granularity decides the trade-off contamination vs savings.",
+  decision="A fine key (case, response, judge model, seed) is the default. Only loosen to a coarser key with evidence that the cost justifies it.",
+  rationale="The fine key is the safest against cross-contamination of scores. Cache not yet implemented in Phase 1; decision to confirm with the real Ollama cost in Phase 2."
 )
 ```
-Expected: retorna um id de ADR.
+Expected: returns an ADR id.
 
-- [ ] **Step 6: Verificar que os ADRs entraram no store**
+- [ ] **Step 5: Register the confidence interval clamp decision**
 
-Usar `mcp__axon__get_adrs`:
+```
+save_adr(
+  project="gnomon-eval",
+  title="Clamp of the confidence interval to the metric range",
+  context="Metrics like faithfulness are bounded to [0,1]. With small N the t critical is large and the raw CI can exceed 1.0 (e.g. ci_high=1.49 for N=2).",
+  decision="The mean is reported raw; the CI bounds are clamped to [0,1]. An 'upper bound' of 1.49 for a bounded metric is an artifact of the t critical, not a meaningful claim.",
+  rationale="Keeps statistical honesty (uncertainty shows via ci_low) without reporting a meaningless number to the reader. Decision made in Phase 1, not covered by the original docs."
+)
+```
+Expected: returns an ADR id.
+
+- [ ] **Step 6: Verify the ADRs entered the store**
+
+Use `mcp__axon__get_adrs`:
 ```
 get_adrs(project="gnomon-eval")
 ```
-Expected: lista os 3 ADRs registrados (N de runs, granularidade de cache, clamp do IC).
+Expected: lists the 3 registered ADRs (judge N runs, cache granularity, confidence interval clamp).
 
-- [ ] **Step 7: Capturar a memória da Fase 1**
+- [ ] **Step 7: Capture Phase 1 memory**
 
-Usar `mcp__axon__axon_capture`:
+Use `mcp__axon__axon_capture`:
 ```
 axon_capture(
-  summary="Fase 1 do gnomon-eval entregue: fatia vertical ponta-a-ponta (domain tipado, MockTarget, StubJudge seeded, agregação com IC t-interval, runner, reporting, config fail-closed). 44 testes verdes, ruff limpo. Regras inegociáveis 1,2,3,4,6 cobertas por teste. Decisões: clamp do IC, recomendação N=8, nome GNOMON.",
+  summary="gnomon-eval Phase 1 delivered: end-to-end vertical slice (typed domain, MockTarget, seeded StubJudge, aggregation with t-interval CI, runner, reporting, fail-closed config). 44 tests green, ruff clean. Non-negotiable invariants 1,2,3,4,6 covered by test. Decisions: CI clamp, N=8 recommendation, GNOMON name.",
   repo="gnomon-eval",
   files=["src/gnomon/metrics/confidence.py","src/gnomon/judge/stub.py","src/gnomon/runner/runner.py","src/gnomon/domain/models.py"],
   symbols=["aggregate_metric","StubJudge","run_eval","MetricResult"]
 )
 ```
-Expected: retorna um id de decisão capturada.
+Expected: returns a captured decision id.
 
-- [ ] **Step 8: Confirmar a pegada no AXON**
+- [ ] **Step 8: Confirm the AXON footprint**
 
-Usar `mcp__axon__get_session_memory`:
+Use `mcp__axon__get_session_memory`:
 ```
 get_session_memory(project="gnomon-eval")
 ```
-Expected: já não retorna "Nenhuma memória de sessão"; mostra o resumo da Fase 1.
+Expected: no longer returns "Nenhuma memória de sessão"; shows the Phase 1 summary.
 
 ---
 
-## Self-Review (preenchido)
+## Self-Review (filled in)
 
-**Cobertura do spec:**
-- Decisão 1 (processo) → Task 2 (playbook é processo, sem código de produto). ✓
-- Decisão 2 (fatia vertical) → documentada no playbook (Task 2 Step 1). ✓
-- Decisão 3 (playbook leve) → seção "Fora do loop" do playbook. ✓
-- Decisão 4 (ctx personal) → Task 3 Step 1 (`--ctx personal`). ✓
-- Decisão 5 (AXON por bloco conclusivo, incremental) → playbook seção AXON + Task 3 só registra decisões novas. ✓
-- Decisão 6 (nome GNOMON) → Task 1. ✓
-- Definição de Pronto → playbook (Task 2 Step 1). ✓
-- Onboarding AXON (index + save_adr novos + sessão) → Task 3. ✓
+**Spec coverage:**
+- Decision 1 (process) → Task 2 (playbook is process, no product code). ✓
+- Decision 2 (vertical slice) → documented in the playbook (Task 2 Step 1). ✓
+- Decision 3 (lightweight playbook) → "Out of the loop" section of the playbook. ✓
+- Decision 4 (ctx personal) → Task 3 Step 1 (`--ctx personal`). ✓
+- Decision 5 (AXON per milestone, incremental) → playbook AXON section + Task 3 only registers new decisions. ✓
+- Decision 6 (GNOMON name) → Task 1. ✓
+- Definition of Done → playbook (Task 2 Step 1). ✓
+- AXON onboarding (index + new save_adr + session) → Task 3. ✓
 
-**Placeholders:** nenhum TODO/TBD; todo conteúdo de doc e toda chamada de ferramenta estão completos.
+**Placeholders:** no TODO/TBD; all doc content and all tool calls are complete.
 
-**Consistência:** `project="gnomon-eval"` em todas as chamadas AXON; `--ctx personal` consistente; nomes de símbolos (`aggregate_metric`, `StubJudge`, `run_eval`, `MetricResult`) batem com o código da Fase 1.
+**Consistency:** `project="gnomon-eval"` in all AXON calls; `--ctx personal` consistent; symbol names (`aggregate_metric`, `StubJudge`, `run_eval`, `MetricResult`) match Phase 1 code.

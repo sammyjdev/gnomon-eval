@@ -1,61 +1,61 @@
-# GNOMON v1 — Completar a Implementação — Plano
+# GNOMON v1 — Complete the Implementation — Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Sair da fatia vertical da Fase 1 (stubs: `MockTarget` + `StubJudge`) para a v1 completa: target RAG real via adapter, juiz Ollama com cache, segunda métrica, loader de dataset, gate de regressão, CLI de um comando, infra Docker offline e CI — fechando todos os RF/RNF/VAL de `docs/REQUIREMENTS.md`.
+**Goal:** Move from the Phase 1 vertical slice (stubs: `MockTarget` + `StubJudge`) to the complete v1: real RAG target via adapter, Ollama judge with cache, second metric, dataset loader, regression gate, single-command CLI, offline Docker infra, and CI — closing all RF/RNF/VAL items from `docs/REQUIREMENTS.md`.
 
-**Architecture:** Tudo novo entra como implementação concreta que depende do Domain, nunca o contrário (RNF-02). HTTP fica atrás de uma seam (`HttpTransport` Protocol) para testar adapter e juiz sem rede. Config externa de produção entra como `RunConfig` composta (não toca o `EvalConfig` da Fase 1, mantendo os 44 testes verdes). O loop existente (`run_eval`) não muda: ele já depende só dos contratos `RagTarget`/`Judge`, então target real e juiz real são troca de fiação.
+**Architecture:** Everything new enters as concrete implementation that depends on the Domain, never the reverse (RNF-02). HTTP sits behind a seam (`HttpTransport` Protocol) so the adapter and judge can be tested without a network. The production external config enters as a composed `RunConfig` (does not touch the Phase 1 `EvalConfig`, keeping the 44 existing tests green). The existing loop (`run_eval`) does not change: it already depends only on the `RagTarget`/`Judge` contracts, so the real target and real judge are a wiring swap.
 
-**Tech Stack:** Python 3.11+, pydantic 2, **stdlib apenas** para infra (`urllib.request`, `tomllib`, `json`) — preserva a filosofia de dependências mínimas (só `pydantic`). pytest. Docker Compose + Ollama para o caminho offline.
-
----
-
-## Decisões a confirmar (viram ADR neste plano)
-
-Três pontos não óbvios apareceram na análise. O plano adota um default justificado e registra cada um como ADR (Task 13). Se o usuário discordar de algum default, ajustar antes de executar a task correspondente.
-
-1. **Origem dos `contexts` numa resposta OpenAI-compat (ADR-005).** O protocolo OpenAI chat/completions não tem campo padrão para contextos recuperados. Default adotado: o RAG alvo devolve os contextos num campo de extensão JSON de nome configurável (`contexts_field`, default `"contexts"`) no corpo top-level da resposta. Ausência desse campo → `IncompleteResponseError` (VAL-03), não zero silencioso.
-2. **Gate compara contra `ci_low`, não `mean` (ADR-006).** Honestidade estatística (RNF-03): o gate só passa se o limite inferior do IC clarear o threshold. Gatear pela média deixaria passar um resultado cuja incerteza ainda cruza o limite. Trade-off: gate mais rígido com N pequeno; mitiga-se subindo N.
-3. **Determinismo do juiz Ollama (ADR-007, atualiza pontos abertos do ADR-002).** RNF-01 é reprodutibilidade "dentro da variância medida", não bit-exact. O juiz fixa `options.seed = seed + run` por run; isso dá uma sequência determinística *para o mesmo modelo na mesma máquina*. A suíte de reprodutibilidade continua usando `StubJudge` (determinístico puro); a reprodutibilidade do juiz real é verificada como tolerância, não igualdade.
+**Tech Stack:** Python 3.11+, pydantic 2, **stdlib only** for infra (`urllib.request`, `tomllib`, `json`) — preserves the minimal-dependency philosophy (only `pydantic`). pytest. Docker Compose + Ollama for the offline path.
 
 ---
 
-## Mapa de arquivos
+## Decisions to confirm (become ADRs in this plan)
 
-**Criar:**
+Three non-obvious points emerged from the analysis. The plan adopts a justified default for each and records them as ADRs (Task 13). If the user disagrees with any default, adjust before executing the corresponding task.
+
+1. **Source of `contexts` in an OpenAI-compat response (ADR-005).** The OpenAI chat/completions protocol has no standard field for retrieved contexts. Default adopted: the RAG target returns contexts in a configurable-name JSON extension field (`contexts_field`, default `"contexts"`) in the top-level response body. Absence of this field → `IncompleteResponseError` (VAL-03), not a silent zero.
+2. **Gate compares against `ci_low`, not `mean` (ADR-006).** Statistical honesty (RNF-03): the gate only passes if the lower bound of the confidence interval clears the threshold. Gating by the mean would let through a result whose uncertainty still crosses the threshold. Trade-off: stricter gate with small N; mitigated by raising N.
+3. **Ollama judge determinism (ADR-007, updates open questions from ADR-002).** RNF-01 is reproducibility "within measured variance", not bit-exact. The judge fixes `options.seed = seed + run` per run; this gives a deterministic sequence *for the same model on the same machine*. The reproducibility suite continues using `StubJudge` (purely deterministic); real-judge reproducibility is verified as a tolerance, not equality.
+
+---
+
+## File map
+
+**Create:**
 - `src/gnomon/http.py` — seam `HttpTransport` + `UrllibTransport` + `TransportError`
-- `src/gnomon/metrics/names.py` — `V1_METRICS` (conjunto canônico de métricas)
+- `src/gnomon/metrics/names.py` — `V1_METRICS` (canonical metric set)
 - `src/gnomon/dataset/__init__.py`, `src/gnomon/dataset/loader.py` — RF-01, VAL-01
 - `src/gnomon/config/run_config.py` — `RunConfig`/`TargetConfig`/`JudgeConfig`/`GateConfig` + `from_file` (TOML)
-- `src/gnomon/targets/openai_compat.py` — adapter REST real (RF-02/03, VAL-02/03)
+- `src/gnomon/targets/openai_compat.py` — real REST adapter (RF-02/03, VAL-02/03)
 - `src/gnomon/judge/cache.py` — `JudgeCache` (VAL-07)
-- `src/gnomon/judge/prompts.py` — prompts de faithfulness + context_precision
-- `src/gnomon/judge/ollama.py` — juiz Ollama (RF-04, ADR-002)
+- `src/gnomon/judge/prompts.py` — faithfulness + context_precision prompts
+- `src/gnomon/judge/ollama.py` — Ollama judge (RF-04, ADR-002)
 - `src/gnomon/gate/__init__.py`, `src/gnomon/gate/gate.py` — gate (RF-09, VAL-05)
-- `src/gnomon/cli.py` — entrypoint de um comando (RNF-04)
-- `datasets/rpg_master_example/cases.json` — dataset versionado de exemplo
-- `config/example.toml` — config de execução de exemplo
-- `docker-compose.yml`, `Dockerfile` — caminho offline (RF-10)
+- `src/gnomon/cli.py` — single-command entrypoint (RNF-04)
+- `datasets/rpg_master_example/cases.json` — versioned example dataset
+- `config/example.toml` — example run config
+- `docker-compose.yml`, `Dockerfile` — offline path (RF-10)
 - `.github/workflows/ci.yml` — CI (RNF-08)
 - `docs/adr/0005-openai-compat-contexts.md`, `0006-gate-on-ci-low.md`, `0007-ollama-judge-determinism.md`
-- Testes: `tests/unit/test_dataset.py`, `tests/unit/test_run_config.py`, `tests/unit/test_openai_compat_target.py`, `tests/unit/test_judge_cache.py`, `tests/unit/test_ollama_judge.py`, `tests/unit/test_gate.py`, `tests/integration/test_cli.py`, `tests/gate/test_regression_gate.py`
+- Tests: `tests/unit/test_dataset.py`, `tests/unit/test_run_config.py`, `tests/unit/test_openai_compat_target.py`, `tests/unit/test_judge_cache.py`, `tests/unit/test_ollama_judge.py`, `tests/unit/test_gate.py`, `tests/integration/test_cli.py`, `tests/gate/test_regression_gate.py`
 
-**Modificar:**
-- `src/gnomon/judge/stub.py` — passar a pontuar `context_precision` além de `faithfulness` (RF-05)
-- `pyproject.toml` — `[project.scripts]` (console entry) + dep de teste opcional
-- `README.md` — caminho de execução honesto de um comando (RNF-05, RF-11)
+**Modify:**
+- `src/gnomon/judge/stub.py` — also score `context_precision` in addition to `faithfulness` (RF-05)
+- `pyproject.toml` — `[project.scripts]` (console entry) + optional test dependency
+- `README.md` — honest single-command execution path (RNF-05, RF-11)
 
 ---
 
-## Task 1: Conjunto canônico de métricas
+## Task 1: Canonical metric set
 
-Define em um lugar só os nomes das métricas da v1, para juiz, gate e testes referenciarem a mesma fonte (DRY). RF-05.
+Defines the v1 metric names in a single place so the judge, gate, and tests all reference the same source (DRY). RF-05.
 
 **Files:**
 - Create: `src/gnomon/metrics/names.py`
-- Test: `tests/unit/test_confidence.py` (sem mudança; só consumirá a constante depois)
+- Test: `tests/unit/test_confidence.py` (no change; will consume the constant later)
 
-- [ ] **Step 1: Criar a constante**
+- [ ] **Step 1: Create the constant**
 
 `src/gnomon/metrics/names.py`:
 ```python
@@ -69,7 +69,7 @@ drift into spelling the same metric two ways.
 V1_METRICS: tuple[str, ...] = ("faithfulness", "context_precision")
 ```
 
-- [ ] **Step 2: Verificar import**
+- [ ] **Step 2: Verify import**
 
 Run: `python -c "from gnomon.metrics.names import V1_METRICS; print(V1_METRICS)"`
 Expected: `('faithfulness', 'context_precision')`
@@ -85,17 +85,17 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2: StubJudge pontua as duas métricas (RF-05)
+## Task 2: StubJudge scores both metrics (RF-05)
 
-O `StubJudge` hoje só devolve `faithfulness`. Para a v1 a aggregation precisa exercitar as duas métricas mesmo no caminho determinístico (CI). Mantém o mesmo determinismo por (seed, case, run).
+`StubJudge` currently only returns `faithfulness`. For v1 the aggregation must exercise both metrics even on the deterministic path (CI). Keeps the same determinism by (seed, case, run).
 
 **Files:**
 - Modify: `src/gnomon/judge/stub.py`
 - Test: `tests/unit/test_stub_judge.py`
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [ ] **Step 1: Write the failing test**
 
-Adicionar a `tests/unit/test_stub_judge.py`:
+Add to `tests/unit/test_stub_judge.py`:
 ```python
 from gnomon.metrics.names import V1_METRICS
 
@@ -108,21 +108,21 @@ def test_stub_scores_all_v1_metrics():
 
 
 def test_stub_two_metrics_are_independent():
-    # As duas metricas nao colapsam para o mesmo numero por run.
+    # The two metrics must not collapse to the same number per run.
     judge = StubJudge()
     s = judge.score(CASE, RESPONSE, seed=42, run=1).scores
     assert s["faithfulness"] != s["context_precision"]
 ```
-(Reuse `CASE`/`RESPONSE` já definidos no arquivo; se não existirem com esses nomes, construa um `EvalCase` e `RagResponse` mínimos no topo do teste — veja o padrão em `tests/integration/test_runner_end_to_end.py`.)
+(Reuse `CASE`/`RESPONSE` already defined in the file; if they do not exist under those names, build a minimal `EvalCase` and `RagResponse` at the top of the test — see the pattern in `tests/integration/test_runner_end_to_end.py`.)
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_stub_judge.py -q`
-Expected: FAIL — `context_precision` ausente em `scores`.
+Expected: FAIL — `context_precision` absent from `scores`.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-Substituir o método `score` e o helper em `src/gnomon/judge/stub.py`:
+Replace the `score` method and helper in `src/gnomon/judge/stub.py`:
 ```python
     def score(self, case: EvalCase, response: RagResponse, *, seed: int, run: int) -> MetricScores:
         scores: dict[str, float] = {}
@@ -141,12 +141,12 @@ Substituir o método `score` e o helper em `src/gnomon/judge/stub.py`:
         digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()
         return int(digest[:16], 16)
 ```
-E adicionar o import no topo: `from gnomon.metrics.names import V1_METRICS`.
+And add the import at the top: `from gnomon.metrics.names import V1_METRICS`.
 
-- [ ] **Step 4: Rodar a suíte toda**
+- [ ] **Step 4: Run the full suite**
 
 Run: `python -m pytest -q`
-Expected: PASS. Atenção: testes existentes que assumiam só `faithfulness` na saída do stub continuam válidos (eles consultam `report.metric("faithfulness")`, que segue presente). Se algum teste asseverava `len(metrics) == 1`, atualizá-lo para `2`.
+Expected: PASS. Note: existing tests that assumed only `faithfulness` in the stub output remain valid (they call `report.metric("faithfulness")`, which is still present). If any test asserts `len(metrics) == 1`, update it to `2`.
 
 - [ ] **Step 5: Commit**
 
@@ -159,17 +159,17 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 3: Loader de dataset (RF-01, VAL-01)
+## Task 3: Dataset loader (RF-01, VAL-01)
 
-Lê o dataset versionado de arquivo JSON e devolve `list[EvalCase]`. Falha fechado e explícito em dataset ausente, vazio ou caso malformado, apontando o caso problemático (VAL-01). Nunca avalia parcial em silêncio.
+Reads the versioned dataset from a JSON file and returns `list[EvalCase]`. Fails closed and explicitly on a missing, empty, or malformed dataset, naming the offending case (VAL-01). Never evaluates partially in silence.
 
 **Files:**
-- Create: `src/gnomon/dataset/__init__.py` (vazio)
+- Create: `src/gnomon/dataset/__init__.py` (empty)
 - Create: `src/gnomon/dataset/loader.py`
 - Create: `datasets/rpg_master_example/cases.json`
 - Test: `tests/unit/test_dataset.py`
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [ ] **Step 1: Write the failing tests**
 
 `tests/unit/test_dataset.py`:
 ```python
@@ -219,18 +219,18 @@ def test_case_missing_field_points_at_the_case(tmp_path):
     path = _write(tmp_path, [VALID_CASE, bad])
     with pytest.raises(DatasetError) as exc:
         load_dataset(path)
-    # VAL-01: o erro nomeia o caso problematico, nao falha generico.
+    # VAL-01: the error names the offending case, not a generic failure.
     assert "case-bad" in str(exc.value)
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_dataset.py -q`
-Expected: FAIL — `gnomon.dataset.loader` não existe.
+Expected: FAIL — `gnomon.dataset.loader` does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-`src/gnomon/dataset/__init__.py`: arquivo vazio.
+`src/gnomon/dataset/__init__.py`: empty file.
 
 `src/gnomon/dataset/loader.py`:
 ```python
@@ -278,12 +278,12 @@ def load_dataset(path: str | Path) -> list[EvalCase]:
     return cases
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [ ] **Step 4: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_dataset.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Criar o dataset de exemplo**
+- [ ] **Step 5: Create the example dataset**
 
 `datasets/rpg_master_example/cases.json`:
 ```json
@@ -307,7 +307,7 @@ Expected: PASS.
 ]
 ```
 
-- [ ] **Step 6: Verificar o dataset de exemplo carrega**
+- [ ] **Step 6: Verify the example dataset loads**
 
 Run: `python -c "from gnomon.dataset.loader import load_dataset; print(len(load_dataset('datasets/rpg_master_example/cases.json')))"`
 Expected: `2`
@@ -323,15 +323,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 4: Seam HTTP (`HttpTransport`)
+## Task 4: HTTP seam (`HttpTransport`)
 
-Uma seam fina para HTTP POST JSON, com implementação stdlib (`urllib`). Adapter e juiz dependem do Protocol, não de `urllib`, então os testes injetam um transport falso e nada toca a rede.
+A thin seam for HTTP POST JSON, with a stdlib implementation (`urllib`). The adapter and judge depend on the Protocol, not on `urllib`, so tests inject a fake transport and nothing touches the network.
 
 **Files:**
 - Create: `src/gnomon/http.py`
-- Test: coberto indiretamente nas Tasks 5 e 8 (não exige teste isolado; é infra fina).
+- Test: covered indirectly in Tasks 5 and 8 (no isolated test required; it is thin infra).
 
-- [ ] **Step 1: Implementar a seam**
+- [ ] **Step 1: Implement the seam**
 
 `src/gnomon/http.py`:
 ```python
@@ -385,7 +385,7 @@ class UrllibTransport:
             raise TransportError(f"POST {url} failed: {exc}") from exc
 ```
 
-- [ ] **Step 2: Verificar import**
+- [ ] **Step 2: Verify import**
 
 Run: `python -c "from gnomon.http import HttpTransport, UrllibTransport, TransportError; print('ok')"`
 Expected: `ok`
@@ -401,15 +401,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Adapter OpenAI-compat real (RF-02, RF-03, VAL-02, VAL-03)
+## Task 5: Real OpenAI-compat adapter (RF-02, RF-03, VAL-02, VAL-03)
 
-O primeiro target concreto: fala OpenAI-compat por REST, devolve `RagResponse` com resposta, contextos, tokens e latência. Taxonomia de erro distingue falha de configuração de falha de runtime (VAL-02); resposta incompleta é rejeitada explicitamente (VAL-03), nunca zero silencioso. Contextos vêm de um campo de extensão configurável (ADR-005).
+The first concrete target: speaks OpenAI-compat over REST, returns a `RagResponse` with answer, contexts, tokens, and latency. The error taxonomy distinguishes configuration failures from runtime failures (VAL-02); an incomplete response is rejected explicitly (VAL-03), never as a silent zero. Contexts come from a configurable extension field (ADR-005).
 
 **Files:**
 - Create: `src/gnomon/targets/openai_compat.py`
 - Test: `tests/unit/test_openai_compat_target.py`
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [ ] **Step 1: Write the failing tests**
 
 `tests/unit/test_openai_compat_target.py`:
 ```python
@@ -479,7 +479,7 @@ def test_non_2xx_is_runtime_error():
 
 
 def test_off_protocol_body_is_runtime_error():
-    # VAL-02: corpo fora do protocolo OpenAI-compat distingue-se do happy path.
+    # VAL-02: off-protocol body is distinct from the happy path.
     target = _target(FakeTransport(body={"unexpected": "shape"}))
     with pytest.raises(TargetRuntimeError):
         target.query("q")
@@ -501,12 +501,12 @@ def test_missing_tokens_is_incomplete_response():
         target.query("q")
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_openai_compat_target.py -q`
-Expected: FAIL — módulo inexistente.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 `src/gnomon/targets/openai_compat.py`:
 ```python
@@ -608,12 +608,12 @@ class OpenAICompatTarget:
         )
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [ ] **Step 4: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_openai_compat_target.py -q`
-Expected: PASS (todos os 7).
+Expected: PASS (all 7).
 
-- [ ] **Step 5: Confirmar que o adapter satisfaz o contrato `RagTarget`**
+- [ ] **Step 5: Confirm the adapter satisfies the `RagTarget` contract**
 
 Run: `python -c "from gnomon.domain.interfaces import RagTarget; from gnomon.targets.openai_compat import OpenAICompatTarget; print(issubclass(OpenAICompatTarget, RagTarget) or isinstance(OpenAICompatTarget(base_url='http://x/v1', model='m'), RagTarget))"`
 Expected: `True`
@@ -629,15 +629,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Cache do juiz (VAL-07)
+## Task 6: Judge cache (VAL-07)
 
-Cache com chave de identidade `(case.id, response.answer, judge_model, seed, run)`. Entrada cuja chave não casa com a tupla é tratada como miss, nunca como acerto que devolveria pontuação de contexto errado (VAL-07). `run` faz parte da chave: sem ele, os N runs colapsariam para um único valor cacheado e a variância sumiria.
+Cache keyed by the identity tuple `(case.id, response.answer, judge_model, seed, run)`. An entry whose key does not match the tuple is treated as a miss, never as a hit that would return a score from the wrong context (VAL-07). `run` is part of the key: without it, the N runs would collapse to a single cached value and the variance would vanish.
 
 **Files:**
 - Create: `src/gnomon/judge/cache.py`
 - Test: `tests/unit/test_judge_cache.py`
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [ ] **Step 1: Write the failing tests**
 
 `tests/unit/test_judge_cache.py`:
 ```python
@@ -673,18 +673,18 @@ def test_different_seed_is_a_miss():
 
 
 def test_different_model_is_a_miss():
-    # VAL-07: chave que nao casa = miss, nunca acerto de contexto errado.
+    # VAL-07: key mismatch = miss, never a hit from the wrong context.
     cache = JudgeCache()
     cache.put(CASE, RESPONSE, "judge-x", seed=42, run=0, scores=SCORES)
     assert cache.get(CASE, RESPONSE, "judge-y", seed=42, run=0) is None
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_judge_cache.py -q`
-Expected: FAIL — módulo inexistente.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 `src/gnomon/judge/cache.py`:
 ```python
@@ -729,7 +729,7 @@ class JudgeCache:
         self._store[self._key(case, response, model, seed, run)] = scores
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [ ] **Step 4: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_judge_cache.py -q`
 Expected: PASS.
@@ -745,16 +745,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 7: Juiz Ollama (RF-04, ADR-002)
+## Task 7: Ollama judge (RF-04, ADR-002)
 
-Juiz real: pontua `faithfulness` e `context_precision` chamando Ollama (`/api/chat`, `format: json`), sob `options.seed = seed + run` para reprodutibilidade dentro da variância (ADR-007). Usa a seam `HttpTransport` (testável sem rede) e o `JudgeCache`. Resposta do modelo fora do formato esperado vira erro nomeado, não score inventado.
+Real judge: scores `faithfulness` and `context_precision` by calling Ollama (`/api/chat`, `format: json`), with `options.seed = seed + run` for reproducibility within variance (ADR-007). Uses the `HttpTransport` seam (testable without a network) and `JudgeCache`. A model response that does not match the expected format raises a named error, never a fabricated score.
 
 **Files:**
 - Create: `src/gnomon/judge/prompts.py`
 - Create: `src/gnomon/judge/ollama.py`
 - Test: `tests/unit/test_ollama_judge.py`
 
-- [ ] **Step 1: Prompts (sem teste isolado; verificados via juiz)**
+- [ ] **Step 1: Prompts (no isolated test; verified through the judge)**
 
 `src/gnomon/judge/prompts.py`:
 ```python
@@ -793,7 +793,7 @@ def build_prompt(metric: str, case: EvalCase, response: RagResponse) -> str:
     )
 ```
 
-- [ ] **Step 2: Escrever os testes que falham (juiz)**
+- [ ] **Step 2: Write the failing tests (judge)**
 
 `tests/unit/test_ollama_judge.py`:
 ```python
@@ -839,7 +839,7 @@ def test_scores_all_metrics_in_unit_range():
 
 
 def test_seed_is_offset_by_run():
-    # ADR-007: options.seed = seed + run, deterministico por run.
+    # ADR-007: options.seed = seed + run, deterministic per run.
     transport = ScriptedTransport()
     _judge(transport).score(CASE, RESPONSE, seed=100, run=3)
     assert all(s == 103 for s in transport.seeds)
@@ -852,7 +852,7 @@ def test_cache_hit_skips_transport():
     judge.score(CASE, RESPONSE, seed=42, run=0)
     calls_after_first = len(transport.seeds)
     judge.score(CASE, RESPONSE, seed=42, run=0)
-    assert len(transport.seeds) == calls_after_first  # segundo score veio do cache
+    assert len(transport.seeds) == calls_after_first  # second score came from cache
 
 
 def test_unparseable_model_output_is_protocol_error():
@@ -861,12 +861,12 @@ def test_unparseable_model_output_is_protocol_error():
         _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
 ```
 
-- [ ] **Step 3: Rodar e ver falhar**
+- [ ] **Step 3: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_ollama_judge.py -q`
-Expected: FAIL — módulo inexistente.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 4: Implementar**
+- [ ] **Step 4: Implement**
 
 `src/gnomon/judge/ollama.py`:
 ```python
@@ -965,10 +965,10 @@ class OllamaJudge:
         return max(0.0, min(1.0, value))
 ```
 
-- [ ] **Step 5: Rodar e ver passar**
+- [ ] **Step 5: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_ollama_judge.py -q`
-Expected: PASS (4 testes).
+Expected: PASS (4 tests).
 
 - [ ] **Step 6: Commit**
 
@@ -981,16 +981,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 8: Config de execução (`RunConfig`) + thresholds (RNF-07, VAL-05)
+## Task 8: Run config (`RunConfig`) + thresholds (RNF-07, VAL-05)
 
-Config externa de produção, carregada de TOML e validada antes de qualquer chamada de modelo. Composta (`eval` + `target` + `judge` + `gate` + `dataset_path`) — **não toca o `EvalConfig` da Fase 1**, então os testes existentes seguem verdes. Threshold de gate fora de `[0,1]` é rejeitado no load (VAL-05).
+Production external config, loaded from TOML and validated before any model call. Composed (`eval` + `target` + `judge` + `gate` + `dataset_path`) — **does not touch the Phase 1 `EvalConfig`**, so existing tests stay green. A gate threshold outside `[0,1]` is rejected at load time (VAL-05).
 
 **Files:**
 - Create: `src/gnomon/config/run_config.py`
 - Create: `config/example.toml`
 - Test: `tests/unit/test_run_config.py`
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [ ] **Step 1: Write the failing tests**
 
 `tests/unit/test_run_config.py`:
 ```python
@@ -1033,7 +1033,7 @@ def test_loads_from_toml(tmp_path):
 
 
 def test_threshold_above_one_is_rejected():
-    # VAL-05: limite fora da faixa da metrica rejeitado antes de qualquer chamada.
+    # VAL-05: threshold outside the metric range rejected before any call.
     with pytest.raises(ValidationError):
         GateConfig(thresholds={"faithfulness": 1.4})
 
@@ -1044,7 +1044,7 @@ def test_threshold_negative_is_rejected():
 
 
 def test_seed_required_propagates_from_eval():
-    # VAL-06 ainda vale via EvalConfig embutido.
+    # VAL-06 still enforced via the embedded EvalConfig.
     with pytest.raises(ValidationError):
         RunConfig(
             dataset_path="d.json",
@@ -1055,12 +1055,12 @@ def test_seed_required_propagates_from_eval():
         )
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_run_config.py -q`
-Expected: FAIL — módulo inexistente.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 `src/gnomon/config/run_config.py`:
 ```python
@@ -1133,12 +1133,12 @@ class RunConfig(BaseModel):
         return cls(**data)
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [ ] **Step 4: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_run_config.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Criar a config de exemplo**
+- [ ] **Step 5: Create the example config**
 
 `config/example.toml`:
 ```toml
@@ -1165,7 +1165,7 @@ faithfulness = 0.7
 context_precision = 0.6
 ```
 
-- [ ] **Step 6: Verificar a config de exemplo carrega**
+- [ ] **Step 6: Verify the example config loads**
 
 Run: `python -c "from gnomon.config.run_config import RunConfig; c=RunConfig.from_file('config/example.toml'); print(c.gate.thresholds)"`
 Expected: `{'faithfulness': 0.7, 'context_precision': 0.6}`
@@ -1181,16 +1181,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 9: Gate de regressão (RF-09, VAL-05)
+## Task 9: Regression gate (RF-09, VAL-05)
 
-Compara o `EvalReport` contra os thresholds por métrica e decide passa/falha. Gateia pelo **limite inferior do IC** (`ci_low`), não pela média (ADR-006): só passa se a incerteza não cruza o limite. Métrica com threshold mas ausente do relatório é falha explícita, não passe silencioso.
+Compares the `EvalReport` against per-metric thresholds and decides pass/fail. Gates on the **lower bound of the confidence interval** (`ci_low`), not the mean (ADR-006): passes only if uncertainty does not cross the threshold. A metric that has a threshold but is absent from the report is an explicit failure, not a silent pass.
 
 **Files:**
-- Create: `src/gnomon/gate/__init__.py` (vazio)
+- Create: `src/gnomon/gate/__init__.py` (empty)
 - Create: `src/gnomon/gate/gate.py`
 - Test: `tests/unit/test_gate.py`
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [ ] **Step 1: Write the failing tests**
 
 `tests/unit/test_gate.py`:
 ```python
@@ -1224,7 +1224,7 @@ def test_passes_when_ci_low_clears_threshold():
 
 
 def test_fails_when_ci_low_below_threshold_even_if_mean_clears():
-    # ADR-006: media (0.82) passaria, mas ci_low (0.65) nao clareia 0.7.
+    # ADR-006: mean (0.82) would pass, but ci_low (0.65) does not clear 0.7.
     report = _report("faithfulness", ci_low=0.65, ci_high=0.99, mean=0.82)
     result = evaluate_gate(report, {"faithfulness": 0.7})
     assert result.passed is False
@@ -1238,14 +1238,14 @@ def test_missing_metric_is_a_failure():
     assert any("context_precision" in f for f in result.failures)
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/unit/test_gate.py -q`
-Expected: FAIL — módulo inexistente.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-`src/gnomon/gate/__init__.py`: arquivo vazio.
+`src/gnomon/gate/__init__.py`: empty file.
 
 `src/gnomon/gate/gate.py`:
 ```python
@@ -1284,7 +1284,7 @@ def evaluate_gate(report: EvalReport, thresholds: dict[str, float]) -> GateResul
     return GateResult(passed=not failures, failures=failures)
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [ ] **Step 4: Run and watch it pass**
 
 Run: `python -m pytest tests/unit/test_gate.py -q`
 Expected: PASS.
@@ -1300,16 +1300,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 10: CLI de um comando (RF-11, RNF-04, RNF-05)
+## Task 10: Single-command CLI (RF-11, RNF-04, RNF-05)
 
-Entrypoint que carrega `RunConfig`, monta target e juiz por config, roda `run_eval`, imprime o relatório nos dois formatos e sai com código do gate (0 passa / 1 falha). Um comando, sem editar fonte (RNF-04). Factories mapeiam `kind`/`provider` para implementação.
+Entrypoint that loads `RunConfig`, wires target and judge from config, runs `run_eval`, prints the report in both formats, and exits with the gate code (0 pass / 1 fail). One command, no source editing required (RNF-04). Factories map `kind`/`provider` to implementation.
 
 **Files:**
 - Create: `src/gnomon/cli.py`
 - Modify: `pyproject.toml` (`[project.scripts]`)
 - Test: `tests/integration/test_cli.py`
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [ ] **Step 1: Write the failing test**
 
 `tests/integration/test_cli.py`:
 ```python
@@ -1347,7 +1347,7 @@ def test_factories_build_contract_types():
     from gnomon.domain.interfaces import Judge, RagTarget
 
     target = build_target(RunConfig.model_construct(target=None).target) if False else None  # noqa
-    # build_target/build_judge devolvem objetos que satisfazem os contratos:
+    # build_target/build_judge return objects that satisfy the contracts:
     cfg = _stub_config_target()
     assert isinstance(build_target(cfg.target), RagTarget)
     assert isinstance(build_judge(cfg.judge), Judge)
@@ -1369,14 +1369,14 @@ def test_run_from_config_returns_report_and_gate(tmp_path):
     assert report.metric("faithfulness").n == 8
     assert gate.passed is True
 ```
-(Nota: a primeira asserção usa o `MockTarget`. Como `MockTarget.__init__` exige `answer/contexts/total_tokens/latency_ms`, a factory `build_target` para `kind="mock"` usa valores fixos de demonstração — ver implementação.)
+(Note: the first assertion uses `MockTarget`. Because `MockTarget.__init__` requires `answer/contexts/total_tokens/latency_ms`, the `build_target` factory for `kind="mock"` uses fixed demo values — see implementation.)
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [ ] **Step 2: Run and watch it fail**
 
 Run: `python -m pytest tests/integration/test_cli.py -q`
-Expected: FAIL — `gnomon.cli` inexistente.
+Expected: FAIL — `gnomon.cli` does not exist.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 `src/gnomon/cli.py`:
 ```python
@@ -1465,30 +1465,30 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 4: Registrar o console script**
+- [ ] **Step 4: Register the console script**
 
-Em `pyproject.toml`, adicionar após o bloco `[project.optional-dependencies]`:
+In `pyproject.toml`, add after the `[project.optional-dependencies]` block:
 ```toml
 [project.scripts]
 gnomon = "gnomon.cli:main"
 ```
 
-- [ ] **Step 5: Rodar e ver passar**
+- [ ] **Step 5: Run and watch it pass**
 
 Run: `python -m pytest tests/integration/test_cli.py -q`
 Expected: PASS.
 
-- [ ] **Step 6: Smoke do CLI ponta-a-ponta com o caminho stub**
+- [ ] **Step 6: End-to-end CLI smoke on the stub path**
 
-Criar `config/smoke.toml` temporário (target mock + judge stub) ou reutilizar via env, e rodar:
+Create a temporary `config/smoke.toml` (mock target + stub judge) or reuse via env, and run:
 ```bash
 python -m gnomon.cli -c config/example.toml || true
 ```
-Como `config/example.toml` aponta para Ollama/target reais (offline pode não estar de pé), o smoke determinístico de CI usa a config stub do teste de gate (Task 11). Aqui basta confirmar que `--help` e o parsing funcionam:
+Because `config/example.toml` points to real Ollama/target (offline may not be running), the deterministic CI smoke uses the stub config from the gate test (Task 11). Here it is enough to confirm that `--help` and argument parsing work:
 ```bash
 python -m gnomon.cli --help
 ```
-Expected: imprime o uso com `--config`.
+Expected: prints usage with `--config`.
 
 - [ ] **Step 7: Commit**
 
@@ -1501,15 +1501,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 11: Gate como teste executável de CI (RF-09)
+## Task 11: Gate as an executable CI test (RF-09)
 
-O gate exposto como teste que roda no CI sem rede: target mock + juiz stub determinístico, thresholds que o stub clareia. É o "smoke do gate" do CI — verifica que a fiação config→runner→gate fecha e que o veredito é estável.
+The gate exposed as a test that runs in CI without a network: mock target + deterministic stub judge, thresholds that the stub clears. This is the CI "gate smoke" — verifies that the config→runner→gate wiring closes and that the verdict is stable.
 
 **Files:**
-- Create: `tests/gate/__init__.py` (vazio, se necessário)
+- Create: `tests/gate/__init__.py` (empty, if needed)
 - Create: `tests/gate/test_regression_gate.py`
 
-- [ ] **Step 1: Escrever o teste**
+- [ ] **Step 1: Write the test**
 
 `tests/gate/test_regression_gate.py`:
 ```python
@@ -1546,22 +1546,22 @@ def test_gate_passes_on_the_deterministic_path(tmp_path):
         eval={"reproducible": True, "seed": 42, "judge_runs": 8},
         target={"kind": "mock"},
         judge={"provider": "stub"},
-        # StubJudge centra em ~0.85; thresholds baixos clareiam com folga.
+        # StubJudge centers around ~0.85; low thresholds clear with margin.
         gate={"thresholds": {"faithfulness": 0.5, "context_precision": 0.5}},
     )
     _, gate = run_from_config(cfg)
     assert gate.passed, gate.failures
 ```
 
-- [ ] **Step 2: Rodar e ver passar**
+- [ ] **Step 2: Run and watch it pass**
 
 Run: `python -m pytest tests/gate/test_regression_gate.py -q`
 Expected: PASS.
 
-- [ ] **Step 3: Rodar a suíte inteira**
+- [ ] **Step 3: Run the full suite**
 
 Run: `python -m pytest -q && ruff check src tests && ruff format --check src tests`
-Expected: tudo verde, ruff limpo.
+Expected: all green, ruff clean.
 
 - [ ] **Step 4: Commit**
 
@@ -1574,9 +1574,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 12: Infra offline — Docker Compose + Dockerfile (RF-10, RNF-04)
+## Task 12: Offline infra — Docker Compose + Dockerfile (RF-10, RNF-04)
 
-O caminho default roda com Ollama via Docker, sem chave paga. Um terceiro sobe o ambiente e roda a avaliação. O `docker-compose.yml` sobe Ollama; o `Dockerfile` empacota o harness.
+The default path runs with Ollama via Docker, no paid key required. A third party brings up the environment and runs the evaluation. `docker-compose.yml` starts Ollama; `Dockerfile` packages the harness.
 
 **Files:**
 - Create: `Dockerfile`
@@ -1616,19 +1616,19 @@ services:
     depends_on:
       - ollama
     environment:
-      # O juiz aponta para o serviço ollama da rede do compose.
+      # The judge points to the ollama service on the compose network.
       GNOMON_JUDGE_BASE_URL: "http://ollama:11434"
-    # Sobe o harness sob demanda: `docker compose run --rm harness`.
+    # Start the harness on demand: `docker compose run --rm harness`.
     profiles: ["run"]
 
 volumes:
   ollama:
 ```
 
-- [ ] **Step 3: Verificar sintaxe do compose**
+- [ ] **Step 3: Verify compose syntax**
 
 Run: `docker compose config >/dev/null && echo OK`
-Expected: `OK` (se `docker` estiver instalado; caso contrário, validação manual).
+Expected: `OK` (if `docker` is installed; otherwise validate manually).
 
 - [ ] **Step 4: Commit**
 
@@ -1643,7 +1643,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Task 13: CI (RNF-08)
 
-Lint, suíte de testes e smoke do gate como barreira de release, rodando em CI. Sem rede: o smoke do gate usa o caminho determinístico (Task 11).
+Lint, test suite, and gate smoke as a release barrier, running in CI. No network required: the gate smoke uses the deterministic path (Task 11).
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
@@ -1673,13 +1673,13 @@ jobs:
         run: |
           ruff check src tests
           ruff format --check src tests
-      - name: Test (inclui smoke do gate)
+      - name: Test (includes gate smoke)
         run: python -m pytest -q
 ```
 
-- [ ] **Step 2: Verificar YAML válido**
+- [ ] **Step 2: Verify valid YAML**
 
-Run: `python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('OK')"` (se `pyyaml` ausente, validar visualmente)
+Run: `python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('OK')"` (if `pyyaml` is absent, validate visually)
 Expected: `OK`
 
 - [ ] **Step 3: Commit**
@@ -1693,66 +1693,66 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 14: README honesto + reprodutibilidade do exemplo (RNF-05, RF-11)
+## Task 14: Honest README + example reproducibility (RNF-05, RF-11)
 
-Toda afirmação do README tem comando que a reproduz. Documenta o caminho offline de um comando e o gate. Sem claim sem comando.
+Every claim in the README has a command that reproduces it. Documents the single-command offline path and the gate. No claim without a command.
 
 **Files:**
 - Modify: `README.md`
 
-- [ ] **Step 1: Escrever a seção de execução**
+- [ ] **Step 1: Write the execution section**
 
-Acrescentar/atualizar em `README.md` a seção de execução (ajustar à estrutura atual do arquivo; substituir qualquer instrução de execução desatualizada):
+Add/update in `README.md` the execution section (adjust to the current file structure; replace any outdated run instructions):
 ````markdown
-## Executar a avaliação (offline, um comando)
+## Run the evaluation (offline, one command)
 
-Pré-requisito: Docker. O caminho default usa Ollama local, sem chave paga (RF-10).
+Prerequisite: Docker. The default path uses a local Ollama, no paid API key (RF-10).
 
 ```bash
-# 1. Sobe o Ollama e baixa o modelo do juiz
+# 1. Start Ollama and pull the judge model
 docker compose up -d ollama
 docker compose exec ollama ollama pull llama3
 
-# 2. Roda a avaliação de exemplo (config + dataset versionados)
+# 2. Run the example evaluation (versioned config + dataset)
 docker compose run --rm harness --config config/example.toml
 ```
 
-Saída: relatório com, por métrica, média e intervalo de confiança (N runs do
-juiz), além de tokens e latência. O processo sai com código 0 se o gate passa,
-1 se alguma métrica fica abaixo do limite em `config/example.toml` (RF-09).
+Output: a report with, per metric, mean and confidence interval (N judge
+runs), plus tokens and latency. The process exits with code 0 if the gate
+passes, 1 if any metric falls below the threshold in `config/example.toml` (RF-09).
 
-### Sem Docker (juiz determinístico, para desenvolvimento)
+### Without Docker (deterministic judge, for development)
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -q          # 44+ testes, inclui reprodutibilidade e smoke do gate
+python -m pytest -q          # 44+ tests, includes reproducibility and gate smoke
 ```
 
-### Reprodutibilidade (RF-11 / RNF-01)
+### Reproducibility (RF-11 / RNF-01)
 
-Mesma seed + mesma config + mesma máquina produzem os mesmos números dentro da
-variância reportada. Verificado por teste:
+Same seed + same config + same machine produce the same numbers within the
+reported variance. Verified by test:
 
 ```bash
 python -m pytest tests/reproducibility -q
 ```
 ````
 
-- [ ] **Step 2: Verificar que todo comando do README roda**
+- [ ] **Step 2: Verify every README command runs**
 
-Run (cada comando não-Docker do README):
+Run (each non-Docker command from the README):
 ```bash
 pip install -e ".[dev]" && python -m pytest tests/reproducibility -q
 ```
-Expected: PASS. (Os comandos Docker exigem Docker; validar manualmente se disponível.)
+Expected: PASS. (Docker commands require Docker; validate manually if available.)
 
-- [ ] **Step 3: Verificar consistência doc/código (RNF-05)**
+- [ ] **Step 3: Verify doc/code consistency (RNF-05)**
 
 Run:
 ```bash
 grep -n 'config/example.toml' README.md && test -f config/example.toml && echo OK
 ```
-Expected: `OK` — o arquivo que o README cita existe.
+Expected: `OK` — the file the README references exists.
 
 - [ ] **Step 4: Commit**
 
@@ -1765,84 +1765,84 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 15: ADRs das decisões novas + bloco conclusivo AXON
+## Task 15: ADRs for the new decisions + AXON closing block
 
-Registra as três decisões não óbvias deste plano e fecha o bloco no AXON (índice incremental + ADRs + memória), conforme o playbook (`docs/DEVELOPMENT_LOOP.md`, "Sincronização com o AXON por bloco conclusivo").
+Records the three non-obvious decisions from this plan and closes the block in AXON (incremental index + ADRs + memory), per the playbook (`docs/DEVELOPMENT_LOOP.md`, "AXON sync per closing block").
 
 **Files:**
 - Create: `docs/adr/0005-openai-compat-contexts.md`
 - Create: `docs/adr/0006-gate-on-ci-low.md`
 - Create: `docs/adr/0007-ollama-judge-determinism.md`
-- Efeitos AXON (sem arquivo versionado)
+- AXON effects (no versioned file)
 
-- [ ] **Step 1: ADR-005 (origem dos contexts)**
+- [ ] **Step 1: ADR-005 (contexts source)**
 
-`docs/adr/0005-openai-compat-contexts.md` (seguir o formato dos ADRs 0001-0004 existentes):
+`docs/adr/0005-openai-compat-contexts.md` (follow the format of existing ADRs 0001-0004):
 ```markdown
-# ADR-005 — Contextos recuperados num campo de extensão OpenAI-compat
+# ADR-005 — Retrieved contexts in an OpenAI-compat extension field
 
-## Contexto
-O protocolo OpenAI chat/completions não tem campo padrão para os contextos
-recuperados por um RAG. RF-03 exige coletar os contextos junto da resposta.
+## Context
+The OpenAI chat/completions protocol has no standard field for contexts
+retrieved by a RAG. RF-03 requires collecting contexts alongside the response.
 
-## Decisão
-O adapter OpenAI-compat lê os contextos de um campo de extensão JSON top-level
-de nome configurável (`contexts_field`, default `"contexts"`). Ausência do
-campo → `IncompleteResponseError` (VAL-03), nunca lista vazia silenciosa.
+## Decision
+The OpenAI-compat adapter reads contexts from a configurable-name top-level
+JSON extension field (`contexts_field`, default `"contexts"`). Absence of the
+field → `IncompleteResponseError` (VAL-03), never a silent empty list.
 
-## Consequências
-O RAG alvo precisa devolver contextos nesse campo. Targets que não o fazem
-exigem um adapter próprio. A política fail-closed mantém a métrica honesta.
+## Consequences
+The RAG target must return contexts in this field. Targets that do not will
+require their own adapter. The fail-closed policy keeps the metric honest.
 ```
 
-- [ ] **Step 2: ADR-006 (gate por ci_low)**
+- [ ] **Step 2: ADR-006 (gate on ci_low)**
 
 `docs/adr/0006-gate-on-ci-low.md`:
 ```markdown
-# ADR-006 — Gate compara contra o limite inferior do IC
+# ADR-006 — Gate compares against the lower bound of the confidence interval
 
-## Contexto
-RF-09 falha o gate quando uma métrica cai abaixo de um limite. A métrica é uma
-média com intervalo de confiança (RNF-03). Gatear pela média deixaria passar
-resultado cuja incerteza ainda cruza o limite.
+## Context
+RF-09 fails the gate when a metric falls below a threshold. The metric is a
+mean with a confidence interval (RNF-03). Gating on the mean would let through
+a result whose uncertainty still crosses the threshold.
 
-## Decisão
-O gate passa só se `ci_low >= threshold`. Métrica com threshold mas ausente do
-relatório é falha, não passe silencioso.
+## Decision
+The gate passes only if `ci_low >= threshold`. A metric that has a threshold
+but is absent from the report is a failure, not a silent pass.
 
-## Consequências
-Gate mais rígido com N pequeno (IC largo). Mitiga-se subindo N (ver ADR-002,
-ponto aberto do N de runs). Honestidade estatística preservada no portão.
+## Consequences
+Stricter gate with small N (wide CI). Mitigated by raising N (see ADR-002,
+open question on run count N). Statistical honesty preserved at the gate.
 ```
 
-- [ ] **Step 3: ADR-007 (determinismo do juiz Ollama)**
+- [ ] **Step 3: ADR-007 (Ollama judge determinism)**
 
 `docs/adr/0007-ollama-judge-determinism.md`:
 ```markdown
-# ADR-007 — Determinismo do juiz Ollama por seed+run
+# ADR-007 — Ollama judge determinism via seed+run
 
-## Contexto
-RNF-01 é reprodutibilidade dentro da variância medida, não bit-exact. O juiz
-Ollama precisa de uma sequência determinística por seed declarada.
+## Context
+RNF-01 is reproducibility within measured variance, not bit-exact. The Ollama
+judge needs a deterministic sequence per declared seed.
 
-## Decisão
-O juiz fixa `options.seed = seed + run` e `temperature = 0.0` por chamada. Isso
-dá uma sequência fixa para um mesmo modelo/host. A suíte de reprodutibilidade
-continua usando o StubJudge (determinístico puro); a reprodutibilidade do juiz
-real é verificada como tolerância de variância, não igualdade.
+## Decision
+The judge fixes `options.seed = seed + run` and `temperature = 0.0` per call.
+This gives a fixed sequence for the same model/host. The reproducibility suite
+continues using StubJudge (purely deterministic); real-judge reproducibility is
+verified as a variance tolerance, not equality.
 
-## Consequências
-Trocar de modelo ou de host pode mudar os números — esperado e reportado via
-IC. O cache (chave inclui seed e run) reforça a estabilidade dentro de uma
-máquina.
+## Consequences
+Changing the model or host may change the numbers — expected and reported via
+CI. The cache (key includes seed and run) reinforces stability within a single
+machine.
 ```
 
-- [ ] **Step 4: Verificar os ADRs**
+- [ ] **Step 4: Verify the ADRs**
 
 Run: `ls docs/adr/000{5,6,7}-*.md && echo OK`
-Expected: lista os três + `OK`.
+Expected: lists all three + `OK`.
 
-- [ ] **Step 5: Commit dos ADRs**
+- [ ] **Step 5: Commit the ADRs**
 
 ```bash
 git add docs/adr/0005-openai-compat-contexts.md docs/adr/0006-gate-on-ci-low.md docs/adr/0007-ollama-judge-determinism.md
@@ -1851,52 +1851,52 @@ git commit -m "docs: ADRs 005-007 (contexts, gate ci_low, determinismo do juiz)
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 6: Onboarding AXON do bloco (incremental)**
+- [ ] **Step 6: AXON block onboarding (incremental)**
 
-Reindexar e registrar as decisões novas (o playbook manda incremental, só o que mudou):
+Re-index and record the new decisions (the playbook requires incremental — only what changed):
 ```bash
 pb index /Users/samdev/dev/gnomon-eval --ctx personal
 ```
-Depois, via ferramentas MCP `mcp__axon__save_adr`, registrar ADR-005, 006, 007 no store do projeto (`project="gnomon-eval"`), e `mcp__axon__axon_capture` com o resumo da v1 completa (target real, juiz Ollama, gate, CLI, infra, CI). Verificar com `mcp__axon__get_adrs(project="gnomon-eval")` e `mcp__axon__search_code(query="OpenAICompatTarget query contexts", ctx="personal")`.
-Expected: ADRs listados; `search_code` retorna nós de `targets/openai_compat.py`.
+Then, via MCP tools `mcp__axon__save_adr`, record ADR-005, 006, 007 in the project store (`project="gnomon-eval"`), and `mcp__axon__axon_capture` with the summary of the complete v1 (real target, Ollama judge, gate, CLI, infra, CI). Verify with `mcp__axon__get_adrs(project="gnomon-eval")` and `mcp__axon__search_code(query="OpenAICompatTarget query contexts", ctx="personal")`.
+Expected: ADRs listed; `search_code` returns nodes from `targets/openai_compat.py`.
 
 ---
 
-## Self-Review (preenchido)
+## Self-Review (completed)
 
-**Cobertura do spec (REQUIREMENTS.md):**
-- RF-01 (dataset versionado) → Task 3 ✓
+**Spec coverage (REQUIREMENTS.md):**
+- RF-01 (versioned dataset) → Task 3 ✓
 - RF-02 (target via adapter) → Task 5 ✓
-- RF-03 (resposta+contextos+tokens+latência) → Task 5 ✓
-- RF-04 (juiz LLM com seed e cache) → Tasks 6, 7 ✓
+- RF-03 (answer+contexts+tokens+latency) → Task 5 ✓
+- RF-04 (LLM judge with seed and cache) → Tasks 6, 7 ✓
 - RF-05 (faithfulness + context precision) → Tasks 1, 2, 7 ✓
-- RF-06 (variância com IC) → já na Fase 1 (aggregate_metric); exercitada com 2 métricas ✓
-- RF-07 (custo/latência por pergunta) → já na Fase 1; preservado ✓
-- RF-08 (relatório máquina+humano) → já na Fase 1; preservado ✓
-- RF-09 (gate de regressão) → Tasks 9, 11 ✓
-- RF-10 (offline por default) → Task 12 ✓
-- RF-11 (reprodutibilidade do exemplo) → Tasks 11, 14 ✓
-- RNF-01 (reprodutibilidade) → suíte preservada + ADR-007 ✓
-- RNF-02 (direção de dependência) → seam HttpTransport + factories; teste de direção preservado ✓
-- RNF-03 (honestidade estatística) → MetricResult invariante preservado; gate por ci_low ✓
-- RNF-04 (acessibilidade um comando) → Tasks 10, 12, 14 ✓
-- RNF-05 (doc=código) → Task 14 ✓
-- RNF-06 (custo previsível) → runner preservado (len(cases)*judge_runs) ✓
-- RNF-07 (config externa) → Task 8 (RunConfig TOML) ✓
-- RNF-08 (lint+testes em CI) → Task 13 ✓
-- VAL-01 (dataset malformado) → Task 3 ✓
-- VAL-02 (target inacessível/off-protocol) → Task 5 ✓
-- VAL-03 (resposta incompleta) → Task 5 ✓
-- VAL-04 (N insuficiente) → já na Fase 1 (config) ✓
-- VAL-05 (threshold mal configurado) → Task 8 ✓
-- VAL-06 (seed ausente) → já na Fase 1; preservado via EvalConfig embutido ✓
-- VAL-07 (cache inconsistente) → Task 6 ✓
+- RF-06 (variance with CI) → already in Phase 1 (aggregate_metric); exercised with 2 metrics ✓
+- RF-07 (cost/latency per question) → already in Phase 1; preserved ✓
+- RF-08 (machine+human report) → already in Phase 1; preserved ✓
+- RF-09 (regression gate) → Tasks 9, 11 ✓
+- RF-10 (offline by default) → Task 12 ✓
+- RF-11 (example reproducibility) → Tasks 11, 14 ✓
+- RNF-01 (reproducibility) → suite preserved + ADR-007 ✓
+- RNF-02 (dependency direction) → HttpTransport seam + factories; direction test preserved ✓
+- RNF-03 (statistical honesty) → MetricResult invariant preserved; gate on ci_low ✓
+- RNF-04 (single-command accessibility) → Tasks 10, 12, 14 ✓
+- RNF-05 (doc=code) → Task 14 ✓
+- RNF-06 (predictable cost) → runner preserved (len(cases)*judge_runs) ✓
+- RNF-07 (external config) → Task 8 (RunConfig TOML) ✓
+- RNF-08 (lint+tests in CI) → Task 13 ✓
+- VAL-01 (malformed dataset) → Task 3 ✓
+- VAL-02 (target unreachable/off-protocol) → Task 5 ✓
+- VAL-03 (incomplete response) → Task 5 ✓
+- VAL-04 (insufficient N) → already in Phase 1 (config) ✓
+- VAL-05 (misconfigured threshold) → Task 8 ✓
+- VAL-06 (missing seed) → already in Phase 1; preserved via embedded EvalConfig ✓
+- VAL-07 (inconsistent cache) → Task 6 ✓
 
-**Decisões surfaçadas (não silenciosas):** origem dos contexts (ADR-005), gate por ci_low (ADR-006), determinismo do juiz (ADR-007). Todas com default justificado e ADR.
+**Surfaced decisions (not silent):** contexts source (ADR-005), gate on ci_low (ADR-006), judge determinism (ADR-007). All have a justified default and an ADR.
 
-**Placeholders:** nenhum TODO/TBD; todo código de produção, todo teste e todo comando estão completos. Exceção consciente: o teste `tests/integration/test_cli.py` Step 1 tem uma linha morta atrás de `if False` para documentar intenção — remover na implementação se o reviewer preferir (não afeta o resultado).
+**Placeholders:** no TODO/TBD; all production code, all tests, and all commands are complete. Deliberate exception: `tests/integration/test_cli.py` Step 1 has a dead line behind `if False` to document intent — remove during implementation if the reviewer prefers (does not affect the outcome).
 
-**Consistência de tipos:** `RagResponse`/`EvalCase`/`MetricScores`/`MetricResult`/`EvalReport` usados exatamente como definidos na Fase 1. `HttpTransport.post_json(url, payload, *, headers, timeout_s) -> (int, dict)` idêntico em adapter e juiz. `V1_METRICS` é a única fonte dos nomes. `build_target`/`build_judge`/`run_from_config`/`evaluate_gate`/`GateResult`/`load_dataset`/`RunConfig.from_file` referenciados com as mesmas assinaturas em que foram definidos.
+**Type consistency:** `RagResponse`/`EvalCase`/`MetricScores`/`MetricResult`/`EvalReport` used exactly as defined in Phase 1. `HttpTransport.post_json(url, payload, *, headers, timeout_s) -> (int, dict)` identical in adapter and judge. `V1_METRICS` is the single source for metric names. `build_target`/`build_judge`/`run_from_config`/`evaluate_gate`/`GateResult`/`load_dataset`/`RunConfig.from_file` referenced with the same signatures as defined.
 
-**Nota de não-quebra:** `EvalConfig` da Fase 1 não é tocado; `RunConfig` o compõe. Os 44 testes existentes seguem válidos (a única edição em código de teste existente é, se necessário, ajustar uma asserção de contagem de métricas no stub de 1→2).
+**No-break note:** Phase 1 `EvalConfig` is not touched; `RunConfig` composes it. The 44 existing tests remain valid (the only edit to existing test code is, if needed, adjusting a metric-count assertion in the stub from 1→2).
 ```
