@@ -2,6 +2,8 @@
 
 > Avalia um pipeline RAG e reporta qualidade **com o intervalo de confiança junto**, mais custo e latência, rodando offline com Ollama. Honestidade estatística é invariante, não enfeite: nenhuma métrica de juiz sai como número solto.
 
+O nome é a haste do relógio de sol que projeta a sombra que você lê — e fecha como acrônimo do que o projeto faz: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
+
 ## O que isto faz
 
 Lê um dataset de casos de avaliação versionado, roda cada caso contra um RAG alvo (via adapter), pontua as respostas com um juiz LLM e reporta **faithfulness** e **context precision** — cada uma com intervalo de confiança — junto de custo em tokens e latência em milissegundos. O mesmo eval roda como teste de regressão no CI e falha o build quando uma métrica cai abaixo de um limite configurável.

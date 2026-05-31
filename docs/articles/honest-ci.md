@@ -140,7 +140,7 @@ def aggregate_metric(
 
 This is a methodology fix validated on a deliberately tiny setup — a mock target and two judge models — not an empirical study. I haven't measured how often the pseudoreplicated interval flips a real gate decision across many RAGs and judges; that's the experiment that would turn this into a paper rather than a build log. The claim here is narrow and, I think, hard to argue with: if you report a CI by repeating a deterministic judge and pooling the runs, that interval is `~sqrt(N)` too narrow, and the fix is to make the case your unit of replication.
 
-The harness is called GNOMON — the rod on a sundial that casts the shadow. It doesn't compute the time. It stands still and lets you read it without lying to yourself.
+The harness is called GNOMON — the rod on a sundial that casts the shadow. It doesn't compute the time. It stands still and lets you read it without lying to yourself. It also happens to spell what it does: Gated Numerical Offline Metrics Over N-cases.
 
 Repo (MIT, offline-first): https://github.com/sammyjdev/gnomon-eval
 
