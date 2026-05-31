@@ -1,5 +1,7 @@
 # GNOMON
 
+![GNOMON — Gated Numerical Offline Metrics Over N-cases](docs/assets/gnomon-social.png)
+
 > Avalia um pipeline RAG e reporta qualidade **com o intervalo de confiança junto**, mais custo e latência, rodando offline com Ollama. Honestidade estatística é invariante, não enfeite: nenhuma métrica de juiz sai como número solto.
 
 O nome é a haste do relógio de sol que projeta a sombra que você lê — e fecha como acrônimo do que o projeto faz: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
