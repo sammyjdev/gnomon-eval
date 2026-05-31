@@ -1,35 +1,35 @@
-# ADR-007: Determinismo do juiz Ollama por seed+run
+# ADR-007: Ollama judge determinism via seed+run
 
-**Data:** 2026-05-30
-**Status:** Aceito
+**Date:** 2026-05-30
+**Status:** Accepted
 
-## Contexto
+## Context
 
-RNF-01 é reprodutibilidade dentro da variância medida, não bit-exact. O juiz Ollama precisa de uma sequência determinística por seed declarada para que duas execuções com o mesmo seed produzam resultados comparáveis. Sem fixar seed e temperatura, o juiz introduz variância não controlada que se confunde com variância real do RAG avaliado.
+RNF-01 is reproducibility within measured variance, not bit-exact. The Ollama judge needs a deterministic sequence per declared seed so that two runs with the same seed produce comparable results. Without fixing seed and temperature, the judge introduces uncontrolled variance that is confounded with the real variance of the RAG under evaluation.
 
-## Decisão
+## Decision
 
-O juiz fixa `options.seed = seed + run` e `temperature = 0.0` por chamada. Isso produz uma sequência fixa para um mesmo modelo e host. Todas as métricas da v1 são pontuadas numa **única chamada de modelo por `score()`** (o modelo devolve um objeto JSON com uma chave por métrica), não uma chamada por métrica — o custo real de chamadas é `len(cases) * judge_runs`, sem multiplicador por métrica (RNF-06). A suíte de reprodutibilidade continua usando o StubJudge (determinístico puro); a reprodutibilidade do juiz real é verificada como tolerância de variância, não igualdade de valores. O cache (cuja chave inclui seed e run) reforça a estabilidade dentro de uma mesma máquina.
+The judge fixes `options.seed = seed + run` and `temperature = 0.0` per call. This produces a fixed sequence for a given model and host. All v1 metrics are scored in a **single model call per `score()`** (the model returns a JSON object with one key per metric), not one call per metric — the real call cost is `len(cases) * judge_runs`, with no multiplier per metric (RNF-06). The reproducibility suite continues using the StubJudge (purely deterministic); reproducibility of the real judge is verified as a variance tolerance, not value equality. The cache (whose key includes seed and run) reinforces stability within the same machine.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Sequência determinística por seed declarada: repetir uma execução com o mesmo seed produz o mesmo resultado dentro do mesmo modelo e host.
-- O cache, ao incluir seed e run na chave, evita recálculo e reforça consistência em reruns parciais.
-- A separação entre StubJudge (testes) e juiz real (produção) mantém os testes rápidos e independentes de Ollama.
+**Upsides:**
+- Deterministic sequence per declared seed: repeating a run with the same seed produces the same result within the same model and host.
+- The cache, by including seed and run in the key, avoids recomputation and reinforces consistency in partial reruns.
+- The separation between StubJudge (tests) and real judge (production) keeps tests fast and independent of Ollama.
 
-**Negativas / trade-offs:**
-- Trocar de modelo ou de host pode mudar os números — esperado e reportado via IC. A reprodutibilidade é garantida dentro de um ambiente, não entre ambientes.
-- `temperature = 0.0` em Ollama não é garantia absoluta de determinismo em todos os backends de inferência; o seed é o mecanismo primário.
+**Downsides / trade-offs:**
+- Switching model or host may change the numbers — expected and reported via CI. Reproducibility is guaranteed within an environment, not across environments.
+- `temperature = 0.0` in Ollama is not an absolute guarantee of determinism across all inference backends; seed is the primary mechanism.
 
-**Neutras / a observar:**
-- A combinação `seed + run` (não só `seed`) é intencional: cada run dentro de uma execução recebe uma semente diferente, o que evita que todas as runs de uma pergunta sejam idênticas entre si, preservando a medição de variância.
+**Neutral / to watch:**
+- The combination `seed + run` (not just `seed`) is intentional: each run within an execution receives a different seed, which prevents all runs for a question from being identical to each other, preserving variance measurement.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Seed fixo igual para todos os runs | Todas as runs de uma pergunta seriam idênticas; a variância medida seria zero e o IC seria inútil. |
-| Não fixar seed nem temperatura | Introduz variância não controlada no juiz, que se confunde com variância do RAG e infla o IC sem valor real. |
-| Verificar reprodutibilidade por igualdade bit-exact | Incompatível com RNF-01 e com a realidade de modelos quantizados em hardware variado; a tolerância de variância é a métrica correta. |
-| Uma chamada de modelo por métrica | Dobra (×nº de métricas) o custo e a latência por run, crítico no Ollama offline (ADR-004). Uma única chamada que pontua todas as métricas via JSON é mais barata; o custo de um prompt um pouco maior é desprezível frente a uma segunda inferência completa. |
+| Fixed seed equal for all runs | All runs for a question would be identical; measured variance would be zero and the CI would be useless. |
+| No fixed seed or temperature | Introduces uncontrolled variance in the judge, which is confounded with RAG variance and inflates the CI without real value. |
+| Verify reproducibility by bit-exact equality | Incompatible with RNF-01 and with the reality of quantized models on varied hardware; variance tolerance is the correct metric. |
+| One model call per metric | Multiplies cost and latency by the number of metrics per run, critical in offline Ollama (ADR-004). A single call that scores all metrics via JSON is cheaper; the cost of a slightly larger prompt is negligible compared to a second full inference. |

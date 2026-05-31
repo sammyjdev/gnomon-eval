@@ -1,100 +1,100 @@
-# GNOMON — Requisitos
+# GNOMON — Requirements
 
-Documento de requisitos da v1. Cada requisito tem um identificador para rastreio em spec, teste e ADR. Os requisitos funcionais descrevem o que o sistema faz. Os não funcionais descrevem as restrições de qualidade que governam como ele faz. As validações descrevem o que o sistema rejeita e como.
+Requirements document for v1. Each requirement has an identifier for tracing across spec, tests, and ADRs. Functional requirements describe what the system does. Non-functional requirements describe the quality constraints that govern how it does it. Validations describe what the system rejects and how.
 
-## Requisitos funcionais
+## Functional requirements
 
-### RF-01 — Definição de dataset de avaliação
-O sistema lê um dataset de casos de avaliação versionado em arquivo. Cada caso contém pergunta, resposta esperada e lista de contextos esperados. O dataset é a fonte de verdade da avaliação e vive junto do código, não em banco externo.
+### RF-01 — Evaluation dataset definition
+The system reads a versioned evaluation dataset of cases from a file. Each case contains a question, an expected answer, and a list of expected contexts. The dataset is the source of truth for evaluation and lives alongside the code, not in an external database.
 
 ### RF-02 — Target RAG via adapter
-O sistema avalia qualquer RAG acessível por um adapter. O primeiro adapter concreto fala protocolo OpenAI-compat por REST. Trocar de target é trocar configuração, não código do harness.
+The system evaluates any RAG accessible through an adapter. The first concrete adapter speaks the OpenAI-compat protocol over REST. Switching targets means changing configuration, not harness code.
 
-### RF-03 — Execução de caso contra o target
-Para cada caso do dataset, o sistema envia a pergunta ao target e coleta a resposta, os contextos recuperados, os tokens consumidos e a latência em milissegundos.
+### RF-03 — Case execution against the target
+For each case in the dataset, the system sends the question to the target and collects the response, retrieved contexts, tokens consumed, and latency in milliseconds.
 
-### RF-04 — Pontuação por juiz LLM
-Um juiz LLM pontua cada par caso/resposta nas métricas de qualidade da v1. O juiz roda sob controle de seed e cache para sustentar reprodutibilidade.
+### RF-04 — Scoring by LLM judge
+An LLM judge scores each case/response pair on the v1 quality metrics. The judge runs under seed control and cache to support reproducibility.
 
-### RF-05 — Métricas da v1
-O sistema calcula faithfulness (a resposta está ancorada nos contextos recuperados) e context precision (os contextos recuperados são relevantes para a pergunta).
+### RF-05 — v1 metrics
+The system calculates faithfulness (the response is grounded in the retrieved contexts) and context precision (the retrieved contexts are relevant to the question).
 
-### RF-06 — Variância do juiz com intervalo de confiança
-O sistema executa a pontuação do juiz N vezes por métrica e reporta média com intervalo de confiança. Nenhuma métrica baseada em juiz sai como número único.
+### RF-06 — Judge variance with confidence interval
+The system runs the judge scoring N times per metric and reports the mean with a confidence interval. No judge-based metric is emitted as a single number.
 
-### RF-07 — Custo e latência por pergunta
-O sistema reporta tokens e latência por pergunta e agregados. Essas saídas aparecem no mesmo relatório que a qualidade, não em relatório separado.
+### RF-07 — Cost and latency per question
+The system reports tokens and latency per question and as aggregates. These outputs appear in the same report as quality metrics, not in a separate report.
 
-### RF-08 — Relatório de execução
-O sistema produz um relatório legível por máquina e por humano contendo, para cada métrica, média, limite inferior e superior do intervalo de confiança e número de execuções do juiz, além dos números de custo e latência.
+### RF-08 — Run report
+The system produces a machine-readable and human-readable report containing, for each metric, the mean, lower and upper bounds of the confidence interval, and the number of judge runs, plus the cost and latency numbers.
 
-### RF-09 — Gate de regressão
-O sistema expõe a avaliação como teste executável que falha quando uma métrica cai abaixo de um limite configurável. O limite é definido por configuração, por métrica.
+### RF-09 — Regression gate
+The system exposes the evaluation as an executable test that fails when a metric drops below a configurable threshold. The threshold is defined per metric in configuration.
 
-### RF-10 — Execução offline por default
-O caminho de execução documentado no README roda com Ollama via Docker, sem chave de API paga. O caminho com provedor pago existe atrás de configuração isolada e opcional.
+### RF-10 — Offline execution by default
+The execution path documented in the README runs with Ollama via Docker, without a paid API key. The path with a paid provider exists behind isolated, optional configuration.
 
-### RF-11 — Reprodutibilidade do exemplo
-A execução de exemplo do README produz, dentro da variância reportada, os mesmos números a cada rodada na mesma máquina com a mesma configuração e seed.
+### RF-11 — Example reproducibility
+The README example run produces, within the reported variance, the same numbers on every run on the same machine with the same configuration and seed.
 
-## Requisitos não funcionais
+## Non-functional requirements
 
-### RNF-01 — Reprodutibilidade
-Mesma entrada, mesma seed e mesmo modelo de juiz produzem o mesmo resultado dentro da variância medida e reportada. A reprodutibilidade é invariante de projeto, verificada por teste, não promessa de documentação.
+### RNF-01 — Reproducibility
+Same input, same seed, and same judge model produce the same result within the measured and reported variance. Reproducibility is a project invariant, verified by test, not a documentation promise.
 
-### RNF-02 — Direção de dependência
-O harness depende de targets por contrato (a interface do adapter), nunca de internals de uma implementação concreta. Um target é definido por interface. A evolução do RAG alvo não quebra o harness enquanto o contrato público se mantém.
+### RNF-02 — Dependency direction
+The harness depends on targets by contract (the adapter interface), never on internals of a concrete implementation. A target is defined by interface. Evolution of the target RAG does not break the harness as long as the public contract holds.
 
-### RNF-03 — Honestidade estatística
-O sistema nunca apresenta número de qualidade baseado em juiz sem a margem de incerteza. Score único para métrica não-determinística é tratado como defeito, não como simplificação aceitável.
+### RNF-03 — Statistical honesty
+The system never presents a judge-based quality number without an uncertainty margin. A single score for a nondeterministic metric is treated as a defect, not an acceptable simplification.
 
-### RNF-04 — Acessibilidade de execução
-Um terceiro clona o repositório, sobe o ambiente com Docker e roda a avaliação de exemplo com um comando. Nenhuma etapa do caminho default exige credencial paga ou infraestrutura que o avaliador não tenha localmente.
+### RNF-04 — Execution accessibility
+A third party clones the repository, brings up the environment with Docker, and runs the example evaluation with one command. No step in the default path requires a paid credential or infrastructure the evaluator does not have locally.
 
-### RNF-05 — Consistência entre documentação e código
-Toda afirmação do README tem um comando que a reproduz. Claim sem comando correspondente é tratado como defeito de documentação.
+### RNF-05 — Documentation and code consistency
+Every claim in the README has a command that reproduces it. A claim without a corresponding command is treated as a documentation defect.
 
-### RNF-06 — Custo de execução previsível
-O número de chamadas ao juiz por execução é função explícita do tamanho do dataset e do N de runs de variância. O sistema não faz chamadas de modelo fora desse cálculo declarado.
+### RNF-06 — Predictable execution cost
+The number of judge calls per run is an explicit function of the dataset size and the variance runs N. The system makes no model calls outside this declared calculation.
 
-### RNF-07 — Isolamento de configuração
-Configuração de target, modelo de juiz, seed, N de runs e limites de gate vivem em configuração externa ao código. Mudar qualquer um não exige editar fonte.
+### RNF-07 — Configuration isolation
+Target configuration, judge model, seed, number of runs, and gate thresholds live in external configuration. Changing any of them does not require editing source.
 
-### RNF-08 — Qualidade de código verificada
-O projeto roda lint e testes em integração contínua. Lint, compilação e suíte de testes verdes são barreira de release.
+### RNF-08 — Verified code quality
+The project runs lint and tests in continuous integration. Lint, compilation, and a green test suite are a release barrier.
 
-## Validações esperadas
+## Expected validations
 
-### VAL-01 — Dataset malformado falha fechado
-Dataset ausente, com caso sem pergunta, sem resposta esperada ou sem contextos esperados, rejeita a execução com erro explícito que aponta o caso problemático. O sistema nunca avalia parcial em silêncio.
+### VAL-01 — Malformed dataset fails closed
+A missing dataset, or a dataset with a case missing a question, expected answer, or expected contexts, rejects the run with an explicit error pointing to the offending case. The system never evaluates partially in silence.
 
-### VAL-02 — Target inacessível falha explícito
-Target que não responde, responde fora do protocolo OpenAI-compat ou estoura timeout produz erro nomeado que distingue falha de configuração de falha do target em runtime.
+### VAL-02 — Unreachable target fails explicitly
+A target that does not respond, responds outside the OpenAI-compat protocol, or exceeds the timeout produces a named error that distinguishes a configuration failure from a runtime target failure.
 
-### VAL-03 — Resposta do target incompleta
-Resposta sem contextos, sem contagem de tokens ou sem latência é rejeitada ou marcada conforme política definida em ADR, nunca tratada como zero silencioso que contamina a métrica.
+### VAL-03 — Incomplete target response
+A response missing contexts, a token count, or latency is rejected or flagged according to the policy defined in the ADR — never treated as a silent zero that contaminates the metric.
 
-### VAL-04 — N de runs insuficiente para intervalo de confiança
-N de runs do juiz abaixo do mínimo necessário para calcular intervalo de confiança rejeita a configuração com mensagem que indica o mínimo aceitável.
+### VAL-04 — Insufficient runs N for confidence interval
+A judge runs N below the minimum required to calculate a confidence interval rejects the configuration with a message indicating the acceptable minimum.
 
-### VAL-05 — Limite de gate mal configurado
-Limite de regressão fora da faixa válida da métrica (por exemplo, limite negativo ou acima do máximo possível) rejeita a configuração antes de qualquer chamada de modelo.
+### VAL-05 — Misconfigured gate threshold
+A regression threshold outside the valid range for the metric (for example, a negative threshold or one above the maximum possible) rejects the configuration before any model call.
 
-### VAL-06 — Seed ausente em modo reproduzível
-Execução em modo reproduzível sem seed declarada falha, em vez de gerar seed implícita que quebraria a reprodutibilidade entre rodadas.
+### VAL-06 — Missing seed in reproducible mode
+A run in reproducible mode without a declared seed fails, rather than generating an implicit seed that would break reproducibility across runs.
 
-### VAL-07 — Cache inconsistente
-Entrada de cache cuja chave não casa com a tupla de identidade definida (caso, resposta, modelo de juiz, seed) é tratada como miss, nunca como acerto que retornaria pontuação de contexto errado.
+### VAL-07 — Inconsistent cache
+A cache entry whose key does not match the defined identity tuple (case, response, judge model, seed) is treated as a miss, never as a hit that would return a score from the wrong context.
 
-## Rastreabilidade
+## Traceability
 
-| Requisito | ADR relacionado |
+| Requirement | Related ADR |
 |---|---|
 | RNF-02, RF-02 | ADR-001 (adapter-based target) |
-| RNF-01, RNF-03, RF-04, RF-06, VAL-06, VAL-07 | ADR-002 (não-determinismo do juiz) |
-| RF-10, RNF-04 | ADR-003 (offline-first com Ollama) |
-| RF-07, RNF-06 | ADR-004 (custo e latência como métrica de primeira classe) |
+| RNF-01, RNF-03, RF-04, RF-06, VAL-06, VAL-07 | ADR-002 (judge nondeterminism) |
+| RF-10, RNF-04 | ADR-003 (offline-first with Ollama) |
+| RF-07, RNF-06 | ADR-004 (cost and latency as first-class metrics) |
 
-## Fora de escopo da v1
+## Out of scope for v1
 
-Answer relevance, context recall, dashboard temporal, comparação multi-target e persistência de histórico de execuções não fazem parte da v1. A arquitetura comporta a adição sem reescrita, mas a entrega inicial não os inclui.
+Answer relevance, context recall, temporal dashboard, multi-target comparison, and run history persistence are not part of v1. The architecture accommodates adding them without a rewrite, but the initial release does not include them.

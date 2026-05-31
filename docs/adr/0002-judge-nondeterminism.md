@@ -1,49 +1,49 @@
-# ADR-002: Tratamento do não-determinismo do juiz LLM
+# ADR-002: Handling LLM judge nondeterminism
 
-**Data:** 2026-05-29
-**Status:** Aceito (parâmetros de N de runs e granularidade de cache em aberto, ver seção Pontos abertos)
+**Date:** 2026-05-29
+**Status:** Accepted (N of runs and cache granularity parameters open, see Open questions section)
 
-## Contexto
+## Context
 
-As métricas de qualidade da v1 usam um LLM como juiz. LLM não é determinístico: a mesma entrada produz pontuações diferentes em execuções diferentes, mesmo com temperatura baixa. Reportar um número único de qualidade esconde esse ruído e leva a decisão de deploy em cima de um valor que oscila sem o operador saber.
+The v1 quality metrics use an LLM as a judge. LLMs are nondeterministic: the same input produces different scores across different runs, even at low temperature. Reporting a single quality number hides that noise and leads to deploy decisions based on a value that fluctuates without the operator knowing.
 
-Esse é o diferencial central do harness. As ferramentas existentes em sua maioria reportam score único. Tratar o não-determinismo de frente, medindo e expondo a variância, é o que separa este harness das alternativas.
+This is the central differentiator of the harness. Most existing tools report a single score. Addressing nondeterminism head-on -- measuring and exposing variance -- is what sets this harness apart from the alternatives.
 
-A restrição é a tensão entre confiança estatística e custo. Mais execuções do juiz por métrica apertam o intervalo de confiança, mas multiplicam chamadas de modelo, tempo e custo. A decisão precisa equilibrar honestidade estatística com viabilidade de execução, inclusive no caminho offline com Ollama, que é mais lento.
+The constraint is the tension between statistical confidence and cost. More judge runs per metric tighten the confidence interval but multiply model calls, time, and cost. The decision must balance statistical honesty with execution viability, including the offline path with Ollama, which is slower.
 
-## Decisão
+## Decision
 
-O juiz pontua cada par caso/métrica N vezes. O sistema reporta média com intervalo de confiança calculado sobre essas N pontuações. Nenhuma métrica baseada em juiz sai como número único; a saída sempre carrega média, limite inferior, limite superior e N.
+The judge scores each case/metric pair N times. The system reports the mean with a confidence interval calculated over those N scores. No judge-based metric is emitted as a single number; the output always carries mean, lower threshold, upper threshold, and N.
 
-Para sustentar reprodutibilidade dentro desse esquema, o juiz roda sob seed declarada e usa cache. A chave de cache é a tupla de identidade que define unicamente uma pontuação: caso, resposta, modelo de juiz e seed. Entrada cujo a chave não casa com essa tupla é miss, nunca acerto aproximado.
+To sustain reproducibility within this scheme, the judge runs under a declared seed and uses a cache. The cache key is the identity tuple that uniquely defines a score: case, response, judge model, and seed. An input whose key does not match that tuple is a miss, never an approximate hit.
 
-Modo reproduzível exige seed explícita. Execução em modo reproduzível sem seed falha, em vez de gerar seed implícita que quebraria a reprodutibilidade entre rodadas.
+Reproducible mode requires an explicit seed. Running in reproducible mode without a seed fails, rather than generating an implicit seed that would break reproducibility across runs.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- O operador vê o ruído do juiz em vez de ignorá-lo, e decide deploy sobre intervalo, não sobre ponto.
-- A reprodutibilidade vira invariante verificável: mesma seed e mesmo modelo de juiz produzem o mesmo resultado dentro da variância, testado na suíte de reprodutibilidade.
-- O cache corta custo de reexecução quando a entrada não muda.
+**Upsides:**
+- The operator sees the judge's noise instead of ignoring it, and makes deploy decisions over an interval, not a point.
+- Reproducibility becomes a verifiable invariant: the same seed and the same judge model produce the same result within variance, tested in the reproducibility suite.
+- The cache cuts re-execution cost when the input has not changed.
 
-**Negativas / trade-offs:**
-- N execuções por métrica multiplicam custo e tempo. No caminho offline com Ollama, o tempo é o limitante mais sensível.
-- Cache por seed significa que mudar a seed invalida o cache inteiro. É correto, mas custa reexecução quando se varia seed deliberadamente.
+**Downsides / trade-offs:**
+- N runs per metric multiply cost and time. On the offline path with Ollama, time is the most sensitive constraint.
+- Cache keyed by seed means that changing the seed invalidates the entire cache. This is correct behavior, but it incurs re-execution cost when deliberately varying the seed.
 
-**Neutras / a observar:**
-- O valor de N adequado depende da estabilidade do modelo de juiz escolhido. Modelo mais estável permite N menor para o mesmo aperto de intervalo. Vale medir a variância do juiz default antes de fixar N.
+**Neutral / to watch:**
+- The appropriate value of N depends on the stability of the chosen judge model. A more stable model allows a smaller N for the same interval tightening. It is worth measuring the default judge's variance before fixing N.
 
-## Pontos abertos
+## Open questions
 
-Dois parâmetros desta decisão ficam em aberto e dependem de medição com o modelo de juiz default antes de fixar:
+Two parameters of this decision remain open and depend on measurement with the default judge model before being fixed:
 
-1. **N de runs do juiz por métrica.** ~~Trade-off entre aperto do IC e custo.~~ **Resolvido (ADR-008):** medimos a variância do juiz default (Ollama, `temperature=0`) e ela é **zero** — o juiz é determinístico por seed. Logo os N runs são cópias idênticas e **não** podem contar como amostras independentes (isso inflaria o `n` e estreitaria o IC artificialmente, violando RNF-03). N passou a ser um botão de *denoise* dentro do caso (útil só com juiz ruidoso, `temperature>0`); com `temperature=0`, N=1 basta. A largura do IC é função do **número de casos**, não de runs — ver ADR-008.
-2. **Granularidade do cache.** A decisão atual define a chave como (caso, resposta, modelo de juiz, seed). Resta confirmar se essa granularidade é a certa ou se vale uma chave mais grossa que compartilhe pontuações entre execuções semelhantes. A mais fina é mais segura contra contaminação; a mais grossa economiza mais. A escolha segura é a fina, e é o default até haver evidência de que o custo justifica afrouxar.
+1. **N of judge runs per metric.** ~~Trade-off between CI tightening and cost.~~ **Resolved (ADR-008):** we measured the variance of the default judge (Ollama, `temperature=0`) and it is **zero** -- the judge is deterministic by seed. Therefore the N runs are identical copies and **cannot** count as independent samples (doing so would inflate `n` and artificially narrow the CI, violating RNF-03). N became a *denoise* knob within the case (useful only with a noisy judge, `temperature>0`); with `temperature=0`, N=1 suffices. The CI width is a function of the **number of cases**, not of runs -- see ADR-008.
+2. **Cache granularity.** The current decision defines the key as (case, response, judge model, seed). It remains to confirm whether that granularity is correct or whether a coarser key that shares scores across similar runs is worthwhile. The finer key is safer against contamination; the coarser key saves more. The safe choice is the fine key, and it is the default until there is evidence that the cost justifies relaxing it.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Reportar número único de qualidade | Esconde o não-determinismo do juiz; é a falha central das ferramentas existentes que este harness existe para corrigir. |
-| Forçar temperatura zero e assumir determinismo | Temperatura zero reduz mas não elimina variância em muitos provedores; assumir determinismo que não existe é mentira estatística. |
-| Seed implícita gerada quando ausente | Quebraria reprodutibilidade entre rodadas sem o operador perceber, violando a invariante central. |
+| Report a single quality number | Hides the judge's nondeterminism; this is the central flaw of existing tools that this harness exists to fix. |
+| Force temperature zero and assume determinism | Temperature zero reduces but does not eliminate variance in many providers; assuming determinism that does not exist is statistical dishonesty. |
+| Implicit seed generated when absent | Would break reproducibility across runs without the operator noticing, violating the central invariant. |

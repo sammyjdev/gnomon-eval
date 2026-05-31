@@ -1,37 +1,37 @@
-# ADR-001: Target RAG baseado em adapter
+# ADR-001: Adapter-based RAG target
 
-**Data:** 2026-05-29
-**Status:** Aceito
+**Date:** 2026-05-29
+**Status:** Accepted
 
-## Contexto
+## Context
 
-O harness precisa de um RAG para avaliar, e o alvo de exemplo é o RPG Master AI. O RPG Master ainda está longe da versão final e vai mudar bastante por dentro. Se o harness acoplar na implementação atual dele, cada mudança no RPG Master quebra o exemplo do harness, e o exemplo é o que faz o portfólio vender. Além disso, um harness que só avalia um RAG específico não tem valor para nenhum cliente que tenha o próprio RAG.
+The harness needs a RAG to evaluate, and the example target is RPG Master AI. RPG Master is far from its final version and will change substantially under the hood. If the harness couples to its current implementation, every change to RPG Master breaks the harness example, and the example is what makes the portfolio sell. Moreover, a harness that only evaluates one specific RAG has no value for any client who has their own RAG.
 
-A restrição real é dupla: o exemplo precisa sobreviver à evolução do RPG Master, e o harness precisa servir para qualquer RAG, não só o de exemplo.
+The real constraint is twofold: the example must survive RPG Master's evolution, and the harness must work for any RAG, not just the example one.
 
-## Decisão
+## Decision
 
-Definimos o target por uma interface de domínio, `RagTarget`, e acessamos qualquer RAG concreto através de um adapter que implementa essa interface. O primeiro adapter concreto fala protocolo OpenAI-compat por REST, que é o protocolo que o RPG Master já expõe. O harness depende da interface, nunca de internals do RAG.
+We define the target through a domain interface, `RagTarget`, and access any concrete RAG through an adapter that implements that interface. The first concrete adapter speaks the OpenAI-compat protocol over REST, which is the protocol RPG Master already exposes. The harness depends on the interface, never on the RAG's internals.
 
-Trocar o RAG avaliado é trocar configuração e, no máximo, escolher outro adapter. Não exige tocar no núcleo de avaliação.
+Swapping the evaluated RAG means changing configuration and, at most, choosing a different adapter. No changes to the evaluation core are required.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- O RPG Master evolui por dentro sem quebrar o harness enquanto mantém o contrato REST.
-- O harness avalia qualquer RAG que fale OpenAI-compat, o que o torna vendável para cliente com RAG próprio.
-- A direção de dependência fica explícita e verificável: implementações dependem do domínio, não o contrário.
+**Upsides:**
+- RPG Master can evolve internally without breaking the harness as long as it maintains the REST contract.
+- The harness evaluates any RAG that speaks OpenAI-compat, making it sellable to clients with their own RAG.
+- The dependency direction is explicit and verifiable: implementations depend on the domain, not the other way around.
 
-**Negativas / trade-offs:**
-- Um RAG que não fale OpenAI-compat exige escrever um novo adapter. O custo é isolado no adapter, mas existe.
-- A interface esconde capacidades específicas de um target. Recurso peculiar de um RAG não aparece pela interface genérica sem extensão deliberada.
+**Downsides / trade-offs:**
+- A RAG that does not speak OpenAI-compat requires writing a new adapter. The cost is isolated to the adapter, but it exists.
+- The interface hides target-specific capabilities. A RAG's peculiar feature does not surface through the generic interface without deliberate extension.
 
-**Neutras / a observar:**
-- A qualidade da abstração só se prova quando o segundo adapter for escrito. Se o segundo adapter forçar mudança na interface, a abstração estava errada e revisamos aqui.
+**Neutral / to watch:**
+- The quality of the abstraction is only proven when the second adapter is written. If the second adapter forces a change to the interface, the abstraction was wrong and we revisit this ADR.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Acoplar direto no RPG Master AI | Cada mudança no RPG Master quebraria o harness, e o harness não serviria para nenhum outro RAG. |
-| Suportar só um protocolo fixo sem camada de adapter | Tornaria impossível avaliar RAGs com protocolos diferentes sem reescrever o núcleo. |
+| Couple directly to RPG Master AI | Every change to RPG Master would break the harness, and the harness would not serve any other RAG. |
+| Support only a fixed protocol with no adapter layer | Would make it impossible to evaluate RAGs with different protocols without rewriting the core. |

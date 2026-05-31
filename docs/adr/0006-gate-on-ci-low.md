@@ -1,34 +1,34 @@
-# ADR-006: Gate compara contra o limite inferior do IC
+# ADR-006: Gate compares against the confidence interval lower bound
 
-**Data:** 2026-05-30
-**Status:** Aceito
+**Date:** 2026-05-30
+**Status:** Accepted
 
-## Contexto
+## Context
 
-RF-09 falha o gate quando uma métrica cai abaixo de um limite definido. Toda métrica gerada pelo eval é uma média com intervalo de confiança (RNF-03). Gatear pela média pontual deixaria passar resultados cuja incerteza ainda cruza o limite — ou seja, um resultado que é estatisticamente indistinguível de uma falha seria reportado como aprovado.
+RF-09 fails the gate when a metric falls below a defined threshold. Every metric produced by the eval is a mean with a confidence interval (RNF-03). Gating by the point mean would let through results whose uncertainty still crosses the threshold — that is, a result that is statistically indistinguishable from a failure would be reported as passing.
 
-## Decisão
+## Decision
 
-O gate passa só se `ci_low >= threshold`. O limite inferior do intervalo de confiança precisa estar acima (ou igual) ao threshold para o gate aprovar. Métrica com threshold definido mas ausente do relatório é tratada como falha, não como passe silencioso.
+The gate passes only if `ci_low >= threshold`. The lower bound of the confidence interval must be above (or equal to) the threshold for the gate to approve. A metric with a defined threshold that is absent from the report is treated as a failure, not as a silent pass.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Honestidade estatística preservada no portão: um resultado ambíguo (IC que cruza o threshold) não passa.
-- Métrica ausente é falha explícita, o que impede configurações incompletas de passar despercebidas.
+**Upsides:**
+- Statistical honesty preserved at the gate: an ambiguous result (CI that crosses the threshold) does not pass.
+- An absent metric is an explicit failure, which prevents incomplete configurations from going unnoticed.
 
-**Negativas / trade-offs:**
-- Gate mais rígido com poucos casos, porque o IC é mais largo. Com poucos casos no dataset, métricas reais acima do threshold podem falhar o gate por incerteza alta.
-- Mitiga-se com **mais casos** no dataset (ADR-008). Subir o N de *runs* do juiz **não** estreita o IC — runs apenas reduzem ruído dentro de um caso; a largura do IC é função do número de casos.
+**Downsides / trade-offs:**
+- Stricter gate with few cases, because the CI is wider. With few cases in the dataset, real metrics above the threshold may fail the gate due to high uncertainty.
+- Mitigated by **more cases** in the dataset (ADR-008). Increasing the judge `runs` count does **not** narrow the CI — runs only reduce noise within a case; CI width is a function of the number of cases.
 
-**Neutras / a observar:**
-- A escolha de `ci_low` como critério é conservadora por design. Operadores que aceitam risco maior podem definir thresholds mais baixos, mas o critério de comparação permanece `ci_low`.
-- O `ci_low` agora vem do bootstrap percentílico sobre os casos (ADR-008), limitado a [0,1] por construção. O clamp do IC ao range da métrica (decisão original deste ADR) foi **aposentado**: o bootstrap não produz limites fora de [0,1].
+**Neutral / to watch:**
+- Choosing `ci_low` as the criterion is conservative by design. Operators who accept greater risk can set lower thresholds, but the comparison criterion remains `ci_low`.
+- `ci_low` now comes from the percentile bootstrap over cases (ADR-008), bounded to [0,1] by construction. Clamping the CI to the metric range (the original decision in this ADR) has been **retired**: the bootstrap does not produce bounds outside [0,1].
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Comparar pela média pontual | Deixaria passar resultados estatisticamente ambíguos; uma métrica de 0.70 ± 0.05 com threshold 0.68 passaria, mesmo que o IC cruze o limite. |
-| Comparar pelo ponto médio do IC | Equivalente à média; não captura a incerteza do lado baixo. |
-| Passe silencioso para métrica ausente | Permite que configurações incompletas ou erros no pipeline de coleta passem no gate sem sinalizar o problema. |
+| Compare by point mean | Would let through statistically ambiguous results; a metric of 0.70 ± 0.05 with threshold 0.68 would pass, even though the CI crosses the threshold. |
+| Compare by the CI midpoint | Equivalent to the mean; does not capture uncertainty on the low side. |
+| Silent pass for absent metric | Allows incomplete configurations or errors in the collection pipeline to pass the gate without signaling the problem. |

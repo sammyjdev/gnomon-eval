@@ -2,32 +2,32 @@
 
 ![GNOMON — Gated Numerical Offline Metrics Over N-cases](docs/assets/gnomon-social.png)
 
-> Avalia um pipeline RAG e reporta qualidade **com o intervalo de confiança junto**, mais custo e latência, rodando offline com Ollama. Honestidade estatística é invariante, não enfeite: nenhuma métrica de juiz sai como número solto.
+> Evaluates a RAG pipeline and reports quality **with the confidence interval included**, plus cost and latency, running offline with Ollama. Statistical honesty is an invariant, not decoration: no judge metric is reported as a bare number.
 
-O nome é a haste do relógio de sol que projeta a sombra que você lê — e fecha como acrônimo do que o projeto faz: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
+The name is the gnomon — the rod of a sundial that casts the shadow you read — and it doubles as a backronym for what the project does: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
 
-## O que isto faz
+## What it does
 
-Lê um dataset de casos de avaliação versionado, roda cada caso contra um RAG alvo (via adapter), pontua as respostas com um juiz LLM e reporta **faithfulness** e **context precision** — cada uma com intervalo de confiança — junto de custo em tokens e latência em milissegundos. O mesmo eval roda como teste de regressão no CI e falha o build quando uma métrica cai abaixo de um limite configurável.
+Reads a versioned dataset of evaluation cases, runs each case against a target RAG (via adapter), scores the responses with an LLM judge, and reports **faithfulness** and **context precision** — each with a confidence interval — alongside token cost and latency in milliseconds. The same eval runs as a regression test in CI and fails the build when a metric drops below a configurable threshold.
 
-O exemplo avalia um **MockTarget** (respostas canônicas) pontuado por um juiz **Ollama local**, sem dependência externa nem chave paga. Trocar para um RAG real que fale o protocolo OpenAI-compat é mudar o bloco `[target]` em `config/example.toml` — não o código.
+The example evaluates a **MockTarget** (canonical responses) scored by a local **Ollama** judge, with no external dependency or paid API key. Switching to a real RAG that speaks the OpenAI-compat protocol means changing the `[target]` block in `config/example.toml` — not the code.
 
-## Executar a avaliação (offline, um comando)
+## Run the evaluation (offline, one command)
 
-Pré-requisito: Docker. O exemplo avalia o MockTarget pontuado pelo juiz Ollama real — não exige um serviço de RAG externo.
+Prerequisite: Docker. The example evaluates the MockTarget scored by the real Ollama judge — no external RAG service required.
 
 ```bash
-# 1. Sobe o Ollama e baixa o modelo do juiz (a 1ª vez leva alguns minutos)
+# 1. Start Ollama and pull the judge model (first run takes a few minutes)
 docker compose up -d ollama
 docker compose exec ollama ollama pull llama3
 
-# 2. Roda a avaliação de exemplo (config + dataset versionados)
+# 2. Run the example evaluation (versioned config + dataset)
 docker compose run --rm harness
 ```
 
-O processo sai com código **0 se o gate passa**, **1 se alguma métrica fica abaixo do limite** em `config/docker.toml` (RF-09) — é isso que o torna usável como portão de regressão no CI.
+The process exits with code **0 if the gate passes**, **1 if any metric falls below the threshold** in `config/docker.toml` (RF-09) — that is what makes it usable as a regression gate in CI.
 
-### Exemplo de saída
+### Example output
 
 ```
 Evaluation report
@@ -47,86 +47,86 @@ Per case:
   rpg-003: 137 tokens, 512.0 ms
 ```
 
-`N` é o número de **casos** sobre os quais o intervalo é calculado (o dataset é a amostra; ver ADR-008). O intervalo é um bootstrap percentílico, limitado a [0,1] por construção. Para apertar o IC, adicione mais casos ao dataset — não mais runs do juiz.
+`N` is the number of **cases** over which the interval is calculated (the dataset is the sample; see ADR-008). The interval is a bootstrap percentile, bounded to [0,1] by construction. To tighten the CI, add more cases to the dataset — not more judge runs.
 
-### Rodar no host (Ollama local, sem Docker para o harness)
+### Run on the host (local Ollama, no Docker for the harness)
 
 ```bash
 pip install -e ".[dev]"
-# com um Ollama em localhost:11434 e o modelo llama3 baixado:
+# with Ollama running at localhost:11434 and llama3 pulled:
 gnomon --config config/example.toml
 ```
 
-### Check determinístico (sem Ollama, sem Docker)
+### Deterministic check (no Ollama, no Docker)
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -q          # 77 testes: unidade, reprodutibilidade e smoke do gate
+python -m pytest -q          # 77 tests: unit, reproducibility, and gate smoke
 ```
 
-### Reprodutibilidade (RF-11 / RNF-01)
+### Reproducibility (RF-11 / RNF-01)
 
-Mesma seed + mesma config + mesma máquina produzem os mesmos números. Com o juiz determinístico (temperatura 0) e o bootstrap semeado pela seed, o resultado é idêntico entre rodadas. Verificado por teste:
+Same seed + same config + same machine produce the same numbers. With a deterministic judge (temperature 0) and a seeded bootstrap, the result is identical across runs. Verified by test:
 
 ```bash
 python -m pytest tests/reproducibility -q
 ```
 
-## Arquitetura
+## Architecture
 
-O núcleo de avaliação depende de interfaces, nunca de implementações concretas. Targets e juiz dependem do núcleo. Detalhes e diagrama em `docs/ARCHITECTURE.md`.
+The evaluation core depends on interfaces, never on concrete implementations. Targets and judge depend on the core. Details and diagram in `docs/ARCHITECTURE.md`.
 
 ```
-Config -> Runner -> [Target adapter] -> RAG alvo (OpenAI-compat ou Mock)
+Config -> Runner -> [Target adapter] -> target RAG (OpenAI-compat or Mock)
                  -> [Judge] --------> faithfulness + context precision
-                 -> [Metrics] ------> média sobre casos + IC (bootstrap)
-                 -> [Reporting] ----> relatório máquina + humano (mesma fonte)
-                 -> [Gate] ---------> passa/falha no CI (compara ci_low)
+                 -> [Metrics] ------> mean over cases + CI (bootstrap)
+                 -> [Reporting] ----> machine + human report (same source)
+                 -> [Gate] ---------> pass/fail in CI (compares ci_low)
 ```
 
-## Configuração
+## Configuration
 
-Toda a configuração vive em arquivos TOML versionados (RNF-07):
+All configuration lives in versioned TOML files (RNF-07):
 
-- `config/example.toml` — rodar no host com Ollama em `localhost:11434`
-- `config/docker.toml` — rodar via `docker compose run --rm harness` (judge aponta para o serviço `ollama` da rede compose)
+- `config/example.toml` — run on the host with Ollama at `localhost:11434`
+- `config/docker.toml` — run via `docker compose run --rm harness` (judge points to the `ollama` service on the compose network)
 
-Os parâmetros (seed, runs do juiz, modelo, limites do gate, target) estão documentados dentro dos próprios arquivos. Configuração inválida — incluindo um limite de gate fora de [0,1] ou seed ausente em modo reproduzível — falha fechado no carregamento, antes de qualquer chamada de modelo.
+The parameters (seed, judge runs, model, gate thresholds, target) are documented inside the files themselves. Invalid configuration — including a gate threshold outside [0,1] or a missing seed in reproducible mode — fails-closed at load time, before any model call.
 
-## Como rodar os testes
+## How to run the tests
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -q                         # suite completa: 77 testes
-python -m pytest tests/unit -q              # só unitários
-python -m pytest tests/reproducibility -q   # só reprodutibilidade
-python -m pytest tests/gate -q              # só smoke do gate
+python -m pytest -q                         # full suite: 77 tests
+python -m pytest tests/unit -q              # unit tests only
+python -m pytest tests/reproducibility -q   # reproducibility only
+python -m pytest tests/gate -q              # gate smoke only
 ruff check src tests && ruff format --check src tests
 ```
 
-## Decisões de design
+## Design decisions
 
-As decisões que governam o projeto estão em `docs/adr/`:
+The decisions governing the project are in `docs/adr/`:
 
-- **ADR-001** — target baseado em adapter, para o harness servir a qualquer RAG.
-- **ADR-002** — não-determinismo do juiz, com intervalo de confiança em vez de número único.
-- **ADR-003** — execução offline-first com Ollama, para o exemplo rodar sem custo.
-- **ADR-004** — custo e latência como métricas de primeira classe.
-- **ADR-005** — contextos recuperados num campo de extensão OpenAI-compat (fail-closed).
-- **ADR-006** — gate compara contra o limite inferior do IC (`ci_low`), não a média.
-- **ADR-007** — determinismo do juiz Ollama por `seed+run`, uma chamada por caso.
-- **ADR-008** — agregação por caso + IC por bootstrap (honestidade estatística do `n`).
+- **ADR-001** — adapter-based target, so the harness can serve any RAG.
+- **ADR-002** — judge nondeterminism, with a confidence interval instead of a single number.
+- **ADR-003** — offline-first execution with Ollama, so the example runs at zero cost.
+- **ADR-004** — cost and latency as first-class metrics.
+- **ADR-005** — retrieved contexts in an OpenAI-compat extension field (fail-closed).
+- **ADR-006** — gate compares against the lower bound of the CI (`ci_low`), not the mean.
+- **ADR-007** — Ollama judge determinism via `seed+run`, one call per case.
+- **ADR-008** — per-case aggregation + bootstrap CI (statistical honesty of `n`).
 
-Requisitos completos em `docs/REQUIREMENTS.md`. Visão de produto em `docs/PRODUCT_OVERVIEW.md`. O loop de desenvolvimento do projeto está em `docs/DEVELOPMENT_LOOP.md`.
+Full requirements in `docs/REQUIREMENTS.md`. Product overview in `docs/PRODUCT_OVERVIEW.md`. The project development loop is in `docs/DEVELOPMENT_LOOP.md`.
 
-## O que não faz (ainda)
+## What it does not do (yet)
 
-Answer relevance, context recall, dashboard temporal, comparação multi-target e persistência de histórico ficam para a v2. A arquitetura comporta a adição sem reescrita. O backlog detalhado, com dependências e sequenciamento proposto, está em [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Answer relevance, context recall, temporal dashboard, multi-target comparison, and history persistence are left for v2. The architecture accommodates these additions without a rewrite. The detailed backlog, with dependencies and proposed sequencing, is in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## Contribuindo
+## Contributing
 
-Commits seguem Conventional Commits. O gate de CI roda `pytest` e `ruff check` — PRs precisam passar ambos.
+Commits follow Conventional Commits. The CI gate runs `pytest` and `ruff check` — PRs must pass both.
 
-## Licença
+## License
 
-MIT — veja [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
