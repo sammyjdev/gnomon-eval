@@ -1,61 +1,61 @@
 # GNOMON
 
-> Mede a qualidade de um pipeline RAG e reporta o número honesto, com a margem de incerteza junto, sem fingir mais confiança do que os dados sustentam.
+> Measures the quality of a RAG pipeline and reports the honest number — with the uncertainty margin alongside it — without pretending to more confidence than the data can support.
 
-O nome é a haste do relógio de sol que projeta a sombra que você lê. Também fecha como acrônimo do projeto: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
+The name is the gnomon of a sundial: the rod that casts the shadow you read. It also closes as the project backronym: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
 
-## O problema
+## The problem
 
-Quem coloca um RAG em produção não sabe dizer se ele piorou depois do último deploy. As ferramentas de avaliação que existem reportam um score único de qualidade, e esse número mente por dois motivos.
+Engineers shipping a RAG to production have no reliable way to tell whether quality degraded after the last deploy. The evaluation tools that exist report a single quality score, and that number lies for two reasons.
 
-O primeiro é estatístico, e é mais sutil do que parece. A intuição diz que o problema é o juiz LLM ser não-determinístico, então a ferramenta roda o juiz N vezes e reporta uma média com intervalo de confiança. Parece rigoroso. Só que com o juiz em modo reproduzível, a temperatura zero, ele é determinístico: as N execuções são cópias idênticas. Contar cópias idênticas como observações independentes estreita o intervalo por um fator de raiz de N. É rigor de fachada, um palpite vestido de medição.
+The first is statistical, and more subtle than it looks. The intuition says the problem is that the LLM judge is nondeterministic, so the tool runs the judge N times and reports a mean with a confidence interval. That sounds rigorous. But when the judge runs in reproducible mode — temperature zero — it is deterministic: the N runs are identical copies. Counting identical copies as independent observations narrows the interval by a factor of the square root of N. That is rigour as facade, a guess dressed as measurement.
 
-A incerteza que de fato importa não é o juiz repontuando o mesmo caso. É que o seu dataset de teste é uma amostra pequena de todas as perguntas que os usuários vão fazer. O número honesto carrega a margem dessa amostragem: o intervalo se calcula sobre os casos, não sobre as repetições do juiz. Um score único esconde isso, e o "conserto" padrão de repetir o juiz esconde pior.
+The uncertainty that actually matters is not the judge rescoring the same case. It is that your test dataset is a small sample of every question users will ever ask. The honest number carries the margin of that sampling: the confidence interval is computed over the cases, not over judge repetitions. Per-case aggregation is what statistical honesty requires (ADR-008). A single score hides this, and the standard "fix" of repeating the judge makes it worse.
 
-O segundo é que qualidade aparece sozinha, descolada de custo e latência. A resposta de qualidade 0.95 que custou quatro vezes mais tokens e três vezes mais tempo que a de 0.91 parece melhor no relatório, mas pode ser a escolha errada para o caso de uso. A decisão real nunca é "qual responde melhor", e sim "qual responde bem o suficiente pelo custo que cobra".
+The second reason is that quality appears alone, decoupled from cost and latency. The answer with quality 0.95 that consumed four times more tokens and three times more time than the one scoring 0.91 looks better in the report, but may be the wrong choice for the use case. The real decision is never "which answers better" but "which answers well enough for what it costs".
 
-## O que é
+## What it is
 
-Um harness de avaliação que roda contra qualquer RAG que fale o protocolo OpenAI-compat. Define um conjunto de casos de teste com pergunta, resposta esperada e contextos esperados, executa o RAG alvo contra esses casos e calcula métricas de qualidade.
+A harness that runs against any RAG speaking the OpenAI-compat protocol. It defines a set of evaluation cases with a question, an expected answer, and expected contexts; executes the target RAG against those cases; and computes quality metrics.
 
-A diferença está em três pontos. Toda métrica baseada em juiz sai com intervalo de confiança, nunca como número solto, então a pessoa vê o ruído em vez de ignorá-lo. Custo e latência por pergunta saem no mesmo relatório que a qualidade, lado a lado, para a decisão ser tomada sobre o trade-off real. E o harness roda como teste de regressão no CI, falhando o build quando uma métrica cai abaixo de um limite configurável, o que transforma avaliação de relatório manual em portão automático.
+The difference is in three points. Every judge-based metric is reported with a confidence interval, never as a bare number, so the reader sees the noise rather than ignoring it. Cost and latency per question appear in the same report as quality, side by side, so the decision can be made on the real trade-off. And the harness runs as a regression gate in CI, failing the build when a metric drops below a configurable threshold, which turns evaluation from a manual report into an automated gate.
 
-O alvo de exemplo é um sistema RAG real, não um brinquedo. O harness avalia o RPG Master AI através da API REST que ele já expõe, e trocar para outro RAG é mudar uma linha de configuração.
+The example target is a real RAG system, not a toy. The harness evaluates RPG Master AI through the REST API it already exposes, and switching to a different RAG is a one-line config change.
 
-## Para quem
+## Who it is for
 
-Engenheiro que mantém um pipeline RAG em produção e precisa de um sinal confiável de que a qualidade não regrediu entre deploys. Time pequeno que não tem infraestrutura de avaliação e não quer montar uma do zero. Quem compara modelos ou estratégias de retrieval e precisa de número com significância estatística, não impressão.
+Engineers maintaining a RAG pipeline in production who need a reliable signal that quality has not regressed between deploys. Small teams without evaluation infrastructure who do not want to build one from scratch. Anyone comparing models or retrieval strategies who needs numbers with statistical significance, not impressions.
 
-## Como funciona
+## How it works
 
-1. Você define um dataset de avaliação: perguntas, respostas esperadas e contextos esperados, versionado junto do código.
-2. Configura o target apontando para o seu RAG via endpoint OpenAI-compat.
-3. Roda o harness. Ele executa cada caso contra o RAG, coleta resposta, contextos, tokens e latência.
-4. Um juiz LLM pontua cada resposta em faithfulness e context precision. As N runs por caso fazem denoise; o intervalo de confiança vem do espalhamento **entre os casos** via bootstrap, não da repetição do juiz (ADR-008).
-5. O relatório sai com cada métrica acompanhada do intervalo de confiança, mais custo e latência agregados e por pergunta.
-6. No CI, o mesmo eval roda como teste e falha o build se uma métrica cruza o limite configurado.
+1. You define an evaluation dataset: questions, expected answers, and expected contexts, versioned alongside the code.
+2. Configure the target by pointing at your RAG via an OpenAI-compat endpoint.
+3. Run the harness. It executes each evaluation case against the RAG and collects the response, contexts, token counts, and latency.
+4. An LLM judge scores each response for faithfulness and context precision. The N runs per case denoise; the confidence interval comes from the spread **across cases** via bootstrap, not from judge repetition (ADR-008).
+5. The report shows each metric with its confidence interval, plus cost and latency aggregated and per question.
+6. In CI, the same eval runs as a test and fails the build if a metric crosses the configured threshold.
 
 ## Stack
 
-- Linguagem: Python 3.11
-- Avaliação offline: Ollama via Docker
-- Juiz e target: protocolo OpenAI-compat
-- Testes e gate: pytest
-- Lint e formatação: ruff
+- Language: Python 3.11
+- Offline evaluation: Ollama via Docker
+- Judge and target: OpenAI-compat protocol
+- Tests and gate: pytest
+- Lint and formatting: ruff
 
-## Status atual
+## Current status
 
-v1 entregue. Target real (OpenAI-compat), juiz Ollama, agregação por caso com IC por bootstrap (ADR-008), gate, CLI de um comando, infra Docker offline e CI — 77 testes verdes, 8 ADRs. O caminho de execução offline com Ollama é o default desde o primeiro corte. Backlog da v2 em `docs/ROADMAP.md`.
+v1 delivered. Real target (OpenAI-compat), Ollama judge, per-case aggregation with bootstrap confidence intervals (ADR-008), regression gate, single-command CLI, offline Docker infrastructure, and CI — 77 tests green, 8 ADRs. The offline execution path with Ollama is the default from the first cut. v2 backlog in `docs/ROADMAP.md`.
 
-## O que não faz (ainda)
+## What it does not do (yet)
 
-- Answer relevance e context recall ficam para a v2. A arquitetura de juiz já comporta, mas não estão no primeiro corte.
-- Não tem dashboard de tendência temporal. O relatório é por execução. Histórico persistido e visualização vêm depois.
-- Não compara múltiplos targets numa única execução. Isso entra quando o orquestrador que consome este harness precisar.
-- Não substitui avaliação humana em casos de alta criticidade. Mede o que dá para medir de forma reproduzível e é honesto sobre a margem.
+- Answer relevance and context recall are deferred to v2. The judge architecture already supports them, but they are not in the first cut.
+- No temporal trend dashboard. The report is per execution. Persisted history and visualization come later.
+- No comparison of multiple targets in a single execution. That will be added when the orchestrator consuming this harness needs it.
+- It does not replace human evaluation for high-criticality cases. It measures what can be measured reproducibly and is honest about the margin.
 
 ## Links
 
-- Repositório: https://github.com/sammyjdev/gnomon-eval
-- Documentação técnica: ver `README.md` e `docs/`
-- Decisões de arquitetura: ver `docs/adr/`
+- Repository: https://github.com/sammyjdev/gnomon-eval
+- Technical documentation: see `README.md` and `docs/`
+- Architecture decisions: see `docs/adr/`

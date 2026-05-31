@@ -1,71 +1,71 @@
 # GNOMON — Roadmap v2
 
-> **Status: rascunho, não comprometido.** Este documento é um backlog de candidatos para depois da v1, com dependências e um sequenciamento **proposto** (ajustável). Não é um plano executável: quando uma onda for escolhida, ela vira um plano via `superpowers:writing-plans`, seguindo `docs/DEVELOPMENT_LOOP.md`.
+> **Status: draft, not committed.** This document is a backlog of candidates for after v1, with dependencies and a **proposed** sequencing (adjustable). It is not an executable plan: when a wave is chosen, it becomes a plan via `superpowers:writing-plans`, following `docs/DEVELOPMENT_LOOP.md`.
 
-A v1 (entregue) está em `docs/REQUIREMENTS.md`. A seção "Fora de escopo da v1" lista o que foi deliberadamente adiado; este roadmap detalha esses itens e soma as dívidas descobertas ao validar o caminho real (juiz Ollama).
+v1 (delivered) is in `docs/REQUIREMENTS.md`. The "Out of scope for v1" section lists what was deliberately deferred; this roadmap details those items and adds the debt discovered while validating the real path (Ollama judge).
 
-## Invariantes que a v2 herda (não-negociáveis)
+## Non-negotiable invariants inherited by v2
 
-Todo item abaixo precisa preservar:
+Every item below must preserve:
 
-- **Honestidade estatística** (RNF-03) — nenhuma métrica de juiz sem incerteza; nada de inflar `n` (ver ADR-008).
-- **Direção de dependência** (RNF-02) — núcleo depende de contratos, não de implementações.
-- **Offline-first** (RF-10) e **reprodutibilidade** (RNF-01).
-- **Custo e latência de primeira classe** (ADR-004), **fail-closed** e **honestidade documental** (RNF-05).
+- **Statistical honesty** (RNF-03) — no judge metric without uncertainty; no inflating `n` (see ADR-008).
+- **Dependency direction** (RNF-02) — the core depends on contracts, not implementations.
+- **Offline-first** (RF-10) and **reproducibility** (RNF-01).
+- **Cost and latency as first-class** (ADR-004), **fail-closed**, and **documentary honesty** (RNF-05).
 
-## Habilitador transversal: usar o ground truth
+## Cross-cutting enabler: using the ground truth
 
-`EvalCase` já carrega `expected_answer` e `expected_contexts`, mas o juiz da v1 **os ignora** — ele pontua a resposta contra os contextos *recuperados* (faithfulness) e a relevância dos contextos à pergunta (context precision). Métricas novas que comparam com a verdade de referência (context recall, answer relevance com referência) **dependem** de o pipeline passar esse ground truth ao juiz/métrica.
+`EvalCase` already carries `expected_answer` and `expected_contexts`, but the v1 judge **ignores them** — it scores the response against the *retrieved* contexts (faithfulness) and the relevance of the contexts to the question (context precision). New metrics that compare against the reference ground truth (context recall, answer relevance with reference) **depend** on the pipeline passing that ground truth to the judge/metric.
 
-→ É a primeira peça estrutural da v2: expor `expected_*` ao juiz e às métricas, sem violar a direção de dependência.
+→ This is the first structural piece of v2: expose `expected_*` to the judge and to the metrics, without violating the dependency direction.
 
-## Backlog A — features adiadas da v1
+## Backlog A — features deferred from v1
 
-| # | Item | O quê / por quê | Toca | Depende de |
-|---|------|-----------------|------|------------|
-| A1 | **Answer relevance** | Métrica: a resposta responde à pergunta (independente de estar ancorada)? Pode ser com referência (`expected_answer`) ou sem. | juiz (prompt), métricas, V1_METRICS→V2_METRICS | habilitador (se com referência) |
-| A2 | **Context recall** | Métrica: a recuperação trouxe **todos** os contextos necessários? Compara contextos recuperados vs `expected_contexts`. | juiz/métrica, dataset | **habilitador** (ground truth) |
-| A3 | **Persistência de histórico** | Guardar resultados de execuções ao longo do tempo (arquivo: sqlite/jsonl). | nova camada de store | — |
-| A4 | **Dashboard temporal** | Acompanhar métricas por execução/tempo. | reporting/CLI, store | **A3** |
-| A5 | **Comparação multi-target** | Rodar N targets e produzir relatório comparativo lado a lado. | runner, reporting, config | (talvez A3) |
+| # | Item | What / why | Touches | Depends on |
+|---|------|------------|---------|------------|
+| A1 | **Answer relevance** | Metric: does the response answer the question (regardless of being grounded)? Can be with reference (`expected_answer`) or without. | judge (prompt), metrics, V1_METRICS→V2_METRICS | enabler (if with reference) |
+| A2 | **Context recall** | Metric: did retrieval bring back **all** necessary contexts? Compares retrieved contexts vs `expected_contexts`. | judge/metric, dataset | **enabler** (ground truth) |
+| A3 | **History persistence** | Store run results over time (file: sqlite/jsonl). | new store layer | — |
+| A4 | **Temporal dashboard** | Track metrics per run/time. | reporting/CLI, store | **A3** |
+| A5 | **Multi-target comparison** | Run N targets and produce a side-by-side comparative report. | runner, reporting, config | (maybe A3) |
 
-## Backlog B — dívidas e itens descobertos na v1
+## Backlog B — debt and items discovered in v1
 
-| # | Item | Origem | Toca |
-|---|------|--------|------|
-| B1 | **`judge_runs=1` para juiz determinístico** | ADR-002/008: com `temperature=0` as runs são cópias; piso `>=2` (VAL-04) é desperdício. | `config.py`, testes |
-| B2 | **Método de IC plugável** | ADR-008 alternativas: Wilson/Jeffreys (juiz binário, F1) e hierárquico (juiz ruidoso, C) além do bootstrap atual. | `confidence.py`, config |
-| B3 | **Cache de juiz persistente (disco)** | ADR-002 (ponto de cache): hoje é em memória, perde-se entre processos; persistir economiza e reforça reprodutibilidade cross-process. | `judge/cache.py`, config |
-| B4 | **Barra de capacidade do juiz / repair** | Caminho real: `phi3:mini` emitiu chave inválida (`faithlessness`) → fail-closed correto, mas a run inteira falha. Validar/calibrar o juiz, ou re-prompt/repair com K tentativas. | juiz, talvez nova etapa de calibração |
-| B5 | **Custo em moeda + provedor pago** | ADR-004 / RF-10: hoje só tokens; um caminho pago isolado e a conversão tokens→custo. | métricas, config, target/judge |
-| B6 | **Fixtures gravadas / MockTarget por pergunta** | O MockTarget devolve uma resposta fixa; demos e golden tests ganhariam respostas por pergunta (gravadas de um RAG real). | `targets/`, datasets |
-| B7 | **Mais adapters de target** | Além de OpenAI-compat, conforme a necessidade de RAGs reais. | `targets/` |
+| # | Item | Origin | Touches |
+|---|------|--------|---------|
+| B1 | **`judge_runs=1` for deterministic judge** | ADR-002/008: with `temperature=0` the runs are copies; floor `>=2` (VAL-04) is wasteful. | `config.py`, tests |
+| B2 | **Pluggable confidence interval method** | ADR-008 alternatives: Wilson/Jeffreys (binary judge, F1) and hierarchical (noisy judge, C) in addition to the current bootstrap. | `confidence.py`, config |
+| B3 | **Persistent judge cache (disk)** | ADR-002 (cache point): currently in-memory, lost between processes; persisting saves cost and reinforces cross-process reproducibility. | `judge/cache.py`, config |
+| B4 | **Judge capacity bar / repair** | Real path: `phi3:mini` emitted an invalid key (`faithlessness`) → fail-closed correct, but the entire run fails. Validate/calibrate the judge, or re-prompt/repair with K attempts. | judge, possibly a new calibration stage |
+| B5 | **Cost in currency + paid provider** | ADR-004 / RF-10: today only tokens; an isolated paid path and tokens→cost conversion. | metrics, config, target/judge |
+| B6 | **Recorded fixtures / per-question MockTarget** | MockTarget returns a fixed response; demos and golden tests would benefit from per-question responses (recorded from a real RAG). | `targets/`, datasets |
+| B7 | **More target adapters** | Beyond OpenAI-compat, as real RAG needs arise. | `targets/` |
 
-## Dependências (resumo)
+## Dependencies (summary)
 
 ```
-habilitador (ground truth) ──> A2 (context recall)
-                           └─> A1 (answer relevance com referência)
-A3 (persistência) ──> A4 (dashboard)
-                  └─> A5 (multi-target, opcional)
+enabler (ground truth) ──> A2 (context recall)
+                       └─> A1 (answer relevance with reference)
+A3 (persistence) ──> A4 (dashboard)
+                 └─> A5 (multi-target, optional)
 ```
 
-B1, B2, B3, B5, B6, B7 são independentes entre si e do resto (podem entrar a qualquer momento).
+B1, B2, B3, B5, B6, B7 are independent of each other and of the rest (can be picked up at any time).
 
-## Sequenciamento proposto (PROPOSTA — ajuste à vontade)
+## Proposed sequencing (PROPOSAL — adjust freely)
 
-- **Onda 1 — fundações baratas:** habilitador (ground truth), B1 (`judge_runs=1`), B3 (cache persistente), B4 (barra do juiz). Tudo de baixo risco, destrava as métricas novas e fecha pontas soltas da v1.
-- **Onda 2 — métricas novas:** A2 (context recall) e A1 (answer relevance). É o coração de valor da v2.
-- **Onda 3 — escala e observabilidade:** A3 (persistência) → A4 (dashboard) → A5 (multi-target).
-- **Quando surgir necessidade:** B2 (IC plugável) se um juiz ruidoso ou binário entrar; B5/B6/B7 conforme casos reais aparecerem.
+- **Wave 1 — cheap foundations:** enabler (ground truth), B1 (`judge_runs=1`), B3 (persistent cache), B4 (judge capacity bar). All low-risk, unlocks new metrics, and closes loose ends from v1.
+- **Wave 2 — new metrics:** A2 (context recall) and A1 (answer relevance). The core value of v2.
+- **Wave 3 — scale and observability:** A3 (persistence) → A4 (dashboard) → A5 (multi-target).
+- **When need arises:** B2 (pluggable CI) if a noisy or binary judge is introduced; B5/B6/B7 as real cases appear.
 
-## Perguntas em aberto (decidir ao abrir a v2)
+## Open questions (decide when opening v2)
 
-1. O foco da v2 é **métricas novas** (Onda 2) ou **escala/observabilidade** (Onda 3) primeiro?
-2. Answer relevance (A1): **com** referência (usa `expected_answer`) ou **sem** (só pergunta↔resposta)?
-3. Persistência (A3): arquivo local (sqlite/jsonl versionável) ou serviço? O offline-first puxa para arquivo local.
-4. A barra do juiz (B4): validação one-shot na configuração, ou repair/retry por chamada? (retry com juiz determinístico exige variar seed/prompt).
+1. Is the v2 focus **new metrics** (Wave 2) or **scale/observability** (Wave 3) first?
+2. Answer relevance (A1): **with** reference (uses `expected_answer`) or **without** (question↔response only)?
+3. Persistence (A3): local file (sqlite/jsonl, versionable) or a service? Offline-first pulls toward local file.
+4. Judge capacity bar (B4): one-shot validation at configuration time, or per-call repair/retry? (retry with a deterministic judge requires varying seed/prompt).
 
-## Como isto vira plano executável
+## How this becomes an executable plan
 
-Escolhida uma onda (ou fatia dela), rodar `superpowers:writing-plans` para produzir o plano task-by-task, e executar via `superpowers:subagent-driven-development` — o mesmo loop que entregou a v1. Decisões não-óbvias viram ADRs em `docs/adr/` (próximo número livre: ADR-009).
+Once a wave (or a vertical slice of it) is chosen, run `superpowers:writing-plans` to produce the task-by-task plan, then execute via `superpowers:subagent-driven-development` — the same loop that delivered v1. Non-obvious decisions become ADRs in `docs/adr/` (next free number: ADR-009).

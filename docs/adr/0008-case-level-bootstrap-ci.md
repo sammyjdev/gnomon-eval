@@ -1,47 +1,47 @@
-# ADR-008: Unidade de agregação é o caso; IC por bootstrap sobre casos
+# ADR-008: Aggregation unit is the case; CI by bootstrap over cases
 
-**Data:** 2026-05-30
-**Status:** Aceito (supersede a parte de t-interval + clamp do ADR-006)
+**Date:** 2026-05-30
+**Status:** Accepted (supersedes the t-interval + clamp part of ADR-006)
 
-## Contexto
+## Context
 
-Rodar o juiz Ollama real (`temperature=0`) expôs dois problemas na agregação original (Fase 1):
+Running the real Ollama judge (`temperature=0`) exposed two problems in the original aggregation (Phase 1):
 
-1. **`n` inflado.** O runner empilhava todas as pontuações `casos × runs` num único vetor e calculava um t-interval com `n = casos × runs`. Com o juiz determinístico, as N runs de um caso são **idênticas**. Contar 8 cópias idênticas como 8 observações independentes estreita o IC artificialmente — uma violação direta do RNF-03 (honestidade estatística), a invariante central do projeto. Medição: com 2 casos `[1.0, 0.0]` e 8 runs, o método antigo reportava `[0.225, 0.775]`; a informação real (2 observações) honesta é `[0.0, 1.0]`.
-2. **Clamp do t-interval.** Com poucos pontos, o t-interval de uma métrica limitada a [0,1] estoura a faixa (ex.: `[-5.85, 6.85]`) e o ADR-006 o clampava a [0,1]. O clamp esconde o estouro e, perto dos extremos, **mente no limite superior** (deixa o gate afirmar "pode ser 100%" mesmo com falhas observadas).
+1. **Inflated `n`.** The runner stacked all `cases × runs` scores into a single vector and computed a t-interval with `n = cases × runs`. With the deterministic judge, the N runs for a case are **identical**. Counting 8 identical copies as 8 independent observations artificially narrows the CI — a direct violation of RNF-03 (statistical honesty), the central invariant of the project. Measurement: with 2 cases `[1.0, 0.0]` and 8 runs, the old method reported `[0.225, 0.775]`; the honest real-information result (2 observations) is `[0.0, 1.0]`.
+2. **T-interval clamp.** With few points, the t-interval of a metric bounded to [0,1] overflows the range (e.g., `[-5.85, 6.85]`) and ADR-006 clamped it to [0,1]. The clamp hides the overflow and, near the extremes, **lies about the upper bound** (it lets the gate assert "could be 100%" even with observed failures).
 
-As duas fontes de variação foram confundidas: ruído do juiz (Q1 — reincidência na mesma cena) e espalhamento entre casos (Q2 — o dataset é uma amostra da população de perguntas). O gate (RF-09) só se importa com Q2.
+The two sources of variation were conflated: judge noise (Q1 — recurrence on the same scene) and spread across cases (Q2 — the dataset is a sample from the population of questions). The gate (RF-09) only cares about Q2.
 
-## Decisão
+## Decision
 
-**Agregação (A): o caso é a unidade amostral.** As N runs de um caso são colapsadas na média (denoise dentro do caso, não amostras independentes). A métrica do dataset agrega sobre os **casos**: `n = número de casos`. Menos de 2 casos não delimita uma população e é rejeitado.
+**Aggregation (A): the case is the sampling unit.** The N runs for a case are collapsed into their mean (denoise within the case, not independent samples). The dataset metric aggregates over **cases**: `n = number of cases`. Fewer than 2 cases does not bound a population and is rejected.
 
-**Intervalo (F2): bootstrap percentílico sobre os casos.** O IC é o percentil (α/2, 1−α/2) das médias de reamostragens dos scores por-caso. Como cada média de reamostragem é média de valores já em [0,1], o intervalo é **limitado por construção — sem clamp**. O bootstrap é **semeado** (`config.seed`) para preservar a reprodutibilidade (RNF-01).
+**Interval (F2): percentile bootstrap over cases.** The CI is the (α/2, 1−α/2) percentile of means of resamples of the per-case scores. Since each resample mean is the mean of values already in [0,1], the interval is **bounded by construction — no clamp**. The bootstrap is **seeded** (`config.seed`) to preserve reproducibility (RNF-01).
 
-O gate continua comparando `ci_low >= threshold` (ADR-006), agora sobre o `ci_low` do bootstrap.
+The gate continues comparing `ci_low >= threshold` (ADR-006), now over the bootstrap `ci_low`.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Honestidade restaurada (RNF-03): o `n` reflete observações reais (casos); runs idênticas não fabricam confiança.
-- Sem clamp e sem limite-superior-mentiroso: o intervalo nasce dentro de [0,1].
-- Reprodutibilidade trivial e perfeita com juiz determinístico (`temperature=0`), via seed do bootstrap.
-- Method-agnostic quanto ao nível de confiança: o bootstrap aceita qualquer `confidence_level` em (0,1), sem tabela t.
+**Upsides:**
+- Honesty restored (RNF-03): `n` reflects real observations (cases); identical runs do not fabricate confidence.
+- No clamp and no lying upper bound: the interval is born within [0,1].
+- Trivial and perfect reproducibility with a deterministic judge (`temperature=0`), via the bootstrap seed.
+- Method-agnostic with respect to confidence level: the bootstrap accepts any `confidence_level` in (0,1), without a t-table.
 
-**Negativas / trade-offs:**
-- Com poucos casos o IC é largo (correto, mas pode frustrar). O lever de IC estreito é **mais casos** no dataset (RF-01), não mais runs.
-- O bootstrap é mais caro que uma fórmula fechada (2000 reamostragens), porém desprezível frente a uma chamada de modelo.
-- N de runs vira útil só com juiz ruidoso (`temperature>0`); com `temperature=0` é redundante. O piso `judge_runs>=2` (VAL-04) foi mantido por ora; relaxar para 1 é follow-up.
+**Downsides / trade-offs:**
+- With few cases the CI is wide (correct, but may be frustrating). The lever for a narrower CI is **more cases** in the dataset (RF-01), not more runs.
+- The bootstrap is more expensive than a closed-form formula (2000 resamples), but negligible compared to a model call.
+- Number of runs only becomes useful with a noisy judge (`temperature>0`); with `temperature=0` it is redundant. The floor `judge_runs>=2` (VAL-04) was kept for now; relaxing it to 1 is a follow-up open question.
 
-**Neutras / a observar:**
-- `MetricResult.n` muda de semântica: era runs, agora é casos.
+**Neutral / to watch:**
+- `MetricResult.n` changes semantics: it was runs, now it is cases.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Manter pooling `casos × runs` com t-interval | Infla o `n` com cópias determinísticas e estreita o IC artificialmente (viola RNF-03). |
-| Manter t-interval + clamp ao range | O clamp mente no limite superior perto dos extremos (afirma 100% com falhas observadas). |
-| Wilson/Jeffreys (F1, binário) | Exigiria binarizar o score do juiz (✓/✗), perdendo a gradação 0–1; é uma mudança de produto. Reservado caso se queira robustez extra contra juiz fraco. |
-| Variância do juiz com `temperature>0` (medir Q1) | Mede a pergunta menos útil para o gate; nossa medição mostrou variância ≈0 mesmo a temp=0.8 em casos claros, e temp>0 complica a reprodutibilidade. |
-| Modelo hierárquico (2 níveis, Q1+Q2) | Estatisticamente mais completo, mas com juiz determinístico colapsa exatamente no bootstrap sobre casos; custo de implementação não se justifica na v1. |
+| Keep `cases × runs` pooling with t-interval | Inflates `n` with deterministic copies and artificially narrows the CI (violates RNF-03). |
+| Keep t-interval + clamp to range | The clamp lies about the upper bound near the extremes (asserts 100% with observed failures). |
+| Wilson/Jeffreys (F1, binary) | Would require binarizing the judge score (✓/✗), losing the 0–1 gradation; this is a product change. Reserved if extra robustness against a weak judge is desired. |
+| Judge variance with `temperature>0` (measuring Q1) | Measures the less useful question for the gate; our measurement showed variance ≈0 even at temp=0.8 for clear cases, and temp>0 complicates reproducibility. |
+| Hierarchical model (2 levels, Q1+Q2) | Statistically more complete, but with a deterministic judge collapses exactly to the bootstrap over cases; implementation cost is not justified in v1. |

@@ -1,36 +1,36 @@
-# ADR-004: Custo e latência como métricas de primeira classe
+# ADR-004: Cost and latency as first-class metrics
 
-**Data:** 2026-05-29
-**Status:** Aceito
+**Date:** 2026-05-29
+**Status:** Accepted
 
-## Contexto
+## Context
 
-A decisão real que um operador de RAG enfrenta nunca é "qual configuração responde melhor", e sim "qual responde bem o suficiente pelo custo que cobra". As ferramentas de avaliação existentes reportam qualidade isolada. Uma resposta de qualidade alta que consome muito mais tokens e muito mais tempo aparece como vencedora no relatório, mesmo quando a opção mais barata e mais rápida seria a escolha certa para o caso de uso.
+The real decision a RAG operator faces is never "which configuration answers best" but rather "which one answers well enough for what it costs". Existing evaluation tools report quality in isolation. A high-quality response that consumes far more tokens and far more time appears as the winner in the report, even when the cheaper and faster option would be the right choice for the use case.
 
-Tratar custo e latência como anexo, fora do relatório de qualidade ou opcional, leva o operador a otimizar qualidade e descobrir o custo só na fatura.
+Treating cost and latency as an appendix -- outside the quality report or optional -- leads the operator to optimize for quality and discover the cost only when the invoice arrives.
 
-## Decisão
+## Decision
 
-Custo, medido em tokens, e latência, medida em milissegundos, são métricas de primeira classe. O target adapter coleta tokens e latência em toda resposta. O relatório de qualquer execução reporta esses números agregados e por pergunta, no mesmo relatório e ao lado da qualidade, nunca em saída separada e nunca como passo opcional.
+Cost, measured in tokens, and latency, measured in milliseconds, are first-class metrics. The target adapter collects tokens and latency for every response. The report for any run includes these numbers -- aggregated and per question -- in the same report and alongside quality, never in a separate output and never as an optional step.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- O operador decide sobre o trade-off real qualidade contra custo contra latência, numa única visão.
-- Comparar duas configurações de RAG passa a expor o custo de cada ponto de qualidade ganho.
-- O número de chamadas ao juiz por execução é função explícita do tamanho do dataset e do N de runs, o que torna o custo de rodar o próprio eval previsível.
+**Upsides:**
+- The operator decides on the real trade-off: quality versus cost versus latency, in a single view.
+- Comparing two RAG configurations exposes the cost of each quality point gained.
+- The number of judge calls per run is an explicit function of dataset size and N of runs, making the cost of running the eval itself predictable.
 
-**Negativas / trade-offs:**
-- Exige que todo target adapter reporte tokens e latência. Um target que não exponha contagem de tokens força uma política de tratamento, definida na validação VAL-03, em vez de assumir zero.
-- Acopla a coleta de custo ao adapter, que precisa medir latência de forma consistente para os números serem comparáveis entre targets.
+**Downsides / trade-offs:**
+- Requires every target adapter to report tokens and latency. A target that does not expose a token count forces a handling policy, defined in validation VAL-03, rather than assuming zero.
+- Couples cost collection to the adapter, which must measure latency consistently for the numbers to be comparable across targets.
 
-**Neutras / a observar:**
-- A comparabilidade de latência entre execuções depende de condições de máquina e rede. Vale documentar que latência é comparável dentro de um ambiente, não entre ambientes diferentes.
+**Neutral / to watch:**
+- Latency comparability across runs depends on machine and network conditions. It is worth documenting that latency is comparable within an environment, not across different environments.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Reportar só qualidade | Esconde o trade-off que é a decisão real do operador; otimizar qualidade às cegas leva a custo descoberto tarde. |
-| Custo e latência como relatório separado opcional | Separar as duas dimensões da qualidade faz o operador comparar qualidade sem o custo na mesma visão, que é o erro que esta decisão corrige. |
-| Medir custo só em moeda, não em tokens | Preço por token varia por provedor e muda com o tempo; tokens é a unidade estável e convertível, então é a base, com moeda como derivação opcional. |
+| Report quality only | Hides the trade-off that is the operator's real decision; optimizing quality blindly leads to cost discovered late. |
+| Cost and latency as a separate optional report | Separating the two dimensions from quality causes the operator to compare quality without cost in the same view, which is the exact error this decision corrects. |
+| Measure cost in currency only, not in tokens | Price per token varies by provider and changes over time; tokens is the stable, convertible unit and is therefore the base, with currency as an optional derivation. |

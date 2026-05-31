@@ -1,34 +1,34 @@
-# ADR-005: Contextos recuperados num campo de extensão OpenAI-compat
+# ADR-005: Retrieved contexts in an OpenAI-compat extension field
 
-**Data:** 2026-05-30
-**Status:** Aceito
+**Date:** 2026-05-30
+**Status:** Accepted
 
-## Contexto
+## Context
 
-O protocolo OpenAI chat/completions não tem campo padrão para os contextos recuperados por um RAG. RF-03 exige que o eval colete os contextos junto da resposta para calcular métricas de fidelidade e relevância. Sem um campo explícito para os contextos, o adapter não tem como separar o que é resposta gerada do que é material recuperado.
+The OpenAI chat/completions protocol has no standard field for contexts retrieved by a RAG. RF-03 requires the eval to collect contexts alongside the response in order to compute faithfulness and relevance metrics. Without an explicit field for contexts, the adapter has no way to separate the generated response from the retrieved material.
 
-## Decisão
+## Decision
 
-O adapter OpenAI-compat lê os contextos de um campo de extensão JSON top-level de nome configurável (`contexts_field`, default `"contexts"`). Ausência do campo não é tratada como lista vazia — resulta em `IncompleteResponseError` (VAL-03). Nunca lista vazia silenciosa.
+The OpenAI-compat adapter reads contexts from a configurable top-level JSON extension field (`contexts_field`, default `"contexts"`). An absent field is not treated as an empty list — it results in `IncompleteResponseError` (VAL-03). Never a silent empty list.
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- A política fail-closed mantém a métrica honesta: nenhum resultado sem contexto é contabilizado como avaliação válida.
-- O nome do campo é configurável, o que permite adaptar a targets que já usam outro nome sem alterar o adapter central.
-- A semântica é explícita: o operador sabe que o target precisa devolver contextos nesse campo.
+**Upsides:**
+- The fail-closed policy keeps the metric honest: no result without contexts is counted as a valid evaluation.
+- The field name is configurable, which allows adapting to targets that already use a different name without modifying the core adapter.
+- The semantics are explicit: the operator knows the target must return contexts in that field.
 
-**Negativas / trade-offs:**
-- O RAG alvo precisa devolver contextos nesse campo de extensão. Targets que não o fazem exigem um adapter próprio ou modificação na resposta do servidor.
-- Não há fallback automático: se o campo estiver ausente, a execução falha com erro, não com degradação silenciosa.
+**Downsides / trade-offs:**
+- The target RAG must return contexts in that extension field. Targets that do not will require a dedicated adapter or a modification to the server response.
+- There is no automatic fallback: if the field is absent, execution fails with an error, not with silent degradation.
 
-**Neutras / a observar:**
-- Targets que devolvem os contextos embutidos no texto da resposta ou em campos aninhados precisam de adapter dedicado — esse adapter assume campo de extensão top-level.
+**Neutral / to watch:**
+- Targets that return contexts embedded in the response text or in nested fields need a dedicated adapter — this adapter assumes a top-level extension field.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que foi descartada |
+| Alternative | Why it was rejected |
 |---|---|
-| Lista vazia quando o campo estiver ausente | Produziria métricas de fidelidade calculadas sobre contexto vazio, que são inúteis ou enganosas; a honestidade da métrica exige falha explícita. |
-| Campo fixo não configurável | Targets existentes usam nomes variados; configurabilidade evita forçar mudança no servidor alvo. |
-| Extrair contextos do texto da resposta por heurística | Frágil e não generalizável; dependeria do formato de saída de cada modelo. |
+| Empty list when the field is absent | Would produce faithfulness metrics computed over empty context, which are useless or misleading; metric honesty requires explicit failure. |
+| Fixed, non-configurable field name | Existing targets use varied names; configurability avoids forcing a change on the target server. |
+| Extract contexts from response text by heuristic | Fragile and not generalizable; would depend on the output format of each model. |

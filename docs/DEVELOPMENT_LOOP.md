@@ -1,57 +1,57 @@
-# Loop de desenvolvimento do GNOMON
+# GNOMON Development Loop
 
-Como o gnomon-eval evolui, fatia por fatia. Playbook leve: disciplina por
-convenção, não por trilho automático. A unidade de trabalho é a **fatia vertical**
-(tracer bullet) — um incremento ponta-a-ponta que toca várias camadas e fecha
-um conjunto de requisitos da spec.
+How gnomon-eval evolves, vertical slice by vertical slice. A lightweight playbook: discipline by
+convention, not by automated rails. The unit of work is the **vertical slice**
+(tracer bullet) — an end-to-end increment that touches multiple layers and closes
+a set of requirements from the spec.
 
-## O loop
+## The loop
 
-Cada fatia passa por quatro estágios em ordem:
+Each slice moves through four stages in order:
 
-1. **Avaliação** — qual a próxima fatia? Vale agora? Quais RF/RNF/VAL ela fecha?
-   - Skills: `superpowers:brainstorming` (escopo), `superpowers:writing-plans` (estratégia).
-   - Saída: fatia nomeada + lista de requisitos que satisfaz.
-2. **Evolução** — onde encaixa na arquitetura sem violar a direção de
-   dependência? Precisa aprofundar algum módulo antes?
+1. **Assessment** — what is the next slice? Is it worth it now? Which RF/RNF/VAL does it close?
+   - Skills: `superpowers:brainstorming` (scope), `superpowers:writing-plans` (strategy).
+   - Output: named slice + list of requirements it satisfies.
+2. **Evolution** — where does it fit in the architecture without violating the
+   dependency direction? Does any module need to be deepened first?
    - Skill: `improve-codebase-architecture`.
-   - Saída: ponto de encaixe + refactor pré-requisito (se houver).
-3. **Validação** — a fatia está correta e honesta?
+   - Output: insertion point + prerequisite refactor (if any).
+3. **Validation** — is the slice correct and honest?
    - Skills: `superpowers:test-driven-development`,
      `superpowers:verification-before-completion`.
-   - Saída: suíte verde com RED→GREEN observado + gates do projeto passando.
-4. **Documentação** — o que ficou decidido que não é óbvio no código?
-   - Skill: `grill-with-docs`; AXON ao fechar blocos conclusivos.
-   - Saída: ADR atualizado/novo + README honesto.
+   - Output: green suite with RED→GREEN observed + project gates passing.
+4. **Documentation** — what was decided that is not obvious in the code?
+   - Skill: `grill-with-docs`; AXON when closing milestones.
+   - Output: updated/new ADR + honest README.
 
-Fechou a Definição de Pronto, volta ao estágio 1 para a fatia seguinte.
+When the Definition of Done is met, return to stage 1 for the next slice.
 
-## Definição de Pronto (por fatia)
+## Definition of Done (per slice)
 
-1. RED→GREEN observado para cada peça nova de produção (TDD — Lei de Ferro).
-2. `ruff check` e `ruff format --check` limpos.
-3. `pytest` verde, incluindo a suíte de reprodutibilidade.
-4. As regras inegociáveis tocadas pela fatia verificadas por teste.
-5. Decisão não-óbvia → ADR em `docs/adr/`; afirmação nova no README → tem
-   comando que a reproduz (RNF-05).
+1. RED→GREEN observed for each new production piece (TDD — Iron Law).
+2. `ruff check` and `ruff format --check` clean.
+3. `pytest` green, including the reproducibility suite.
+4. Non-negotiable invariants touched by the slice verified by test.
+5. Non-obvious decision → ADR in `docs/adr/`; new claim in the README → has a
+   command that reproduces it (RNF-05).
 
-As regras inegociáveis estão no kickoff e nos ADRs: direção de dependência,
-honestidade estatística, reprodutibilidade, custo/latência de primeira classe,
-offline-first, fail-closed, honestidade documental.
+The non-negotiable invariants are in the kickoff and in the ADRs: dependency direction,
+statistical honesty, reproducibility, cost/latency as first-class, offline-first, fail-closed,
+documentary honesty.
 
-## Sincronização com o AXON (por bloco conclusivo)
+## Synchronization with AXON (per milestone)
 
-O AXON não roda a cada fatia — roda ao fechar um **bloco conclusivo** (um marco
-ou fase coesa). Sempre incremental: adiciona documentos novos e alterações,
-nunca re-registra em massa o que não mudou.
+AXON does not run on every slice — it runs when closing a **milestone** (a
+cohesive phase or marker). Always incremental: adds new documents and changes,
+never re-registers in bulk what has not changed.
 
-- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` — reindexa código e
-  docs alterados. Depois disso, use `search_code` antes de `read` cego.
-- `save_adr(project="gnomon-eval", ...)` para cada decisão **nova** do bloco.
-- Captura de memória de sessão do bloco (o PostStop hook do Claude Code roda
-  `pb session-save`, se configurado).
+- `pb index /Users/samdev/dev/gnomon-eval --ctx personal` — reindexes changed code and
+  docs. After that, use `search_code` before a blind `read`.
+- `save_adr(project="gnomon-eval", ...)` for each **new** decision in the milestone.
+- Session memory capture for the milestone (the Claude Code PostStop hook runs
+  `pb session-save`, if configured).
 
-## Fora do loop (por ora)
+## Outside the loop (for now)
 
-Automação dos estágios (slash-commands, hooks), tracker de issues. Evolução
-futura, só se a convenção leve não bastar.
+Stage automation (slash-commands, hooks), issue tracker. Future evolution, only
+if the lightweight convention proves insufficient.
