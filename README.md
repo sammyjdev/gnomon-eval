@@ -117,7 +117,7 @@ Requisitos completos em `docs/REQUIREMENTS.md`. Visão de produto em `docs/PRODU
 
 ## O que não faz (ainda)
 
-Answer relevance, context recall, dashboard temporal, comparação multi-target e persistência de histórico ficam para a v2. A arquitetura comporta a adição sem reescrita.
+Answer relevance, context recall, dashboard temporal, comparação multi-target e persistência de histórico ficam para a v2. A arquitetura comporta a adição sem reescrita. O backlog detalhado, com dependências e sequenciamento proposto, está em [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Contribuindo
 
