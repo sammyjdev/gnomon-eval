@@ -8,7 +8,9 @@ O nome é a haste do relógio de sol que projeta a sombra que você lê. Também
 
 Quem coloca um RAG em produção não sabe dizer se ele piorou depois do último deploy. As ferramentas de avaliação que existem reportam um score único de qualidade, e esse número mente por dois motivos.
 
-O primeiro é que a maioria das métricas de RAG usa um LLM como juiz, e LLM não é determinístico. Roda a mesma avaliação duas vezes e os números mudam. Um relatório que diz "faithfulness 0.87" esconde que a segunda execução deu 0.83 e a terceira 0.90. A pessoa toma decisão de deploy em cima de um número que tem ruído embutido e não sabe disso.
+O primeiro é estatístico, e é mais sutil do que parece. A intuição diz que o problema é o juiz LLM ser não-determinístico, então a ferramenta roda o juiz N vezes e reporta uma média com intervalo de confiança. Parece rigoroso. Só que com o juiz em modo reproduzível, a temperatura zero, ele é determinístico: as N execuções são cópias idênticas. Contar cópias idênticas como observações independentes estreita o intervalo por um fator de raiz de N. É rigor de fachada, um palpite vestido de medição.
+
+A incerteza que de fato importa não é o juiz repontuando o mesmo caso. É que o seu dataset de teste é uma amostra pequena de todas as perguntas que os usuários vão fazer. O número honesto carrega a margem dessa amostragem: o intervalo se calcula sobre os casos, não sobre as repetições do juiz. Um score único esconde isso, e o "conserto" padrão de repetir o juiz esconde pior.
 
 O segundo é que qualidade aparece sozinha, descolada de custo e latência. A resposta de qualidade 0.95 que custou quatro vezes mais tokens e três vezes mais tempo que a de 0.91 parece melhor no relatório, mas pode ser a escolha errada para o caso de uso. A decisão real nunca é "qual responde melhor", e sim "qual responde bem o suficiente pelo custo que cobra".
 
