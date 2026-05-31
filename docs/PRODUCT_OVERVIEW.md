@@ -1,6 +1,8 @@
 # GNOMON
 
-> Mede a qualidade de um pipeline RAG e reporta o número honesto, com a variância junto, sem esconder o quanto o próprio juiz oscila.
+> Mede a qualidade de um pipeline RAG e reporta o número honesto, com a margem de incerteza junto, sem fingir mais confiança do que os dados sustentam.
+
+O nome é a haste do relógio de sol que projeta a sombra que você lê. Também fecha como acrônimo do projeto: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
 
 ## O problema
 
@@ -27,7 +29,7 @@ Engenheiro que mantém um pipeline RAG em produção e precisa de um sinal confi
 1. Você define um dataset de avaliação: perguntas, respostas esperadas e contextos esperados, versionado junto do código.
 2. Configura o target apontando para o seu RAG via endpoint OpenAI-compat.
 3. Roda o harness. Ele executa cada caso contra o RAG, coleta resposta, contextos, tokens e latência.
-4. Um juiz LLM pontua cada resposta em faithfulness e context precision, repetindo a pontuação N vezes para medir a própria variância.
+4. Um juiz LLM pontua cada resposta em faithfulness e context precision. As N runs por caso fazem denoise; o intervalo de confiança vem do espalhamento **entre os casos** via bootstrap, não da repetição do juiz (ADR-008).
 5. O relatório sai com cada métrica acompanhada do intervalo de confiança, mais custo e latência agregados e por pergunta.
 6. No CI, o mesmo eval roda como teste e falha o build se uma métrica cruza o limite configurado.
 
@@ -41,7 +43,7 @@ Engenheiro que mantém um pipeline RAG em produção e precisa de um sinal confi
 
 ## Status atual
 
-Pré-v1. Spec e ADRs definidos, implementação em andamento sob desenvolvimento orientado a spec. O caminho de execução offline com Ollama é o default desde o primeiro corte.
+v1 entregue. Target real (OpenAI-compat), juiz Ollama, agregação por caso com IC por bootstrap (ADR-008), gate, CLI de um comando, infra Docker offline e CI — 77 testes verdes, 8 ADRs. O caminho de execução offline com Ollama é o default desde o primeiro corte. Backlog da v2 em `docs/ROADMAP.md`.
 
 ## O que não faz (ainda)
 
@@ -52,6 +54,6 @@ Pré-v1. Spec e ADRs definidos, implementação em andamento sob desenvolvimento
 
 ## Links
 
-- Repositório: [TODO: preencher]
+- Repositório: https://github.com/sammyjdev/gnomon-eval
 - Documentação técnica: ver `README.md` e `docs/`
 - Decisões de arquitetura: ver `docs/adr/`
