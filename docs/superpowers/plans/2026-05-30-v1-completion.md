@@ -78,7 +78,7 @@ Expected: `('faithfulness', 'context_precision')`
 
 ```bash
 git add src/gnomon/metrics/names.py
-git commit -m "feat: conjunto canonico de metricas da v1
+git commit -m "feat: canonical metric set for v1
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -152,7 +152,7 @@ Expected: PASS. Note: existing tests that assumed only `faithfulness` in the stu
 
 ```bash
 git add src/gnomon/judge/stub.py tests/unit/test_stub_judge.py
-git commit -m "feat: StubJudge pontua faithfulness e context_precision (RF-05)
+git commit -m "feat: StubJudge scores faithfulness and context_precision (RF-05)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -316,7 +316,7 @@ Expected: `2`
 
 ```bash
 git add src/gnomon/dataset datasets/rpg_master_example/cases.json tests/unit/test_dataset.py
-git commit -m "feat: loader de dataset com falha-fechado e exemplo (RF-01, VAL-01)
+git commit -m "feat: fail-closed dataset loader with example (RF-01, VAL-01)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -394,7 +394,7 @@ Expected: `ok`
 
 ```bash
 git add src/gnomon/http.py
-git commit -m "feat: seam HttpTransport stdlib para adapter e juiz
+git commit -m "feat: HttpTransport stdlib seam for adapter and judge
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -622,7 +622,7 @@ Expected: `True`
 
 ```bash
 git add src/gnomon/targets/openai_compat.py tests/unit/test_openai_compat_target.py
-git commit -m "feat: adapter OpenAI-compat real (RF-02/03, VAL-02/03)
+git commit -m "feat: real OpenAI-compat adapter (RF-02/03, VAL-02/03)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -738,7 +738,7 @@ Expected: PASS.
 
 ```bash
 git add src/gnomon/judge/cache.py tests/unit/test_judge_cache.py
-git commit -m "feat: cache do juiz por tupla de identidade (VAL-07)
+git commit -m "feat: judge cache keyed by identity tuple (VAL-07)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -974,7 +974,7 @@ Expected: PASS (4 tests).
 
 ```bash
 git add src/gnomon/judge/prompts.py src/gnomon/judge/ollama.py tests/unit/test_ollama_judge.py
-git commit -m "feat: juiz Ollama com cache e seed por run (RF-04, ADR-002)
+git commit -m "feat: Ollama judge with cache and per-run seed (RF-04, ADR-002)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1174,7 +1174,7 @@ Expected: `{'faithfulness': 0.7, 'context_precision': 0.6}`
 
 ```bash
 git add src/gnomon/config/run_config.py config/example.toml tests/unit/test_run_config.py
-git commit -m "feat: RunConfig de producao com thresholds de gate (RNF-07, VAL-05)
+git commit -m "feat: production RunConfig with gate thresholds (RNF-07, VAL-05)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1293,7 +1293,7 @@ Expected: PASS.
 
 ```bash
 git add src/gnomon/gate tests/unit/test_gate.py
-git commit -m "feat: gate de regressao gateando por ci_low (RF-09, ADR-006)
+git commit -m "feat: regression gate enforcing ci_low (RF-09, ADR-006)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1494,7 +1494,7 @@ Expected: prints usage with `--config`.
 
 ```bash
 git add src/gnomon/cli.py pyproject.toml tests/integration/test_cli.py
-git commit -m "feat: CLI de um comando com saida de gate (RF-11, RNF-04)
+git commit -m "feat: single-command CLI with gate exit code (RF-11, RNF-04)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1567,7 +1567,7 @@ Expected: all green, ruff clean.
 
 ```bash
 git add tests/gate/test_regression_gate.py
-git commit -m "test: gate de regressao como teste executavel de CI (RF-09)
+git commit -m "test: regression gate as executable CI test (RF-09)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1634,7 +1634,7 @@ Expected: `OK` (if `docker` is installed; otherwise validate manually).
 
 ```bash
 git add Dockerfile docker-compose.yml
-git commit -m "feat: infra offline com Ollama via Docker Compose (RF-10, RNF-04)
+git commit -m "feat: offline infra with Ollama via Docker Compose (RF-10, RNF-04)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1686,7 +1686,7 @@ Expected: `OK`
 
 ```bash
 git add .github/workflows/ci.yml
-git commit -m "ci: lint, testes e smoke do gate como barreira (RNF-08)
+git commit -m "ci: lint, tests, and gate smoke as CI barrier (RNF-08)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1758,7 +1758,7 @@ Expected: `OK` — the file the README references exists.
 
 ```bash
 git add README.md
-git commit -m "docs: README honesto com caminho offline de um comando (RNF-05, RF-11)
+git commit -m "docs: honest README with single-command offline path (RNF-05, RF-11)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1846,7 +1846,7 @@ Expected: lists all three + `OK`.
 
 ```bash
 git add docs/adr/0005-openai-compat-contexts.md docs/adr/0006-gate-on-ci-low.md docs/adr/0007-ollama-judge-determinism.md
-git commit -m "docs: ADRs 005-007 (contexts, gate ci_low, determinismo do juiz)
+git commit -m "docs: ADRs 005-007 (contexts, gate ci_low, judge determinism)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
