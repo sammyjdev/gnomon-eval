@@ -1,0 +1,45 @@
+[
+  {
+    "id": "axon-001",
+    "question": "What did I decide about the authentication refactor in the AXON project?",
+    "expected_answer": "The authentication refactor was decided to use OAuth 2.0 with JWT tokens, with a 7-day expiry window and automatic refresh token rotation.",
+    "expected_contexts": [
+      "AXON auth refactor: OAuth 2.0 + JWT with 7-day expiry, auto refresh rotation"
+    ]
+  },
+  {
+    "id": "axon-002",
+    "question": "Which projects relate to the semantic search infrastructure?",
+    "expected_answer": "AXON and the vector embedding service are the primary projects using semantic search infrastructure, with AXON consuming embeddings from the centralized vector store.",
+    "expected_contexts": [
+      "AXON integrates with vector embedding service for semantic search",
+      "Vector embedding service provides centralized search infrastructure"
+    ]
+  },
+  {
+    "id": "axon-003",
+    "question": "What performance targets did I set for the second-brain recall system?",
+    "expected_answer": "The recall system must achieve sub-100ms response latency for 95% of queries, with minimum 90% semantic relevance for top-3 results and support for 10K concurrent connections.",
+    "expected_contexts": [
+      "Recall system SLO: <100ms p95 latency, 90% semantic relevance top-3, 10K concurrent"
+    ]
+  },
+  {
+    "id": "axon-004",
+    "question": "What integration decision did I make regarding the offline judge for evaluation?",
+    "expected_answer": "Decided to use Ollama locally for evaluation judging to avoid external API costs and maintain evaluation privacy, with llama3 as the primary model.",
+    "expected_contexts": [
+      "Offline evaluation: Ollama + llama3 for privacy and cost ($0)",
+      "GNOMON evaluator uses local judge, no external LLM required"
+    ]
+  },
+  {
+    "id": "axon-005",
+    "question": "What did I note about the expected_contexts field structure for evaluation?",
+    "expected_answer": "The expected_contexts field must be a list of relevant context strings, and the target system must return them in a contexts field to enable faithfulness and context_precision metrics.",
+    "expected_contexts": [
+      "EvalCase.expected_contexts: list of relevant context strings for metric grounding",
+      "Target must expose contexts list for precision/faithfulness evaluation"
+    ]
+  }
+]
