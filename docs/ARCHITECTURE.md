@@ -97,7 +97,11 @@ gnomon-eval/
 │       ├── 0001-adapter-based-target.md
 │       ├── 0002-judge-nondeterminism.md
 │       ├── 0003-offline-first-ollama.md
-│       └── 0004-cost-latency-first-class.md
+│       ├── 0004-cost-latency-first-class.md
+│       ├── 0005-openai-compat-contexts.md
+│       ├── 0006-gate-on-ci-low.md
+│       ├── 0007-ollama-judge-determinism.md
+│       └── 0008-case-level-bootstrap-ci.md
 ├── src/
 │   └── gnomon/
 │       ├── domain/             # models and interfaces, no infrastructure dependency
@@ -124,6 +128,10 @@ The decisions governing this architecture are recorded in ADRs:
 - **ADR-002** defines how the system handles nondeterminism in the LLM judge.
 - **ADR-003** explains why the default path is offline with Ollama.
 - **ADR-004** records why cost and latency are first-class metrics.
+- **ADR-005** extends contexts for OpenAI-compatible targets.
+- **ADR-006** gates on the CI lower bound, not the mean.
+- **ADR-007** documents the Ollama judge determinism strategy.
+- **ADR-008** records the case-level bootstrap confidence interval.
 
 ## Test map for the structure
 
