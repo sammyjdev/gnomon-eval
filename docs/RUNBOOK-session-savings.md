@@ -1,0 +1,71 @@
+# Runbook: Session savings measurement
+
+Prereqs: AXON endpoint reachable at `http://localhost:8765/v1`, Ollama judge
+reachable at `http://100.78.123.92:11434`, and the session datasets present at
+`datasets/sessions/sessions.json` and `datasets/sessions/smoke.json`.
+
+1. Start the AXON server with the session harness environment:
+
+   ```bash
+   AXON_MAX_PRE_SEND_TOKENS=32000 AXON_COMPLETION_MODEL="ollama/llama3.1:8b" AXON_PROVIDER_OLLAMA=1 OLLAMA_BASE_URL="http://100.78.123.92:11434" ~/.pyenv/versions/clock/bin/axon serve-http --port 8765
+   ```
+
+   Why `32000`: `AXON_MAX_PRE_SEND_TOKENS` defaults to `8000`
+   (`../axon/src/axon/router/engine.py:39`). The baseline arm forwards the
+   growing transcript with `forward_history=true`, so the default cap would
+   truncate the very thing the harness is trying to measure. This is an env
+   override only. No code change is required.
+
+2. Run the smoke check before the full run:
+
+   ```bash
+   gnomon session -c config/axon-session-smoke.toml --json
+   ```
+
+   Verify before continuing:
+   - every turn record has `usage_source="provider"`
+   - the JSON contains a sane `per_turn` curve, `cumulative`,
+     `crossover_turn`, `quality_gate`, `validity.non_provider_records`, and
+     `completion_tokens`
+
+3. Run the full measurement and save the JSON:
+
+   ```bash
+   gnomon session -c config/axon-session.toml --json > session.json
+   ```
+
+   Then run the same full config a second time for stability. The two
+   cumulative savings means must each fall within the other run's CI.
+
+4. Budget the calls up front (RNF-06):
+   - generation calls = `sessions x turns x 2` = `10 x 10 x 2 = 200`
+   - judge calls = `sessions x 2 x judge_runs` = `10 x 2 x 6 = 120`
+   - expect roughly 30-45 minutes of GPU time
+
+5. Apply the validity checklist before treating the run as publishable:
+   - `validity.non_provider_records == 0`
+   - `quality_gate == "pass"`
+   - the stability replicate passes
+   - report the `crossover_turn` alongside the headline
+   - never publish the headline without the full savings curve
+
+6. Propagate the measured claim only after a valid measured run and owner
+   review:
+   - update the AXON README badge and `docs/METRICS.md` to:
+     `"AXON's fixed-recall arm uses X% fewer input tokens over N-turn sessions (95% CI over M sessions, llama3.1:8b), with final-turn faithfulness held at parity; savings cross zero at turn K. Projection retired: 52.3% (deterministic model)."`
+
+7. Publish the session assumptions block verbatim with the measured number:
+   - AXON arm sends zero conversation history; recall is its only memory.
+   - Recall budget is fixed at 2000 tokens.
+   - Sessions are scripted: LLM-drafted, owner-reviewed, anchored to Wave 1's
+     17 validated cases, not live traffic.
+   - Referential turns intentionally stress the zero-history arm by design.
+   - Judge is `llama3.1:8b`, faithfulness-only, no ground truth.
+
+Notes:
+- The AXON arm uses `include_context=true` and `recall_max_tokens=2000`.
+- The baseline arm uses `forward_history=true` and `include_context=false`.
+- Final-turn faithfulness is judged against what each arm actually saw:
+  retrieved contexts for AXON, forwarded transcript for baseline.
+- If an arm's final turn has empty contexts, that session-arm scores `0.0`
+  without a judge call. Keep the session in the run; do not exclude it.
