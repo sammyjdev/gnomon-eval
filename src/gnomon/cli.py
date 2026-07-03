@@ -11,17 +11,23 @@ import json
 import os
 import sys
 
-from gnomon.config.run_config import JudgeConfig, RunConfig, TargetConfig
+from gnomon.config.run_config import JudgeConfig, RunConfig, SessionRunConfig, TargetConfig
 from gnomon.dataset.loader import load_dataset
+from gnomon.dataset.session_loader import load_sessions
 from gnomon.domain.interfaces import Judge, RagTarget
 from gnomon.gate.gate import evaluate_gate
 from gnomon.judge.cache import JudgeCache
 from gnomon.judge.ollama import OllamaJudge
+from gnomon.judge.session_judge import SessionOllamaJudge
 from gnomon.judge.stub import StubJudge
 from gnomon.reporting.report import to_dict, to_text
+from gnomon.reporting.savings import savings_report
+from gnomon.reporting.savings import to_text as session_to_text
 from gnomon.runner.runner import run_eval
+from gnomon.runner.session_runner import run_sessions
 from gnomon.targets.mock import MockTarget
 from gnomon.targets.openai_compat import OpenAICompatTarget
+from gnomon.targets.session_target import SessionTarget
 
 
 def build_target(cfg: TargetConfig) -> RagTarget:
@@ -63,7 +69,65 @@ def run_from_config(cfg: RunConfig):
     return report, gate
 
 
+def run_session_from_config(cfg: SessionRunConfig) -> dict:
+    # Fail loudly on config values the session command does not implement:
+    # SessionConfig inherits TargetConfig fields and reuses JudgeConfig, but
+    # only the HTTP openai_compat target and the live ollama judge are wired.
+    if cfg.target.kind != "openai_compat":
+        raise ValueError(
+            f"session command supports target kind 'openai_compat', got {cfg.target.kind!r}"
+        )
+    if cfg.judge.provider != "ollama":
+        raise ValueError(
+            f"session command supports judge provider 'ollama', got {cfg.judge.provider!r}"
+        )
+    sessions = load_sessions(cfg.sessions_path)
+    target = SessionTarget(
+        base_url=cfg.target.base_url,
+        model=cfg.target.model,
+        timeout_s=cfg.target.timeout_s,
+        recall_max_tokens=cfg.target.recall_max_tokens,
+    )
+    judge = SessionOllamaJudge(
+        model=cfg.judge.model,
+        base_url=cfg.judge.base_url,
+        cache=JudgeCache(),
+        timeout_s=cfg.judge.timeout_s,
+    )
+    report = run_sessions(
+        sessions,
+        target,
+        judge,
+        judge_runs=cfg.eval.judge_runs,
+        seed=cfg.eval.seed,
+        confidence_level=cfg.eval.confidence_level,
+    )
+    return savings_report(report, seed=cfg.eval.seed, confidence_level=cfg.eval.confidence_level)
+
+
+def session_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="gnomon session", description="Run a GNOMON session evaluation."
+    )
+    parser.add_argument("-c", "--config", required=True, help="path to the session run config TOML")
+    parser.add_argument("--json", action="store_true", help="emit the machine-readable report")
+    args = parser.parse_args(argv)
+
+    cfg = SessionRunConfig.from_file(args.config)
+    report = run_session_from_config(cfg)
+
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(session_to_text(report))
+    return 0 if report["quality_gate"] == "pass" else 1
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "session":
+        return session_main(argv[1:])
+
     parser = argparse.ArgumentParser(prog="gnomon", description="Run a GNOMON evaluation.")
     parser.add_argument("-c", "--config", required=True, help="path to the run config TOML")
     parser.add_argument("--json", action="store_true", help="emit the machine-readable report")
