@@ -1,0 +1,21 @@
+# Wave 2 multi-turn savings measurement (ADR-0010).
+# Generation calls = sessions x turns x 2; judge calls = sessions x 2 x judge_runs.
+sessions_path = "datasets/sessions/smoke.json"
+
+[eval]
+seed = 42
+judge_runs = 2
+confidence_level = 0.95
+
+[target]
+kind = "openai_compat"
+base_url = "http://localhost:8765/v1"
+model = "axon"
+timeout_s = 120.0
+recall_max_tokens = 2000
+
+[judge]
+provider = "ollama"
+model = "llama3.1:8b"
+base_url = "http://<judge-host>:11434"
+timeout_s = 60.0

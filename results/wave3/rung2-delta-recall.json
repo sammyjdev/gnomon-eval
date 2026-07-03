@@ -1,0 +1,107 @@
+{
+  "per_turn": [
+    {
+      "savings_mean": -9.778824023341262,
+      "ci_low": -11.068952164232893,
+      "ci_high": -8.542469620147944,
+      "n": 10,
+      "turn": 0
+    },
+    {
+      "savings_mean": -5.849737434636157,
+      "ci_low": -7.610282026996687,
+      "ci_high": -4.05705471671727,
+      "n": 10,
+      "turn": 1
+    },
+    {
+      "savings_mean": -4.729407559580527,
+      "ci_low": -5.6625219805517375,
+      "ci_high": -3.680468033315077,
+      "n": 10,
+      "turn": 2
+    },
+    {
+      "savings_mean": -2.797318779398438,
+      "ci_low": -3.8411712995766685,
+      "ci_high": -1.7071523097857146,
+      "n": 10,
+      "turn": 3
+    },
+    {
+      "savings_mean": -2.3264606869887428,
+      "ci_low": -3.159683654838454,
+      "ci_high": -1.4829912066843973,
+      "n": 10,
+      "turn": 4
+    },
+    {
+      "savings_mean": -1.4332025118428515,
+      "ci_low": -2.2690696231166987,
+      "ci_high": -0.6094006720566367,
+      "n": 10,
+      "turn": 5
+    },
+    {
+      "savings_mean": -0.9911239336266261,
+      "ci_low": -1.6630272747821233,
+      "ci_high": -0.35143003362336434,
+      "n": 10,
+      "turn": 6
+    },
+    {
+      "savings_mean": -0.6205440929482966,
+      "ci_low": -1.0783659307747524,
+      "ci_high": -0.1822661016039079,
+      "n": 10,
+      "turn": 7
+    },
+    {
+      "savings_mean": -0.3123259054150231,
+      "ci_low": -0.6788469153367074,
+      "ci_high": 0.05100856902216666,
+      "n": 10,
+      "turn": 8
+    },
+    {
+      "savings_mean": -0.04565409799970975,
+      "ci_low": -0.3655784520996243,
+      "ci_high": 0.21349204917096162,
+      "n": 10,
+      "turn": 9
+    }
+  ],
+  "cumulative": {
+    "savings_mean": -1.3289261500770513,
+    "ci_low": -1.8048309664444175,
+    "ci_high": -0.809262215864926,
+    "n": 10
+  },
+  "crossover_turn": null,
+  "final_faithfulness": {
+    "axon": {
+      "metric": "final_faithfulness_axon",
+      "mean": 0.6708999999999999,
+      "ci_low": 0.586,
+      "ci_high": 0.7503,
+      "n": 10,
+      "confidence_level": 0.95
+    },
+    "baseline": {
+      "metric": "final_faithfulness_baseline",
+      "mean": 0.72,
+      "ci_low": 0.5199999999999999,
+      "ci_high": 0.89,
+      "n": 10,
+      "confidence_level": 0.95
+    }
+  },
+  "quality_gate": "pass",
+  "validity": {
+    "non_provider_records": 0
+  },
+  "completion_tokens": {
+    "axon_total": 17406,
+    "baseline_total": 15687
+  }
+}
