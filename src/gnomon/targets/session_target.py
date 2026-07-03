@@ -35,6 +35,7 @@ class SessionTarget:
         api_key: str | None = None,
         timeout_s: float = 60.0,
         recall_max_tokens: int = 2000,
+        window_turns: int = 0,
     ) -> None:
         if not base_url:
             raise TargetConfigError("session target requires a base_url")
@@ -45,15 +46,22 @@ class SessionTarget:
         self._transport = transport or UrllibTransport()
         self._timeout_s = timeout_s
         self._recall_max_tokens = recall_max_tokens
+        self._window_turns = window_turns
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     def run_turn(self, history: list[dict], question: str, *, arm: Arm) -> TurnResult:
         if arm == "axon":
+            messages = [{"role": "user", "content": question}]
+            forward_history = False
+            if self._window_turns > 0:
+                window = history[-(2 * self._window_turns) :]
+                messages = [*window, {"role": "user", "content": question}]
+                forward_history = True
             payload = {
                 "model": self._model,
-                "messages": [{"role": "user", "content": question}],
+                "messages": messages,
                 "include_context": True,
-                "forward_history": False,
+                "forward_history": forward_history,
                 "recall_max_tokens": self._recall_max_tokens,
             }
         else:

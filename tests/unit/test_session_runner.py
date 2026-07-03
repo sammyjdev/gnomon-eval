@@ -140,6 +140,9 @@ def test_empty_final_contexts_score_zero_without_judge_and_keep_costs():
     # Final-turn retrieval miss on the axon arm: zero admissible evidence is
     # scored 0.0 by metric definition - no judge call, session stays in the
     # CI, and no collected TurnCost is lost.
+    # With window_turns > 0 and valid multi-turn sessions, the final turn has
+    # a non-empty prior window, so the both-empty branch is pinned at the
+    # default window_turns=0.
     target = FakeTarget(empty_contexts_for={"q2"})
     judge = FakeJudge()
 
@@ -151,6 +154,24 @@ def test_empty_final_contexts_score_zero_without_judge_and_keep_costs():
     assert len(judge.calls) == 3 * 3
     assert not any(call["answer"] == "axon answer to q2" for call in judge.calls)
     assert report.final_faithfulness["axon"].n == 2
+
+
+def test_window_evidence_calls_judge_when_final_contexts_are_empty():
+    target = FakeTarget(empty_contexts_for={"q2"})
+    judge = FakeJudge()
+
+    run_sessions(
+        _sessions(),
+        target,
+        judge,
+        judge_runs=1,
+        seed=123,
+        confidence_level=0.95,
+        window_turns=1,
+    )
+
+    axon_q2 = next(call for call in judge.calls if call["answer"] == "axon answer to q2")
+    assert "assistant: axon answer to q1" in axon_q2["contexts"]
 
 
 def test_judge_runs_below_one_is_rejected():

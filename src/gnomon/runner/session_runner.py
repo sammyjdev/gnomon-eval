@@ -24,6 +24,7 @@ def run_sessions(
     judge_runs: int,
     seed: int,
     confidence_level: float = 0.95,
+    window_turns: int = 0,
 ) -> SessionRunReport:
     if judge_runs < 1:
         raise ValueError(f"judge_runs must be >= 1, got {judge_runs}")
@@ -54,11 +55,13 @@ def run_sessions(
                 )
                 final_question = question
                 final_answer = result.answer
-                final_contexts = (
-                    result.contexts
-                    if arm == "axon"
-                    else _serialize_history([*history, {"role": "user", "content": question}])
-                )
+                if arm == "axon":
+                    window = history[-(2 * window_turns) :] if window_turns > 0 else []
+                    final_contexts = [*result.contexts, *_serialize_history(window)]
+                else:
+                    final_contexts = _serialize_history(
+                        [*history, {"role": "user", "content": question}]
+                    )
                 history.extend(
                     [
                         {"role": "user", "content": question},
@@ -67,13 +70,11 @@ def run_sessions(
                 )
 
             if not final_contexts:
-                # Retrieval miss on the final turn (possible for the axon arm:
-                # its query is the bare final question, referential turns miss
-                # by design). Zero admissible evidence means the answer is
-                # ungrounded by the metric's own definition: score 0.0 without
-                # calling the judge. The session stays in the CI and drags the
-                # arm's quality gate down - excluding it would bias the gate
-                # upward, and crashing would discard every collected TurnCost.
+                # Zero admissible evidence means the answer is ungrounded by
+                # the metric's own definition: score 0.0 without calling the
+                # judge. For the axon arm with a window, final_contexts already
+                # includes retrieved contexts plus forwarded history, so this
+                # branch fires only when both are empty.
                 scores[arm].append(0.0)
                 continue
 

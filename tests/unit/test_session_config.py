@@ -25,6 +25,7 @@ kind = "openai_compat"
 base_url = "http://localhost:8765/v1"
 model = "axon"
 timeout_s = 120.0
+window_turns = 2
 
 [judge]
 provider = "ollama"
@@ -46,6 +47,7 @@ timeout_s = 60.0
     assert cfg.target.model == "axon"
     assert cfg.target.timeout_s == 120.0
     assert cfg.target.recall_max_tokens == 2000
+    assert cfg.target.window_turns == 2
     assert cfg.judge.provider == "ollama"
     assert cfg.judge.model == "llama3.1:8b"
     assert cfg.judge.base_url == "http://localhost:11434"
@@ -87,8 +89,10 @@ def test_shipped_session_configs_parse():
     smoke = SessionRunConfig.from_file(CONFIG_DIR / "axon-session-smoke.toml")
 
     assert full.target.recall_max_tokens == 2000
+    assert full.target.window_turns == 0
     assert full.eval.judge_runs == 6
     assert smoke.target.recall_max_tokens == 2000
+    assert smoke.target.window_turns == 0
     assert smoke.eval.judge_runs == 2
 
 
@@ -138,6 +142,7 @@ def _patch_session_run(monkeypatch, *, quality_gate: str):
                 "model": "axon",
                 "timeout_s": 120.0,
                 "recall_max_tokens": 2000,
+                "window_turns": 0,
             }
 
     class FakeSessionOllamaJudge:
@@ -151,7 +156,12 @@ def _patch_session_run(monkeypatch, *, quality_gate: str):
         assert sessions == loaded_sessions
         assert isinstance(target, FakeSessionTarget)
         assert isinstance(judge, FakeSessionOllamaJudge)
-        assert kwargs == {"judge_runs": 2, "seed": 42, "confidence_level": 0.95}
+        assert kwargs == {
+            "judge_runs": 2,
+            "seed": 42,
+            "confidence_level": 0.95,
+            "window_turns": 0,
+        }
         return run_report
 
     def fake_savings_report(report, **kwargs):

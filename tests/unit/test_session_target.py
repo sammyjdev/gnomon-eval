@@ -29,12 +29,13 @@ def _ok_body():
     }
 
 
-def _target(transport, *, recall_max_tokens=1234):
+def _target(transport, *, recall_max_tokens=1234, window_turns=0):
     return SessionTarget(
         base_url="http://localhost:8000/v1",
         model="session-model",
         transport=transport,
         recall_max_tokens=recall_max_tokens,
+        window_turns=window_turns,
     )
 
 
@@ -58,6 +59,36 @@ def test_axon_arm_sends_question_only_with_context_recall_budget():
     }
 
 
+def test_axon_arm_with_window_sends_recent_turns_and_question():
+    transport = FakeTransport(body=_ok_body())
+    target = _target(transport, recall_max_tokens=321, window_turns=2)
+    history = [
+        {"role": "user", "content": "q1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "q2"},
+        {"role": "assistant", "content": "a2"},
+        {"role": "user", "content": "q3"},
+        {"role": "assistant", "content": "a3"},
+    ]
+
+    target.run_turn(history, "q4", arm="axon")
+
+    _url, payload, _headers, _timeout_s = transport.calls[0]
+    assert payload == {
+        "model": "session-model",
+        "messages": [
+            {"role": "user", "content": "q2"},
+            {"role": "assistant", "content": "a2"},
+            {"role": "user", "content": "q3"},
+            {"role": "assistant", "content": "a3"},
+            {"role": "user", "content": "q4"},
+        ],
+        "include_context": True,
+        "forward_history": True,
+        "recall_max_tokens": 321,
+    }
+
+
 def test_baseline_arm_sends_history_and_omits_recall_budget():
     transport = FakeTransport(body=_ok_body())
     target = _target(transport)
@@ -76,6 +107,25 @@ def test_baseline_arm_sends_history_and_omits_recall_budget():
         "forward_history": True,
     }
     assert "recall_max_tokens" not in payload
+
+
+def test_baseline_arm_ignores_window_turns():
+    transport = FakeTransport(body=_ok_body())
+    target = _target(transport, window_turns=2)
+    history = [
+        {"role": "user", "content": "Earlier question"},
+        {"role": "assistant", "content": "Earlier answer"},
+    ]
+
+    target.run_turn(history, "Current question?", arm="baseline")
+
+    _url, payload, _headers, _timeout_s = transport.calls[0]
+    assert payload == {
+        "model": "session-model",
+        "messages": [*history, {"role": "user", "content": "Current question?"}],
+        "include_context": False,
+        "forward_history": True,
+    }
 
 
 def test_usage_block_maps_to_turn_result_fields():
