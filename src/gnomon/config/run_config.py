@@ -27,6 +27,10 @@ class TargetConfig(BaseModel):
     include_context: bool | None = None
 
 
+class SessionConfig(TargetConfig):
+    recall_max_tokens: int = Field(default=2000, gt=0)
+
+
 class JudgeConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
     provider: Literal["ollama", "stub"]
@@ -66,4 +70,18 @@ class RunConfig(BaseModel):
         # TOML [gate] is a flat table of metric=threshold; wrap into thresholds.
         if "thresholds" not in gate:
             data["gate"] = {"thresholds": gate}
+        return cls(**data)
+
+
+class SessionRunConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    sessions_path: str = Field(min_length=1)
+    eval: EvalConfig
+    target: SessionConfig
+    judge: JudgeConfig
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> "SessionRunConfig":
+        path = Path(path)
+        data: dict[str, Any] = tomllib.loads(path.read_text(encoding="utf-8"))
         return cls(**data)
