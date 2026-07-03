@@ -20,8 +20,8 @@ include_context = false
 
 [judge]
 provider = "ollama"
-model = "llama3"
-base_url = "http://localhost:11434"
+model = "llama3.1:8b"
+base_url = "http://100.78.123.92:11434"
 timeout_s = 60.0
 
 [gate]
