@@ -1,0 +1,35 @@
+[
+  {
+    "id": "smoke-001",
+    "topic": "AXON ADR pipeline - dogfood session and automatic inference",
+    "turns": [
+      "Antes da sessao de pipeline dogfood, o hook do AXON ja disparava a inferencia de ADR automaticamente?",
+      "O que mudou depois dessa sessao?",
+      "Qual refator permitiu reusar a orquestracao da inferencia no CLI e no hook?",
+      "E por que essa escolha?",
+      "Como o modelo do classifier de ADR passou a ser resolvido?"
+    ]
+  },
+  {
+    "id": "smoke-002",
+    "topic": "rpg-master-ai RAG design - chunking, threshold, TEI",
+    "turns": [
+      "Qual chunk size final o rpg-master-ai usa?",
+      "Como esse valor foi validado?",
+      "Qual threshold de similaridade o retrieval usa hoje?",
+      "E qual a consequencia disso pra ausencia de reranking?",
+      "Why did I pin TEI to cpu-1.2 instead of a newer version?"
+    ]
+  },
+  {
+    "id": "smoke-003",
+    "topic": "LinkedIn content pipeline - Writer model, approval keyboard, hero image",
+    "turns": [
+      "Por que troquei o Writer do pipeline LinkedIn de Opus 4.6 pra Sonnet 4.6?",
+      "Qual era a diferenca de custo entre os dois?",
+      "Como ficou o teclado final de aprovacao no Telegram?",
+      "E o que acontece quando clico em Rejeitar?",
+      "O que decidi sobre a geracao da hero image do pipeline?"
+    ]
+  }
+]

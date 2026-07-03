@@ -1,0 +1,162 @@
+[
+  {
+    "id": "sess-001",
+    "topic": "AXON ADR pipeline - dogfood session and automatic inference",
+    "turns": [
+      "O que foi a sessao de pipeline dogfood do AXON no fim de maio de 2026?",
+      "Antes dessa sessao, o hook post-commit ja disparava a inferencia de ADR automaticamente?",
+      "E o que mudou no disparo da inferencia depois da sessao?",
+      "Qual refator foi feito pra reusar a orquestracao do pb adr infer-commit no hook e no CLI?",
+      "Como o pipeline reporta o status da inferencia sem gerar ruido de log?",
+      "Quais estados o enum InferenceStatus cobre?",
+      "E por que essa escolha?",
+      "Como o modelo do classifier de ADR passou a ser resolvido depois do provider dinamico?",
+      "O que acontece com um draft de ADR que falha nos gates?",
+      "Quais os trade-offs disso pro meu fluxo de review?"
+    ]
+  },
+  {
+    "id": "sess-002",
+    "topic": "AXON density gate evolution - dec-039 and dec-040",
+    "turns": [
+      "Como funciona o density gate na validacao de ADR do AXON?",
+      "O que a dec-039 mudou no density gate?",
+      "E a dec-040, o que ela alterou nos caps?",
+      "Por que o cap de 0.7 estava causando problema?",
+      "Qual a diferenca entre o cap default e o structural depois da dec-040?",
+      "Quais arquivos foram tocados nessa mudanca?",
+      "E por que subir o cap em vez de mudar o prompt?",
+      "Qual foi o validation score registrado na dec-040?",
+      "Como isso se conecta com os gates L1-L3 do pipeline de inferencia?",
+      "Olhando pra tras, quais os trade-offs de relaxar esses caps?"
+    ]
+  },
+  {
+    "id": "sess-003",
+    "topic": "AXON provider profiles and model routing - dec-106 and free tier",
+    "turns": [
+      "Como o AXON decide qual modelo de LLM usar pra cada tipo de tarefa?",
+      "Quais sao os provider profiles disponiveis e qual e o default?",
+      "Quais modelos o profile free usa?",
+      "Por que o NIM 3.3-70B serve pro classifier de ADR mas nao pra deep reasoning?",
+      "E o que o tier ARCHITECTURE/DEEP_REASONING requer entao?",
+      "Como funcionam os rate-limit gates por provider no profile free?",
+      "O que acontece quando um cap de rate limit e atingido?",
+      "E por que falhar com DENY_RATE_LIMIT em vez de engolir o erro como falha de modelo?",
+      "O Ollama local ainda e suportado depois da dec-106?",
+      "Quais os trade-offs de manter o profile free como default?"
+    ]
+  },
+  {
+    "id": "sess-004",
+    "topic": "Prometheus to AXON rename and MCP reference migration - dec-100",
+    "turns": [
+      "Por que o projeto Prometheus foi renomeado pra AXON?",
+      "O que exatamente foi renomeado na dec-100?",
+      "Why was the rename executed before any behavioral change?",
+      "O que o nome AXON significa?",
+      "Quantos projetos tinham referencias ao MCP mcp__prometheus__ quando fizemos a varredura?",
+      "Desses, quantos precisaram de atualizacao real pra mcp__axon__?",
+      "E por que so o Orion-AI?",
+      "Em qual sessao essa varredura de referencias foi feita?",
+      "O CLI pb tambem mudou de nome nessa decisao?",
+      "Quais os riscos que fazer esse rename mecanico de uma vez evitou?"
+    ]
+  },
+  {
+    "id": "sess-005",
+    "topic": "rpg-master-ai RAG design - Qdrant, chunking, threshold, TEI",
+    "turns": [
+      "Qual vector store o rpg-master-ai usa e por que?",
+      "Que knobs de HNSW eu configurei no Qdrant?",
+      "Qual chunk size final o rpg-master-ai usa?",
+      "Como esse valor de chunking foi validado?",
+      "E por que comecar em 200 tokens foi um problema?",
+      "Qual threshold de similaridade o retrieval usa hoje?",
+      "Por que um threshold tao permissivo?",
+      "E qual a consequencia disso pra ausencia de reranking?",
+      "Why did I pin TEI to cpu-1.2 instead of a newer version?",
+      "Quais gaps conhecidos desse fluxo ja estavam registrados no meu gap-analysis?"
+    ]
+  },
+  {
+    "id": "sess-006",
+    "topic": "AXON embedding stack - bge-m3 flip and pgvector consolidation",
+    "turns": [
+      "What is the default embedding model in axon today?",
+      "What did the flip to bge-m3 change exactly?",
+      "What safety check shipped together with that flip?",
+      "Why is a mixed-dim guard needed at all?",
+      "Qual decisao registrou esse flip do embedder?",
+      "Como o backend de vetores do AXON evoluiu pra pgvector?",
+      "Qual era o problema da stack Qdrant+Redis+SQLite anterior?",
+      "E por que pgvector resolve isso?",
+      "Qual foi o motivo decisivo do pgvector no axon, comparado com a escolha do Qdrant no rpg-master-ai?",
+      "Quais os trade-offs de consolidar tudo no Postgres?"
+    ]
+  },
+  {
+    "id": "sess-007",
+    "topic": "GNOMON eval harness - RAGAS removal and validation verdict",
+    "turns": [
+      "O que e o GNOMON e pra que eu uso ele?",
+      "Por que o GNOMON e o RAGAS foram removidos do glyph-kg?",
+      "Qual commit fez essa remocao?",
+      "Quantos pacotes a dependencia transitiva do ragas puxava?",
+      "E o que entrou no lugar do judge do RAGAS?",
+      "Quais metricas o judge hand-rolled mantem?",
+      "Por que a versao ragas>=0.4 nao era usavel?",
+      "Qual foi o veredito sobre a validacao de chunking e threshold do rpg-master-ai, considerando que o GNOMON ja existia?",
+      "E por que esse processo foi classificado como fraco?",
+      "O que faltou nesse teste de 5 perguntas pra ele ser defensavel?"
+    ]
+  },
+  {
+    "id": "sess-008",
+    "topic": "GLYPH knowledge graph - extraction, retrieval axes, fair evaluation",
+    "turns": [
+      "O que e o GLYPH e qual problema ele resolve?",
+      "Por que o GLYPH tem dois extractors separados pra documento e codigo?",
+      "Quais tipos de nos e edges cada dominio emite?",
+      "Como a resolucao de simbolo em codigo lida com nomes ambiguos?",
+      "E por que omitir a edge em vez de chutar?",
+      "Por que NetworkX in-memory e o store default em vez de Neo4j?",
+      "Como funciona o modo global de consulta com comunidades Louvain?",
+      "Por que o Louvain roda so sobre uma projecao das edges estruturais?",
+      "Como eu garanti que a comparacao grafo-vs-vetor do benchmark foi justa?",
+      "E quais os trade-offs de usar um oracle vindo do proprio grafo em vez de gabarito manual?"
+    ]
+  },
+  {
+    "id": "sess-009",
+    "topic": "Vault knowledge strategy - skill priority map and top-5 update flow",
+    "turns": [
+      "Quais sao os 5 topicos prioritarios para documentacao ativa no vault?",
+      "Em que ordem eles estao?",
+      "Onde DDD e Clean Architecture entram nesse mapa?",
+      "E por que eles nao sao um sexto topico?",
+      "O que define o Tier 1 do que documentar primeiro?",
+      "Qual e a politica de curadoria pra uma nota entrar no topo da pilha?",
+      "Quais opcoes existem pra evoluir o fluxo de atualizacao dos top 5 topicos?",
+      "Qual dessas opcoes foi recomendada pra ser feita primeiro?",
+      "E qual e a justificativa dessa ordem?",
+      "O que cada nota precisa responder pra ser aceita no vault?"
+    ]
+  },
+  {
+    "id": "sess-010",
+    "topic": "LinkedIn content pipeline - Writer model, approval keyboard, hero image",
+    "turns": [
+      "Como funciona o pipeline do linkedin_content_manager?",
+      "Qual modelo o Writer do pipeline usava originalmente?",
+      "Por que troquei o Writer de Opus 4.6 pra Sonnet 4.6?",
+      "Qual era a diferenca de custo entre os dois?",
+      "E essa troca comprometeu a qualidade dos posts?",
+      "Como ficou o teclado final de aprovacao no Telegram?",
+      "O que acontece quando clico em Rejeitar?",
+      "O que decidi sobre a geracao da hero image do pipeline?",
+      "E por que deletar o hero_strategy.py em vez de manter o codigo?",
+      "Como a imagem e gerada hoje entao?"
+    ]
+  }
+]

@@ -6,7 +6,7 @@ Verifies test-body lookup for Python files via ast.parse.
 import textwrap
 
 from gnomon.domain.interfaces import RagTarget
-from gnomon.targets.tcm_target import TcmTarget, _NO_TEST_FOUND
+from gnomon.targets.tcm_target import _NO_TEST_FOUND, TcmTarget
 
 
 def test_tcm_target_conforms_to_rag_target_protocol(tmp_path):
