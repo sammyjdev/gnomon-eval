@@ -1,0 +1,149 @@
+[
+  {
+    "id": "sb-001",
+    "question": "Antes da sessão de pipeline dogfood (27-29 mai 2026), o hook do AXON já disparava a inferência de ADR automaticamente? O que mudou depois?",
+    "expected_answer": "Não — antes o hook `on_commit` só fazia a captura legacy do Decision, sem disparar a inferência de ADR. Depois da sessão, o disparo passou a ser automático via post-commit hook (antes era só manual via CLI).",
+    "expected_contexts": [
+      "Hook não disparava o pipeline (`on_commit` só fazia captura legacy)",
+      "| ADR inference disparo | manual via CLI | automático via post-commit hook |"
+    ]
+  },
+  {
+    "id": "sb-002",
+    "question": "O que a dec-040 mudou no cap do gate de density do AXON, e por quê, segundo a sessão de pipeline dogfood?",
+    "expected_answer": "dec-040 elevou o cap do density gate de 0.7 para 0.85 (default) e de 0.9 para 0.95 (structural), porque o cap de 0.7 estava em conflito com o prompt que pedia citação de identifiers.",
+    "expected_contexts": [
+      "Cap 0.7 lutava contra prompt que pede citação | [[dec-040]] cap 0.7→0.85 (default) e 0.9→0.95 (structural)"
+    ]
+  },
+  {
+    "id": "sb-003",
+    "question": "Por que o AXON usa NIM 3.3-70B (Llama) pro classifier de ADR mas não pra deep reasoning?",
+    "expected_answer": "Porque modelos open-weight como o Llama 70B são bons pra classificação mas ruins pra raciocínio; o NIM 3.3-70B cumpre bem o tier ADR, mas o tier ARCHITECTURE/DEEP_REASONING real requer Claude.",
+    "expected_contexts": [
+      "Stack open-weight (Llama 70B) é boa pra classificação, ruim pra",
+      "NIM 3.3-70B cumpre tier ADR perfeitamente; tier",
+      "ARCHITECTURE/DEEP_REASONING real requer Claude"
+    ]
+  },
+  {
+    "id": "sb-004",
+    "question": "Quantos projetos tinham referências ao MCP `mcp__prometheus__*` e quantos precisaram de atualização real pra `mcp__axon__*`, segundo a sessão de pipeline dogfood?",
+    "expected_answer": "8 projetos tinham referências `mcp__prometheus__*`, mas só o Orion-AI tinha referências ativas — foi o único que precisou ser atualizado pra `mcp__axon__*`.",
+    "expected_contexts": [
+      "8 projetos com refs `mcp__prometheus__*` — só Orion-AI tinha refs",
+      "ativas, atualizado pra `mcp__axon__*`"
+    ]
+  },
+  {
+    "id": "sb-005",
+    "question": "Why did I pin TEI to cpu-1.2 in rpg-master-ai instead of a newer version?",
+    "expected_answer": "Because cpu-1.5 and cpu-1.7 segfault under Rosetta emulation.",
+    "expected_contexts": [
+      "fix: pin TEI to cpu-1.2 (cpu-1.5/1.7 segfault under Rosetta emulation)"
+    ]
+  },
+  {
+    "id": "sb-006",
+    "question": "What did I change about the default embedding model in axon, and what safety check came with it?",
+    "expected_answer": "Flipped the default embedder model to bge-m3, and added a mixed-dim guard (EMB-3).",
+    "expected_contexts": [
+      "feat(embedder): flip default model to bge-m3, add mixed-dim guard (EMB-3)"
+    ]
+  },
+  {
+    "id": "sb-007",
+    "question": "Das três opções para evoluir o fluxo de atualização dos top 5 tópicos (script Gemma4, template de digest, compressão/budget do Prometheus), qual foi recomendada para ser feita primeiro, e qual é a justificativa da ordem?",
+    "expected_answer": "O template único de update digest por tópico deve ser feito primeiro, depois o ajuste de compressão/budget no Prometheus, e só então o script semanal com Gemma4 — nessa ordem porque primeiro se define o critério editorial e de descarte, depois se reduz custo estrutural, e só então se automatiza a ingestão (para não automatizar ruído).",
+    "expected_contexts": [
+      "1. Template unico de update digest.\n2. Ajuste de compressao e budget no Prometheus.\n3. Script semanal com Gemma4.",
+      "Primeiro definimos criterio editorial e de descarte."
+    ]
+  },
+  {
+    "id": "sb-008",
+    "question": "No mapa de conhecimento dos projetos de IA, qual foi o motivo decisivo por trás de axon escolher pgvector e rpg-master-ai escolher Qdrant, sendo o mesmo autor nos dois casos?",
+    "expected_answer": "No axon, o motivo foi consolidação operacional: tinha Qdrant+Redis+SQLite espalhados sem transação atômica entre stores, e pgvector resolveu isso com ACID cross-store. No rpg-master-ai, o motivo foi payload filtering nativo como requisito de produto desde o dia 1 (isolamento por rulebook_id) somado à necessidade de knobs de HNSW crus que o VectorStorePort do Spring AI não expõe.",
+    "expected_contexts": [
+      "motivo é *consolidação operacional* — tinha Qdrant+Redis+SQLite espalhados, sem transação atômica entre stores.",
+      "motivo é *payload filtering como requisito de produto desde o dia 1* (isolamento por `rulebook_id`) + necessidade de acessar knobs de HNSW crus (`ef_construct=200, m=16, hnswEf=128` via gRPC) que o `VectorStorePort` do Spring AI não expõe."
+    ]
+  },
+  {
+    "id": "sb-009",
+    "question": "Qual chunk size final o rpg-master-ai usa e como esse valor foi validado?",
+    "expected_answer": "400 tokens com overlap de 80, ajustado empiricamente: começou em 200 tokens (fragmentava stat blocks), subiu para 400, re-ingeriu tudo, e validou por inspeção qualitativa — não é um grid search formal, é um ajuste direcional único.",
+    "expected_contexts": [
+      "**400 tokens / 80 overlap**, ajustado empiricamente (começou em 200, fragmentava stat blocks; subiu pra 400, re-ingeriu tudo, validou por inspeção qualitativa — não é grid search, é um ajuste direcional único)."
+    ]
+  },
+  {
+    "id": "sb-010",
+    "question": "No fluxo de consulta do rpg-master-ai, qual threshold de similaridade é usado no Qdrant, e por que a ausência de reranking hoje é consequência direta dessa escolha?",
+    "expected_answer": "O threshold é 0.3, caminhado de 0.7 para 0.5 para 0.3 porque queries cross-lingual e PDFs com ruído de OCR batiam score baixo mesmo quando a resposta certa estava presente. Como consequência direta desse threshold permissivo, hoje mais ruído é aceito no retrieval porque não existe uma segunda etapa (reranking) para limpar depois — é um gap conhecido, não recém-descoberto.",
+    "expected_contexts": [
+      "Threshold de aceitação: 0.3. *(Por que tão permissivo: caminhei de 0.7 pra 0.5 pra 0.3 porque perguntas cross-lingual e PDF com ruído de OCR estavam batendo score baixo mesmo quando a resposta certa estava lá.",
+      "**Não tenho reranking ainda.** *(Isso é a consequência direta do threshold permissivo: hoje eu aceito mais ruído porque não tenho uma segunda etapa pra limpar depois. É gap conhecido, tá no meu próprio gap-analysis, não é coisa que descobri agora sob pressão.)*"
+    ]
+  },
+  {
+    "id": "sb-011",
+    "question": "Por que o GNOMON e o RAGAS foram removidos do glyph-kg no commit a3fe54a (30/06)?",
+    "expected_answer": "Porque o `gnomon-eval` puxava `ragas` + `langchain-openai` como dependência transitiva (~30 pacotes, incluindo o langgraph inteiro) só para calcular duas métricas de LLM-judge, e a única versão `ragas>=0.4` disponível vinha quebrada contra o `langchain-community` atual. A resposta foi substituir GNOMON e RAGAS por um judge hand-rolled, reaproveitando o transporte HTTP já existente, com o mesmo contrato de métricas (faithfulness/context_precision) e zero dependências novas.",
+    "expected_contexts": [
+      "GNOMON foi removido ontem (commit `a3fe54a`, 30/06) — não por causa dele mesmo, mas porque `gnomon-eval` puxava `ragas` + `langchain-openai` como dependência transitiva (~30 pacotes, incluindo o langgraph inteiro inteiro) só para calcular duas métricas de LLM-judge, e a única versão `ragas>=0.4` disponível vem quebrada contra o `langchain-community` atual"
+    ]
+  },
+  {
+    "id": "sb-012",
+    "question": "Qual é o teto de iterações do loop de decisão do núcleo compartilhado Lina/Lume, e essa constante foi validada com dado real de produção?",
+    "expected_answer": "O teto é de 5 iterações, existindo como trava de segurança contra loop infinito de tool-calling (sem ele, o LLM nunca convergiria para uma resposta de texto). Não há justificativa escrita para por que 5 e não 3 ou 10 — é um palpite de engenharia do dia 1, nunca revisitado com dado real.",
+    "expected_contexts": [
+      "Isso repete até um máximo de **5 iterações**. *(Por que um teto: sem ele, um LLM que entra num ciclo de tool-calling nunca converge pra uma resposta de texto — é uma trava de segurança contra loop infinito, não uma escolha refinada.",
+      "Não há justificativa escrita de por que 5 e não 3 ou 10 — é palpite de dia 1, admita isso se perguntarem.)*"
+    ]
+  },
+  {
+    "id": "sb-013",
+    "question": "Qual foi o veredito sobre o processo de validação de chunking e threshold no rpg-master-ai, apesar do GNOMON já existir como ferramenta de avaliação estatística?",
+    "expected_answer": "Foi classificado como FRACO: o chunking (400/80 tokens) foi validado por re-ingestão + inspeção visual, e o threshold de similaridade (0.3) por um teste com apenas 5 perguntas, sem intervalo de confiança e sem held-out set, mesmo o GNOMON (harness de avaliação estatística rigorosa) já estando disponível.",
+    "expected_contexts": [
+      "### 1. rpg-master-ai: tuning de chunking e threshold validado com 5 perguntas, enquanto você tinha o GNOMON pronto",
+      "o chunking (400/80 tokens) foi validado por **re-ingestão + inspeção visual**, e o threshold de similaridade (0.3) por um teste com **5 perguntas**, sem intervalo de confiança, sem held-out set."
+    ]
+  },
+  {
+    "id": "sb-014",
+    "question": "Quais são os 5 tópicos prioritários para documentação ativa no vault, em ordem?",
+    "expected_answer": "Em ordem: (1) Java 21+, (2) Spring Boot 3 & Spring Cloud, (3) Apache Kafka / Kafka Streams, (4) System Design & Distributed Systems, (5) AWS (EKS, Lambda, MSK).",
+    "expected_contexts": [
+      "## Top 5 para documentacao ativa\n\n1. Java 21+\n2. Spring Boot 3 & Spring Cloud\n3. Apache Kafka / Kafka Streams\n4. System Design & Distributed Systems\n5. AWS (EKS, Lambda, MSK)"
+    ]
+  },
+  {
+    "id": "sb-015",
+    "question": "Por que troquei o modelo do Writer do pipeline LinkedIn de Opus 4.6 pra Sonnet 4.6?",
+    "expected_answer": "Porque o Writer é a chamada mais cara do pipeline e Sonnet entrega qualidade equivalente pra posts de LinkedIn (80-160 palavras) com custo ~5x menor: Opus custava USD 5.00/25.00 por MTok (input/output) contra USD 3.00/15.00 do Sonnet 4.6.",
+    "expected_contexts": [
+      "Sonnet entrega qualidade equivalente pra LinkedIn posts (80-160 palavras) com 5x menos custo.",
+      "Custo Opus = 5.00 input / 25.00 output USD per MTok. Sonnet 4.6 = 3.00 / 15.00. Diferença ~5x."
+    ]
+  },
+  {
+    "id": "sb-016",
+    "question": "Qual é o teclado final de aprovação no Telegram do linkedin_content_manager?",
+    "expected_answer": "Um row principal com 2 botões — Aprovar e Rejeitar. Clicar em Rejeitar abre um sub-menu com Editar e Descartar.",
+    "expected_contexts": [
+      "Keyboard principal final: 1 row × 2 botoes — ✅ Aprovar | ❌ Rejeitar. Click em Rejeitar abre sub-menu (helper send_reject_followup_keyboard): ✏️ Editar | 🗑️ Descartar."
+    ]
+  },
+  {
+    "id": "sb-017",
+    "question": "O que decidi sobre a geração da hero image (Diablo+cyberpunk) do pipeline LinkedIn, e por quê?",
+    "expected_answer": "Deletei `pipeline/hero_strategy.py` e sua integração no Telegram approval, porque a geração de imagem virou processo manual externo (Gemini/DALL-E via GPT customizado) — manter esse código no pipeline seria YAGNI.",
+    "expected_contexts": [
+      "Deletar pipeline/hero_strategy.py + tests + integracao no Telegram approval.",
+      "YAGNI: imagem agora e processo manual externo (Gemini/DALL-E via GPT customizado)."
+    ]
+  }
+]
