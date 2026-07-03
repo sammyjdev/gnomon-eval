@@ -11,12 +11,19 @@ reachable at `http://100.78.123.92:11434`, and the session datasets present at
    ```
 
    Why `32000`: `AXON_MAX_PRE_SEND_TOKENS` defaults to `8000`
-   (`../axon/src/axon/router/engine.py:39`). The baseline arm forwards the
-   growing transcript with `forward_history=true`, so the default cap would
-   truncate the very thing the harness is trying to measure. This is an env
-   override only. No code change is required.
+   (`../axon/src/axon/router/engine.py:39`). The router does not truncate:
+   a request over the cap raises `DENY_BUDGET_PRE_SEND`, which the endpoint
+   converts into an `"[LLM unavailable]"` answer with `usage_source="estimate"`
+   (and the baseline arm's estimate covers only the bare current question, a
+   wildly wrong prompt-token number). One over-cap turn therefore poisons that
+   session's numbers; the validity gate (`non_provider_records == 0`) catches
+   it and invalidates the run. The 32000 override keeps 10-turn baseline
+   transcripts under the cap. This is an env override only. No code change is
+   required.
 
-2. Run the smoke check before the full run:
+2. Run the smoke check before the full run (from the gnomon-eval repo root -
+   `sessions_path` in the configs is resolved relative to the working
+   directory):
 
    ```bash
    gnomon session -c config/axon-session-smoke.toml --json
@@ -56,11 +63,20 @@ reachable at `http://100.78.123.92:11434`, and the session datasets present at
 
 7. Publish the session assumptions block verbatim with the measured number:
    - AXON arm sends zero conversation history; recall is its only memory.
-   - Recall budget is fixed at 2000 tokens.
+   - Recall budget cap is 2000 tokens per request. The effective budget is
+     `min(2000, strategy.max_chars / 4)`, between 1000 and 2000 tokens
+     depending on the retrieval strategy AXON selects per query
+     (`../axon/src/axon/mcp/server.py:340`); a smaller effective budget can
+     inflate savings relative to a literal "fixed 2000" reading.
    - Sessions are scripted: LLM-drafted, owner-reviewed, anchored to Wave 1's
      17 validated cases, not live traffic.
    - Referential turns intentionally stress the zero-history arm by design.
    - Judge is `llama3.1:8b`, faithfulness-only, no ground truth.
+   - Known asymmetry: the baseline arm is judged for faithfulness against its
+     own forwarded transcript, and answers drawing on the model's parametric
+     knowledge read as ungrounded. This systematically understates baseline
+     faithfulness and makes the parity gate more permissive; it is a stated
+     limitation of the gate, not a neutral comparison.
 
 Notes:
 - The AXON arm uses `include_context=true` and `recall_max_tokens=2000`.

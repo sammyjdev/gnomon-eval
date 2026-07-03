@@ -24,7 +24,11 @@ ADR-010 defines the session savings harness as a dual-arm replay over scripted
 sessions. Each session runs twice:
 
 - AXON arm: zero conversation history, `include_context=true`,
-  `recall_max_tokens=2000`.
+  `recall_max_tokens=2000`. The 2000 is a per-request cap, not a guaranteed
+  spend: AXON's retrieval enforces `min(2000, strategy.max_chars / 4)`, an
+  effective budget between 1000 and 2000 tokens depending on the strategy
+  selected per query. The published claim must state the cap semantics, since
+  a smaller effective budget inflates savings relative to a literal reading.
 - Baseline arm: full growing transcript forwarded with
   `forward_history=true`, `include_context=false`.
 
@@ -82,6 +86,11 @@ must never be cited as measured savings.
 **Downsides / trade-offs:**
 - The harness is more expensive than Wave 1 single-turn A/B runs because it
   replays full sessions and adds final-turn judge calls per arm.
+- The parity gate has a stated asymmetry: the baseline arm is judged for
+  faithfulness against its own forwarded transcript, so answers drawing on
+  parametric knowledge read as ungrounded. This systematically understates
+  baseline faithfulness and makes the gate more permissive. The limitation
+  must be published next to the number.
 - A good savings curve is not enough on its own. The number is blocked if the
   final-turn faithfulness gate fails.
 - The published claim must carry session assumptions and provenance, because
