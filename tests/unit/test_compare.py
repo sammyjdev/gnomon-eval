@@ -70,3 +70,21 @@ def test_telemetry_cost_line_flags_estimates():
     ]
     line = telemetry_cost_line(records)
     assert "WARNING" in line and "estimate" in line
+
+
+def test_missing_case_produces_warning():
+    off_partial = _report(
+        [_metric("faithfulness", 0.60, 0.52, 0.68)],
+        [{"case_id": "c1", "total_tokens": 300, "latency_ms": 80.0}],
+    )
+    out = compare(_ON, off_partial)
+    assert "WARNING" in out
+    assert "c2" in out
+
+
+def test_telemetry_insufficient_when_one_arm_empty():
+    only_on = [
+        {"include_context": True, "prompt_tokens": 800, "usage_source": "provider"}
+    ]
+    assert "insufficient telemetry" in telemetry_cost_line(only_on)
+    assert "insufficient telemetry" in telemetry_cost_line([])
