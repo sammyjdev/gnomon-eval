@@ -1,0 +1,27 @@
+# AXON A/B evaluation - recall OFF arm (baseline: raw query, no retrieval).
+# No [gate] thresholds: this arm is a measurement baseline, never a CI gate,
+# and context metrics are meaningless without retrieved contexts.
+
+dataset_path = "datasets/second_brain/cases.json"
+
+[eval]
+reproducible = true
+seed = 42
+judge_runs = 8
+confidence_level = 0.95
+
+[target]
+kind = "openai_compat"
+base_url = "http://localhost:8765/v1"
+model = "axon"
+contexts_field = "contexts"
+timeout_s = 30.0
+include_context = false
+
+[judge]
+provider = "ollama"
+model = "llama3.1:8b"
+base_url = "http://<judge-host>:11434"
+timeout_s = 60.0
+
+[gate]

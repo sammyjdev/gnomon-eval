@@ -83,3 +83,23 @@ def test_missing_tokens_is_incomplete_response():
     target = _target(FakeTransport(body=body))
     with pytest.raises(IncompleteResponseError):
         target.query("q")
+
+
+def test_include_context_flag_sent_in_payload():
+    transport = FakeTransport(body=_ok_body())
+    target = OpenAICompatTarget(
+        base_url="http://localhost:8000/v1",
+        model="axon",
+        transport=transport,
+        include_context=False,
+    )
+    target.query("q")
+    _url, payload = transport.calls[0]
+    assert payload["include_context"] is False
+
+
+def test_include_context_omitted_by_default():
+    transport = FakeTransport(body=_ok_body())
+    _target(transport).query("q")
+    _url, payload = transport.calls[0]
+    assert "include_context" not in payload

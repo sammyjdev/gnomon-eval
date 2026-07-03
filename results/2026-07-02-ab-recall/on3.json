@@ -1,0 +1,111 @@
+{
+  "metrics": [
+    {
+      "metric": "faithfulness",
+      "mean": 0.7184117647058824,
+      "ci_low": 0.6543529411764705,
+      "ci_high": 0.7727058823529412,
+      "n": 17,
+      "confidence_level": 0.95
+    },
+    {
+      "metric": "context_precision",
+      "mean": 0.7743529411764707,
+      "ci_low": 0.7023529411764705,
+      "ci_high": 0.8498235294117648,
+      "n": 17,
+      "confidence_level": 0.95
+    }
+  ],
+  "cost": {
+    "total_tokens": 42005,
+    "mean_latency_ms": 9213.64202454467
+  },
+  "per_case": [
+    {
+      "case_id": "sb-001",
+      "total_tokens": 2745,
+      "latency_ms": 9336.438457947224
+    },
+    {
+      "case_id": "sb-002",
+      "total_tokens": 2866,
+      "latency_ms": 8131.549917161465
+    },
+    {
+      "case_id": "sb-003",
+      "total_tokens": 2683,
+      "latency_ms": 10896.097416058183
+    },
+    {
+      "case_id": "sb-004",
+      "total_tokens": 2649,
+      "latency_ms": 8498.545333277434
+    },
+    {
+      "case_id": "sb-005",
+      "total_tokens": 1911,
+      "latency_ms": 7829.429499804974
+    },
+    {
+      "case_id": "sb-006",
+      "total_tokens": 3030,
+      "latency_ms": 12428.116083145142
+    },
+    {
+      "case_id": "sb-007",
+      "total_tokens": 2462,
+      "latency_ms": 8186.090916860849
+    },
+    {
+      "case_id": "sb-008",
+      "total_tokens": 2638,
+      "latency_ms": 8853.617125190794
+    },
+    {
+      "case_id": "sb-009",
+      "total_tokens": 2284,
+      "latency_ms": 8771.436375100166
+    },
+    {
+      "case_id": "sb-010",
+      "total_tokens": 2133,
+      "latency_ms": 8882.089416962117
+    },
+    {
+      "case_id": "sb-011",
+      "total_tokens": 2695,
+      "latency_ms": 9501.798708923161
+    },
+    {
+      "case_id": "sb-012",
+      "total_tokens": 2704,
+      "latency_ms": 10807.8089999035
+    },
+    {
+      "case_id": "sb-013",
+      "total_tokens": 2434,
+      "latency_ms": 12176.072166766971
+    },
+    {
+      "case_id": "sb-014",
+      "total_tokens": 2481,
+      "latency_ms": 8409.939832985401
+    },
+    {
+      "case_id": "sb-015",
+      "total_tokens": 1788,
+      "latency_ms": 7710.627667140216
+    },
+    {
+      "case_id": "sb-016",
+      "total_tokens": 2272,
+      "latency_ms": 8255.568583030254
+    },
+    {
+      "case_id": "sb-017",
+      "total_tokens": 2230,
+      "latency_ms": 7956.687917001545
+    }
+  ]
+}

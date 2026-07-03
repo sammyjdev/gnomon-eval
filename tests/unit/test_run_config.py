@@ -46,6 +46,16 @@ def test_threshold_negative_is_rejected():
         GateConfig(thresholds={"faithfulness": -0.1})
 
 
+def test_target_include_context_parses(tmp_path):
+    toml = VALID_TOML.replace(
+        'model = "rpg-master"', 'model = "rpg-master"\ninclude_context = false'
+    )
+    path = tmp_path / "cfg.toml"
+    path.write_text(toml, encoding="utf-8")
+    cfg = RunConfig.from_file(path)
+    assert cfg.target.include_context is False
+
+
 def test_seed_required_propagates_from_eval():
     with pytest.raises(ValidationError):
         RunConfig(
