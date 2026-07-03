@@ -29,6 +29,7 @@ class TargetConfig(BaseModel):
 
 class SessionConfig(TargetConfig):
     recall_max_tokens: int = Field(default=2000, gt=0)
+    window_turns: int = Field(default=0, ge=0)
 
 
 class JudgeConfig(BaseModel):

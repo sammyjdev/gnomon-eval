@@ -87,6 +87,7 @@ def run_session_from_config(cfg: SessionRunConfig) -> dict:
         model=cfg.target.model,
         timeout_s=cfg.target.timeout_s,
         recall_max_tokens=cfg.target.recall_max_tokens,
+        window_turns=cfg.target.window_turns,
     )
     judge = SessionOllamaJudge(
         model=cfg.judge.model,
@@ -101,6 +102,7 @@ def run_session_from_config(cfg: SessionRunConfig) -> dict:
         judge_runs=cfg.eval.judge_runs,
         seed=cfg.eval.seed,
         confidence_level=cfg.eval.confidence_level,
+        window_turns=cfg.target.window_turns,
     )
     return savings_report(report, seed=cfg.eval.seed, confidence_level=cfg.eval.confidence_level)
 
