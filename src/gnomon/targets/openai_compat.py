@@ -46,6 +46,7 @@ class OpenAICompatTarget:
         api_key: str | None = None,
         timeout_s: float = 30.0,
         contexts_field: str = "contexts",
+        include_context: bool | None = None,
     ) -> None:
         if not base_url:
             raise TargetConfigError("openai_compat target requires a base_url")
@@ -56,6 +57,7 @@ class OpenAICompatTarget:
         self._transport = transport or UrllibTransport()
         self._timeout_s = timeout_s
         self._contexts_field = contexts_field
+        self._include_context = include_context
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     def query(self, question: str) -> RagResponse:
@@ -63,6 +65,8 @@ class OpenAICompatTarget:
             "model": self._model,
             "messages": [{"role": "user", "content": question}],
         }
+        if self._include_context is not None:
+            payload["include_context"] = self._include_context
         start = time.perf_counter()
         try:
             status, body = self._transport.post_json(
