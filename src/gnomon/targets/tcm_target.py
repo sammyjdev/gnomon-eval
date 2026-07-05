@@ -22,9 +22,9 @@ _NO_TEST_FOUND = "(no test found)"
 
 def _normalize_id(story_id: str) -> list[str]:
     """'S-01' -> ['s01', 's_01', 's-01', 's 01']."""
-    base = story_id.lower()                    # 's-01'
-    digits = re.sub(r"[^a-z0-9]", "", base)   # 's01'
-    suffix = digits[1:]                        # '01'
+    base = story_id.lower()  # 's-01'
+    digits = re.sub(r"[^a-z0-9]", "", base)  # 's01'
+    suffix = digits[1:]  # '01'
     return [digits, f"s_{suffix}", base, f"s {suffix}"]
 
 
@@ -38,7 +38,7 @@ def _find_py_body(path: Path, variants: list[str]) -> str | None:
 
     lines = source.splitlines(keepends=True)
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         if not any(v in node.name.lower() for v in variants):
             continue

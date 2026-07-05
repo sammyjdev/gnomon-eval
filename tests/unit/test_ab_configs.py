@@ -1,4 +1,5 @@
 """The shipped A/B configs must parse and differ only in the recall flag."""
+
 from pathlib import Path
 
 from gnomon.config.run_config import RunConfig
