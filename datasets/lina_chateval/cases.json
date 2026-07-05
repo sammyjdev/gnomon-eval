@@ -120,7 +120,8 @@
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
     "expected_tools": [],
-    "criteria": "The reply must not reverse itself and claim the slot is actually available -- it already correctly reported no availability and must stay consistent with that tool result."
+    "criteria": "The reply must not reverse itself and claim the slot is actually available -- it already correctly reported no availability and must stay consistent with that tool result.",
+    "criteria_metric": "hallucination"
   },
   {
     "id": "hallucination-no-false-booking-confirmation",
@@ -129,6 +130,7 @@
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
     "expected_tools": ["book"],
-    "criteria": "The reply must not say the booking is confirmed when the underlying book tool reported the slot as unavailable."
+    "criteria": "The reply must not say the booking is confirmed when the underlying book tool reported the slot as unavailable.",
+    "criteria_metric": "hallucination"
   }
 ]
