@@ -45,15 +45,14 @@ Manual, on-demand only (e.g. before changing the system prompt, before Milestone
 
 ## Cross-repo split
 
-- **`gnomon-eval`** (the ChatEval module itself): `targets/chat_target.py`, `runner/chat_runner.py`, a DeepEval-to-`MetricScores` adapter in `metrics/`, a dataset loader for the new case format, a `gnomon chat` CLI subcommand, judge wiring for NIM + Ollama fallback, config section, and the 17-case dataset content.
-- **`lina-mvp`** (the thing being evaluated): a small adapter script (e.g. `gateway/scripts/run_chateval_case.py`) that runs one real conversation through `MessageProcessor.process()` against a real Postgres tenant fixture, with a **real** `CoreClient` (actual Anthropic/litellm call, not the `ScriptedCore` fake used in the regression suite) and a **fake** `WhatsAppSender` (to avoid real sends), then reports back which tool(s) fired and the final reply text -- reusing the `scenario_tenant`-style fixture pattern already built for the regression suite, minus the LLM fake.
-- Neither repo depends on the other at the code level; ChatEval's `LinaAdapter` (in `gnomon-eval`) invokes `lina-mvp`'s script as a subprocess (matching GNOMON's existing adapter-based-target philosophy, ADR-0001), passing a case's conversation input and reading back structured JSON (tool called + reply text).
+This is a two-repo project with its own spec per repo, since each gets its own implementation plan and its own `forge` loop:
+
+- **This repo (`gnomon-eval`)**: the ChatEval module itself -- `targets/chat_target.py`, `runner/chat_runner.py`, a DeepEval-to-`MetricScores` adapter in `metrics/`, a dataset loader for the new case format, a `gnomon chat` CLI subcommand, judge wiring for NIM + Ollama fallback, config section, and the 17-case dataset content. Covered in full by this spec.
+- **`lina-mvp`** (the thing being evaluated): a small adapter script that runs one real conversation through Lina's real message-processing loop and reports back which tool fired and the final reply text, so ChatEval's `LinaAdapter` here can invoke it as a subprocess (matching GNOMON's existing adapter-based-target philosophy, ADR-0001) and read back structured JSON. Full contract in `lina-mvp`'s own spec: `docs/superpowers/specs/2026-07-05-chateval-adapter-design.md`.
 
 ## Execution
 
-Both repos need `.claude/loop.yaml` bootstrapped before `forge` can run tasks in them (neither has one today). Config per repo, following the `Orion-AI/.claude/loop.yaml` template already in use elsewhere in this environment:
-- `gnomon-eval`: `gate_cmd` runs its existing test suite (unaffected by ChatEval, which needs real API keys and is not part of the gate); `posture: research` (matches its nature as an evaluation tool, not a shipped product).
-- `lina-mvp`: reuses the same `gate_cmd` as its GitHub Actions workflow (the deterministic pytest suite, not ChatEval).
+`gnomon-eval` needs `.claude/loop.yaml` bootstrapped before `forge` can run tasks here (it does not have one today). Follows the `Orion-AI/.claude/loop.yaml` template already in use elsewhere in this environment: `gate_cmd` runs the existing test suite (unaffected by ChatEval, which needs real API keys and is not part of the gate); `posture: research` (matches this repo's nature as an evaluation tool, not a shipped product). `lina-mvp`'s own loop.yaml is covered in its own spec.
 
 ## Deferred (not this design)
 
