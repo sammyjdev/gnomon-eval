@@ -19,3 +19,10 @@ Mutation sensor re-check: both previously-surviving mutations (actual_tools forc
 Code-quality reviewer (Opus, independent, WARN non-blocking): flagged `_criteria_metric_name`'s string-match heuristic ("tool" in criteria + "hallucin"/"false" in case.id) as fragile/silent-mis-tag risk in the judge risk area — carried into RULES.md "Proposed by the loop" via anneal, not a blocker for this pass.
 Gate: ruff check clean, ruff format clean, pytest 158 passed.
 Report: .specs/features/chateval-lina/validation.md
+
+## Validation: issue #12 — PASS
+Spec-anchored check: 3/3 ACs matched (CR-05 in spec.md: `run_chat_eval(cases, target, judge, *, seed, confidence_level=0.95) -> EvalReport` signature exact; test asserts literal values `metric.n == 2`, `metric.mean == 0.5`, `report.total_tokens == 30`, `report.mean_latency_ms == 150.0` -- not just presence of assertions; `confidence.py`/`gate.py`/`domain/models.py` confirmed untouched via `git diff --stat`, only 2 new files). No spec-precision gaps.
+Mutation sensor: 1 injected (Common tier, primary happy path: `scores_by_metric.setdefault(metric_name, []).append(value)` -> `scores_by_metric[metric_name] = [value]`, dropping the per-case accumulation side effect), 1 killed (test fails: aggregate_metric raises "need at least 2 cases" since only the last case's score survives), 0 survived. Mutation applied to a backed-up copy of the file and restored byte-identical immediately after.
+Reviewer: independent Haiku 4.5 pass, spec-compliance only, PASS, no blocking findings, no scope creep (exactly 2 new files, signature exact, aggregate_metric/EvalReport/MetricResult/CaseCost reused unchanged).
+Gate: ruff check clean, ruff format clean, pytest 169 passed (168 + 1 new).
+Report: .specs/features/chateval-lina/validation.md
