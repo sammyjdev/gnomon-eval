@@ -40,6 +40,7 @@ class ChatRunConfig(BaseModel):
     target: ChatTargetConfig
     judge: ChatJudgeConfig
     gate: ChatGateConfig
+    seed: int = 42
 
     @classmethod
     def from_file(cls, path: str | Path) -> "ChatRunConfig":

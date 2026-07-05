@@ -42,6 +42,19 @@ def test_chat_run_config_loads_from_toml(tmp_path):
     assert cfg.gate.thresholds["tool_selection_accuracy"] == 0.90
     assert cfg.gate.thresholds["tone_brand"] == 0.80
     assert cfg.gate.thresholds["hallucination"] == 0.90
+    assert cfg.seed == 42
+
+
+def test_chat_run_config_seed_is_overridable(tmp_path):
+    toml = VALID_TOML.replace(
+        'dataset_path = "datasets/lina_chateval/cases.json"',
+        'dataset_path = "datasets/lina_chateval/cases.json"\nseed = 7',
+    )
+    path = tmp_path / "chat.toml"
+    path.write_text(toml, encoding="utf-8")
+    cfg = ChatRunConfig.from_file(path)
+
+    assert cfg.seed == 7
 
 
 def test_real_chat_toml_matches_spec():
