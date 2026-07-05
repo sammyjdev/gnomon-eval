@@ -1,11 +1,16 @@
 """compare(): quality deltas from two report dicts + recall token cost."""
+
 from gnomon.reporting.compare import compare, telemetry_cost_line
 
 
 def _metric(name, mean, lo, hi, n=15):
     return {
-        "metric": name, "mean": mean, "ci_low": lo, "ci_high": hi,
-        "n": n, "confidence_level": 0.95,
+        "metric": name,
+        "mean": mean,
+        "ci_low": lo,
+        "ci_high": hi,
+        "n": n,
+        "confidence_level": 0.95,
     }
 
 
@@ -21,15 +26,18 @@ def _report(metrics, per_case):
 
 
 _ON = _report(
-    [_metric("faithfulness", 0.85, 0.80, 0.90),
-     _metric("context_precision", 0.78, 0.70, 0.86)],
-    [{"case_id": "c1", "total_tokens": 900, "latency_ms": 100.0},
-     {"case_id": "c2", "total_tokens": 1100, "latency_ms": 100.0}],
+    [_metric("faithfulness", 0.85, 0.80, 0.90), _metric("context_precision", 0.78, 0.70, 0.86)],
+    [
+        {"case_id": "c1", "total_tokens": 900, "latency_ms": 100.0},
+        {"case_id": "c2", "total_tokens": 1100, "latency_ms": 100.0},
+    ],
 )
 _OFF = _report(
     [_metric("faithfulness", 0.60, 0.52, 0.68)],
-    [{"case_id": "c1", "total_tokens": 300, "latency_ms": 80.0},
-     {"case_id": "c2", "total_tokens": 500, "latency_ms": 80.0}],
+    [
+        {"case_id": "c1", "total_tokens": 300, "latency_ms": 80.0},
+        {"case_id": "c2", "total_tokens": 500, "latency_ms": 80.0},
+    ],
 )
 
 
@@ -83,8 +91,6 @@ def test_missing_case_produces_warning():
 
 
 def test_telemetry_insufficient_when_one_arm_empty():
-    only_on = [
-        {"include_context": True, "prompt_tokens": 800, "usage_source": "provider"}
-    ]
+    only_on = [{"include_context": True, "prompt_tokens": 800, "usage_source": "provider"}]
     assert "insufficient telemetry" in telemetry_cost_line(only_on)
     assert "insufficient telemetry" in telemetry_cost_line([])

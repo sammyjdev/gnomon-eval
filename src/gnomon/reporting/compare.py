@@ -11,6 +11,7 @@ Usage:
     python -m gnomon.reporting.compare on.json off.json \
         [--telemetry ~/.../recall/requests.jsonl]
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -29,14 +30,11 @@ def compare(on: dict, off: dict) -> str:
     for m in on["metrics"]:
         base = off_metrics.get(m["metric"])
         if base is None:
-            lines.append(
-                f"  {m['metric']}: on {_fmt_metric(m)} (no off-run baseline)"
-            )
+            lines.append(f"  {m['metric']}: on {_fmt_metric(m)} (no off-run baseline)")
         else:
             delta = m["mean"] - base["mean"]
             lines.append(
-                f"  {m['metric']}: {delta:+.3f} "
-                f"(on {_fmt_metric(m)} vs off {_fmt_metric(base)})"
+                f"  {m['metric']}: {delta:+.3f} (on {_fmt_metric(m)} vs off {_fmt_metric(base)})"
             )
 
     on_by_case = {c["case_id"]: c["total_tokens"] for c in on["per_case"]}
