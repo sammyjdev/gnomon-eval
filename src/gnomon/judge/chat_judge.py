@@ -41,7 +41,7 @@ class ChatJudge:
         try:
             scores["tool_selection_accuracy"] = self._score_tool_selection(case, result)
             if case.criteria:
-                scores[self._criteria_metric_name(case)] = self._score_criteria(case, result)
+                scores[case.criteria_metric] = self._score_criteria(case, result)
         except Exception as exc:  # noqa: BLE001 - deliberately broad: any
             # provider failure (NIM down, Ollama fallback also down, DeepEval
             # raising its own exception types) must fail closed as one named
@@ -74,14 +74,6 @@ class ChatJudge:
         )
         metric.measure(test_case)
         return float(metric.score)
-
-    def _criteria_metric_name(self, case: ChatCase) -> str:
-        # The 17-case dataset only ever needs one of these two per case
-        # (see the design doc's dataset section); "hallucination" is chosen
-        # for the two cases whose criteria mention tool-output consistency.
-        if "tool" in case.criteria.lower() and ("hallucin" in case.id or "false" in case.id):
-            return "hallucination"
-        return "tone_brand"
 
 
 def _render_conversation(conversation: list[dict]) -> str:

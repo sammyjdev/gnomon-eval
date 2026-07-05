@@ -23,6 +23,7 @@ class ChatCase(BaseModel):
     tenant: dict
     expected_tools: list[str] = Field(default_factory=list)
     criteria: str | None = None
+    criteria_metric: str = "tone_brand"
 
 
 class ChatResult(BaseModel):

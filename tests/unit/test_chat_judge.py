@@ -76,6 +76,31 @@ def test_case_with_criteria_also_scores_a_geval_metric():
     assert stub.measured_with.expected_tools == []
 
 
+def test_case_with_hallucination_criteria_metric_scores_hallucination_not_tone_brand():
+    case = ChatCase(
+        id="c4",
+        conversation=[{"role": "user", "content": "Tem certeza que esta livre?"}],
+        tenant={"name": "Clinica Aurora", "tone": "amigavel"},
+        expected_tools=[],
+        criteria="Must not reverse a prior no-availability answer.",
+        criteria_metric="hallucination",
+    )
+    result = ChatResult(
+        tool_called=None,
+        tool_args={},
+        reply_text="Continua sem horario disponivel.",
+        total_tokens=20,
+        latency_ms=200.0,
+    )
+    judge = ChatJudge(
+        tool_metric_factory=lambda: StubToolMetric(1.0),
+        geval_factory=lambda criteria: StubGEval(0.9),
+    )
+    scores = judge.score(case, result)
+    assert scores["hallucination"] == 0.9
+    assert "tone_brand" not in scores
+
+
 def test_both_providers_failing_raises_chat_judge_runtime_error():
     def raising_geval(criteria):
         class Raising:

@@ -25,9 +25,19 @@ def test_chat_case_defaults_criteria_to_none():
     assert case.criteria is None
 
 
+def test_chat_case_defaults_criteria_metric_to_tone_brand():
+    case = ChatCase(
+        id="case-1",
+        conversation=[{"role": "user", "content": "Oi"}],
+        tenant={"name": "Clinica Aurora", "tone": "amigavel"},
+        expected_tools=["answer_question"],
+        criteria="Must sound warm.",
+    )
+    assert case.criteria_metric == "tone_brand"
+
+
 def test_chat_result_tool_called_defaults_to_none_for_a_text_only_reply():
     result = ChatResult(
-        tool_called=None,
         tool_args={},
         reply_text="Oi! Como posso ajudar?",
         total_tokens=42,
