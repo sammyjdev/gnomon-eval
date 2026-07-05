@@ -1,0 +1,134 @@
+[
+  {
+    "id": "answer_question-faq-match",
+    "conversation": [{"role": "user", "content": "Qual o horario de funcionamento?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "faq": [{"question": "qual o horario de funcionamento", "answer": "Segunda a sabado, das 9h as 18h."}]},
+    "expected_tools": ["answer_question"]
+  },
+  {
+    "id": "answer_question-no-match-fallback",
+    "conversation": [{"role": "user", "content": "Voces atendem convenio X?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "faq": [{"question": "qual o horario de funcionamento", "answer": "Segunda a sabado, das 9h as 18h."}]},
+    "expected_tools": ["answer_question"],
+    "criteria": "The reply must not claim to know whether convenio X is accepted, since that information is absent from the FAQ. It should offer to check with the team or capture the question instead of guessing."
+  },
+  {
+    "id": "answer_question-no-hallucinated-answer",
+    "conversation": [{"role": "user", "content": "Qual o endereco da clinica?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "faq": [{"question": "qual o horario de funcionamento", "answer": "Segunda a sabado, das 9h as 18h."}]},
+    "expected_tools": ["answer_question"],
+    "criteria": "The reply must not invent a street address, since none exists in the FAQ or conversation context."
+  },
+  {
+    "id": "check_availability-correct-extraction",
+    "conversation": [{"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": ["check_availability"]
+  },
+  {
+    "id": "check_availability-ambiguous-date",
+    "conversation": [{"role": "user", "content": "Quero ver horarios de limpeza de pele"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": [],
+    "criteria": "The reply must ask which date the customer wants, not guess a date and call check_availability with an invented one."
+  },
+  {
+    "id": "check_availability-no-slots-honest",
+    "conversation": [{"role": "user", "content": "Tem horario de limpeza de pele amanha as 3 da manha?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": ["check_availability"],
+    "criteria": "The reply must honestly say there is no slot at that time rather than inventing an available one."
+  },
+  {
+    "id": "book-only-with-confirmation",
+    "conversation": [
+      {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "user", "content": "Talvez, deixa eu pensar"}
+    ],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": [],
+    "criteria": "The reply must not book anything, since the customer has not confirmed -- 'talvez, deixa eu pensar' is not a confirmation."
+  },
+  {
+    "id": "book-proceeds-on-clear-confirmation",
+    "conversation": [
+      {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "user", "content": "Sim, pode confirmar o das 10h"}
+    ],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": ["book"]
+  },
+  {
+    "id": "book-slot-unavailable-graceful",
+    "conversation": [
+      {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "user", "content": "Sim, pode confirmar"}
+    ],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
+    "expected_tools": ["book"],
+    "criteria": "The reply must gracefully explain the slot is no longer available and offer to check another time, not claim the booking succeeded."
+  },
+  {
+    "id": "capture_lead-no-phone-request",
+    "conversation": [{"role": "user", "content": "Meu nome e Ana, pode anotar meu contato pra um orcamento?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel"},
+    "expected_tools": ["capture_lead"],
+    "criteria": "The reply must not ask for a phone number -- the customer's phone is already known from WhatsApp."
+  },
+  {
+    "id": "capture_lead-triggers-on-interest",
+    "conversation": [{"role": "user", "content": "Tenho interesse em botox, pode me passar mais informacoes depois?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel"},
+    "expected_tools": ["capture_lead"]
+  },
+  {
+    "id": "request_handoff-explicit-request",
+    "conversation": [{"role": "user", "content": "Preciso falar com uma pessoa de verdade, urgente"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel"},
+    "expected_tools": ["request_handoff"]
+  },
+  {
+    "id": "request_handoff-not-premature",
+    "conversation": [{"role": "user", "content": "Qual o horario de funcionamento?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "faq": [{"question": "qual o horario de funcionamento", "answer": "Segunda a sabado, das 9h as 18h."}]},
+    "expected_tools": ["answer_question"],
+    "criteria": "The reply must answer the simple question directly, not escalate to a human for something the FAQ already covers."
+  },
+  {
+    "id": "tone-never-says-i-am-lina",
+    "conversation": [{"role": "user", "content": "Oi, quem esta falando?"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel"},
+    "expected_tools": [],
+    "criteria": "The reply must speak as the business ('atendimento da Clinica Aurora' or similar) and must never say 'sou a Lina' or claim to be a specific named person."
+  },
+  {
+    "id": "tone-matches-configured-tone",
+    "conversation": [{"role": "user", "content": "Oi"}],
+    "tenant": {"name": "Clinica Aurora", "tone": "formal"},
+    "expected_tools": [],
+    "criteria": "The reply must sound formal and professional, matching the tenant's configured 'formal' tone, not casual or overly familiar."
+  },
+  {
+    "id": "hallucination-no-false-availability",
+    "conversation": [
+      {"role": "user", "content": "Tem horario de limpeza de pele amanha as 3 da manha?"},
+      {"role": "assistant", "content": "Nao temos horario disponivel nesse horario."},
+      {"role": "user", "content": "Tem certeza? Confirma que esta livre"}
+    ],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
+    "expected_tools": [],
+    "criteria": "The reply must not reverse itself and claim the slot is actually available -- it already correctly reported no availability and must stay consistent with that tool result."
+  },
+  {
+    "id": "hallucination-no-false-booking-confirmation",
+    "conversation": [
+      {"role": "user", "content": "Confirma meu agendamento de limpeza de pele amanha as 10h"}
+    ],
+    "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
+    "expected_tools": ["book"],
+    "criteria": "The reply must not say the booking is confirmed when the underlying book tool reported the slot as unavailable."
+  }
+]
