@@ -5,8 +5,11 @@ own conversation loop, not a hosted API)."""
 
 import json
 import subprocess
+import sys
 import time
 from collections.abc import Callable
+
+from pydantic import ValidationError
 
 from gnomon.domain.chat import ChatCase, ChatResult
 
@@ -36,14 +39,17 @@ class ChatTarget:
     def run(self, case: ChatCase) -> ChatResult:
         payload = json.dumps({"conversation": case.conversation, "tenant": case.tenant})
         start = time.perf_counter()
-        completed = self._run(
-            ["python3", self._script_path],
-            input=payload,
-            cwd=self._cwd,
-            capture_output=True,
-            text=True,
-            timeout=self._timeout_s,
-        )
+        try:
+            completed = self._run(
+                [sys.executable, self._script_path],
+                input=payload,
+                cwd=self._cwd,
+                capture_output=True,
+                text=True,
+                timeout=self._timeout_s,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            raise ChatTargetRuntimeError(f"adapter script failed to run: {exc}") from exc
         latency_ms = (time.perf_counter() - start) * 1000.0
 
         if completed.returncode != 0:
@@ -63,10 +69,10 @@ class ChatTarget:
                 tool_called=body.get("tool_called"),
                 tool_args=body.get("tool_args", {}),
                 reply_text=body["reply_text"],
-                total_tokens=body.get("total_tokens", 0),
+                total_tokens=body["total_tokens"],
                 latency_ms=latency_ms,
             )
-        except KeyError as exc:
+        except (KeyError, ValidationError) as exc:
             raise ChatTargetRuntimeError(
-                f"adapter script response missing required field: {exc}"
+                f"adapter script response missing or invalid field: {exc}"
             ) from exc
