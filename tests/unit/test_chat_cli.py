@@ -250,3 +250,78 @@ def test_judge_model_propagates_when_both_fail(monkeypatch):
     model = _build_judge_model(cfg)
     with pytest.raises(RuntimeError):
         model.generate("hi")
+
+
+def test_pilot_selection_covers_hallucination_and_tone_brand_metrics():
+    # Bug 1: a plain cases[:5] file-order slice can never reach the
+    # tone-*/hallucination-* cases near the end of the dataset, so those two
+    # gate metrics never get computed during --pilot. select_pilot_cases must
+    # prioritize coverage of all 3 metrics instead of a blind slice.
+    from gnomon.cli import select_pilot_cases
+    from gnomon.dataset.chat_loader import load_chat_cases
+
+    cases = load_chat_cases("datasets/lina_chateval/cases.json")
+    pilot_cases = select_pilot_cases(cases)
+
+    assert len(pilot_cases) == 5
+    assert any(c.criteria and c.criteria_metric == "hallucination" for c in pilot_cases), (
+        "pilot selection must include at least one hallucination case"
+    )
+    assert any(c.criteria and c.criteria_metric == "tone_brand" for c in pilot_cases), (
+        "pilot selection must include at least one tone_brand-criteria case"
+    )
+
+
+def test_pilot_selection_is_a_noop_shape_for_non_chat_case_objects():
+    # Guards select_pilot_cases against assuming every element has
+    # .criteria/.criteria_metric (the existing test_chat_pilot_slices_cases_to_five
+    # test feeds it plain sentinel strings) -- must degrade to file order, not crash.
+    from gnomon.cli import select_pilot_cases
+
+    sentinel_cases = [f"case-{i}" for i in range(7)]
+    assert select_pilot_cases(sentinel_cases) == sentinel_cases[:5]
+
+
+def test_pilot_mode_prints_per_case_scores(monkeypatch, capsys):
+    import gnomon.cli as cli
+    from gnomon.domain.chat import ChatCase, ChatResult
+
+    cases = [
+        ChatCase(
+            id="case-1",
+            conversation=[{"role": "user", "content": "Oi"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+        ChatCase(
+            id="case-2",
+            conversation=[{"role": "user", "content": "Oi 2"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+    ]
+
+    class _StubTarget:
+        def run(self, case):
+            return ChatResult(
+                tool_called="answer_question",
+                reply_text="Funcionamos das 9h as 18h.",
+                total_tokens=10,
+                latency_ms=100.0,
+            )
+
+    class _StubJudge:
+        def score(self, case, result):
+            return {"tool_selection_accuracy": 1.0}
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: cases)
+    monkeypatch.setattr(cli, "ChatTarget", lambda **kwargs: _StubTarget())
+    monkeypatch.setattr(cli, "ChatJudge", lambda **kwargs: _StubJudge())
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+
+    captured = capsys.readouterr()
+    assert "case-1" in captured.out
+    assert "case-2" in captured.out
+    assert "answer_question" in captured.out
+    assert "tool_selection_accuracy" in captured.out

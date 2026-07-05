@@ -2,7 +2,9 @@
 EvalReport shape the RAG and session arms already produce (RF-06/RNF-03),
 via the shared aggregate_metric bootstrap-CI helper unchanged."""
 
-from gnomon.domain.chat import ChatCase
+from collections.abc import Callable
+
+from gnomon.domain.chat import ChatCase, ChatResult
 from gnomon.domain.models import CaseCost, EvalReport, MetricResult
 from gnomon.metrics.confidence import aggregate_metric
 
@@ -14,6 +16,7 @@ def run_chat_eval(
     *,
     seed: int,
     confidence_level: float = 0.95,
+    on_case_scored: Callable[[ChatCase, ChatResult, dict[str, float]], None] | None = None,
 ) -> EvalReport:
     per_case_cost: list[CaseCost] = []
     scores_by_metric: dict[str, list[float]] = {}
@@ -28,6 +31,8 @@ def run_chat_eval(
             )
         )
         case_scores = judge.score(case, result)
+        if on_case_scored is not None:
+            on_case_scored(case, result, case_scores)
         for metric_name, value in case_scores.items():
             scores_by_metric.setdefault(metric_name, []).append(value)
 
