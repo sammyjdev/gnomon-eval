@@ -27,3 +27,14 @@ the loop" into an enforced section is a human decision.
   silent mis-tag mixes two metric semantics under one aggregated name with no
   error. (source: issue #10 quench, code-quality review, gnomon-eval,
   2026-07-05)
+- A primary-then-fallback provider selector (e.g. `cli.py`'s
+  `_build_judge_model` trying NIM then falling back to Ollama on any
+  exception) that catches broadly and switches provider with no log/warning
+  call lets a full run silently execute entirely on the fallback provider --
+  a bad API key, wrong model name, or NIM outage produces a normally-shaped
+  passing report with zero operator-visible signal that the primary was never
+  used. A check that would catch it: any `except Exception` branch that
+  routes to a different backend/provider must have an adjacent
+  `logging.warning` (or equivalent) naming the caught exception, and a test
+  should assert that log call fires on fallback. (source: issue #13 quench,
+  code-quality review, gnomon-eval, 2026-07-05)
