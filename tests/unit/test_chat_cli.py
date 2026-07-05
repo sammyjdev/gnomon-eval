@@ -154,6 +154,42 @@ def _make_completion(record, nim_ok):
     return completion
 
 
+def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(monkeypatch):
+    import deepeval.metrics as deepeval_metrics
+
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
+    monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
+    monkeypatch.setattr(cli, "run_chat_eval", lambda cases, target, judge, *, seed: _empty_report())
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    captured = {}
+
+    def fake_chat_judge(*, tool_metric_factory, geval_factory):
+        captured["tool_metric_factory"] = tool_metric_factory
+        return _FakeJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
+
+    monkeypatch.setattr(cli, "ChatJudge", fake_chat_judge)
+
+    recorded_kwargs = {}
+
+    class FakeToolCorrectnessMetric:
+        def __init__(self, **kwargs):
+            recorded_kwargs.update(kwargs)
+
+    monkeypatch.setattr(deepeval_metrics, "ToolCorrectnessMetric", FakeToolCorrectnessMetric)
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+    captured["tool_metric_factory"]()
+
+    assert recorded_kwargs.get("model") is not None
+
+
 def test_judge_model_uses_nim_when_ok(monkeypatch):
     from gnomon.cli import _build_judge_model
 
