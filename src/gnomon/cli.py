@@ -185,13 +185,67 @@ def session_main(argv: list[str] | None = None) -> int:
     return 0 if report["quality_gate"] == "pass" else 1
 
 
+_PILOT_CASE_COUNT = 5
+
+
+def _pilot_priority(case) -> int:
+    # Cases without .criteria/.criteria_metric (e.g. plain test doubles)
+    # fall through to the lowest priority rather than crashing.
+    criteria = getattr(case, "criteria", None)
+    metric = getattr(case, "criteria_metric", None)
+    if criteria and metric == "hallucination":
+        return 0
+    if criteria and metric == "tone_brand":
+        return 1
+    return 2
+
+
+def select_pilot_cases(cases: list, n: int = _PILOT_CASE_COUNT) -> list:
+    """Pick --pilot's cases so all 3 gate metrics get representative coverage.
+
+    A plain `cases[:n]` file-order slice structurally excludes the
+    tone_brand/hallucination cases whenever they are not near the front of
+    the dataset -- tool_selection_accuracy is scored for every case
+    unconditionally, but those two are conditional on case.criteria, so
+    pilot mode must deliberately front-load them. Sort is stable, so cases
+    within the same priority keep their original relative order.
+    """
+    return sorted(cases, key=_pilot_priority)[:n]
+
+
+def _print_pilot_case_score(case, result, case_scores: dict) -> None:
+    reply_excerpt = result.reply_text[:80]
+    print(
+        f"  case={case.id} tool_called={result.tool_called!r} "
+        f"expected_tools={case.expected_tools!r} reply={reply_excerpt!r} "
+        f"scores={case_scores}"
+    )
+
+
+class _PilotScorePrinter:
+    """Wraps a judge so --pilot prints per-case scores as they're computed --
+    pilot's whole point is a human sanity-checking the judge, which needs
+    this per-case visibility (see run_chat_eval's own on_case_scored hook,
+    used here at the CLI layer via wrapping instead of passing the kwarg
+    through, so cli.run_chat_eval's call signature stays exactly what
+    existing tests already monkeypatch against)."""
+
+    def __init__(self, judge):
+        self._judge = judge
+
+    def score(self, case, result):
+        case_scores = self._judge.score(case, result)
+        _print_pilot_case_score(case, result, case_scores)
+        return case_scores
+
+
 def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
     from deepeval.metrics import GEval, ToolCorrectnessMetric
     from deepeval.test_case import LLMTestCaseParams
 
     cases = load_chat_cases(cfg.dataset_path)
     if pilot:
-        cases = cases[:5]
+        cases = select_pilot_cases(cases)
 
     target = ChatTarget(
         script_path=cfg.target.script_path, cwd=cfg.target.cwd, timeout_s=cfg.target.timeout_s
@@ -209,6 +263,8 @@ def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
         )
 
     judge = ChatJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
+    if pilot:
+        judge = _PilotScorePrinter(judge)
     report = run_chat_eval(cases, target, judge, seed=cfg.seed)
     gate = evaluate_gate(report, cfg.gate.thresholds)
     return report, gate
