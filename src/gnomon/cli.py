@@ -11,20 +11,25 @@ import json
 import os
 import sys
 
+from gnomon.config.chat_config import ChatRunConfig
 from gnomon.config.run_config import JudgeConfig, RunConfig, SessionRunConfig, TargetConfig
+from gnomon.dataset.chat_loader import load_chat_cases
 from gnomon.dataset.loader import load_dataset
 from gnomon.dataset.session_loader import load_sessions
 from gnomon.domain.interfaces import Judge, RagTarget
 from gnomon.gate.gate import evaluate_gate
 from gnomon.judge.cache import JudgeCache
+from gnomon.judge.chat_judge import ChatJudge
 from gnomon.judge.ollama import OllamaJudge
 from gnomon.judge.session_judge import SessionOllamaJudge
 from gnomon.judge.stub import StubJudge
 from gnomon.reporting.report import to_dict, to_text
 from gnomon.reporting.savings import savings_report
 from gnomon.reporting.savings import to_text as session_to_text
+from gnomon.runner.chat_runner import run_chat_eval
 from gnomon.runner.runner import run_eval
 from gnomon.runner.session_runner import run_sessions
+from gnomon.targets.chat_target import ChatTarget
 from gnomon.targets.mock import MockTarget
 from gnomon.targets.openai_compat import OpenAICompatTarget
 from gnomon.targets.session_target import SessionTarget
@@ -58,6 +63,50 @@ def build_judge(cfg: JudgeConfig) -> Judge:
         cache=JudgeCache(),
         timeout_s=cfg.timeout_s,
     )
+
+
+def _build_judge_model(cfg):
+    """Wraps DeepEval's model interface to try NIM first, fall back to local
+    Ollama on any failure -- required per this feature's design doc (no free
+    hosted judge is assumed reliable enough to be a single point of failure)."""
+    from deepeval.models import DeepEvalBaseLLM
+
+    class NimThenOllama(DeepEvalBaseLLM):
+        def load_model(self):
+            return None
+
+        def generate(self, prompt: str) -> str:
+            try:
+                return self._call_nim(prompt)
+            except Exception:  # noqa: BLE001 - any NIM failure falls back
+                return self._call_ollama(prompt)
+
+        async def a_generate(self, prompt: str) -> str:
+            return self.generate(prompt)
+
+        def get_model_name(self) -> str:
+            return f"{cfg.primary_model} (fallback: {cfg.fallback_model})"
+
+        def _call_nim(self, prompt: str) -> str:
+            import litellm
+
+            response = litellm.completion(
+                model=f"nvidia_nim/{cfg.primary_model}",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content
+
+        def _call_ollama(self, prompt: str) -> str:
+            import litellm
+
+            response = litellm.completion(
+                model=f"ollama/{cfg.fallback_model}",
+                api_base=cfg.fallback_base_url,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content
+
+    return NimThenOllama()
 
 
 def run_from_config(cfg: RunConfig):
@@ -125,10 +174,60 @@ def session_main(argv: list[str] | None = None) -> int:
     return 0 if report["quality_gate"] == "pass" else 1
 
 
+def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
+    from deepeval.metrics import GEval, ToolCorrectnessMetric
+    from deepeval.test_case import LLMTestCaseParams
+
+    cases = load_chat_cases(cfg.dataset_path)
+    if pilot:
+        cases = cases[:5]
+
+    target = ChatTarget(
+        script_path=cfg.target.script_path, cwd=cfg.target.cwd, timeout_s=cfg.target.timeout_s
+    )
+
+    def tool_metric_factory():
+        return ToolCorrectnessMetric()
+
+    def geval_factory(criteria: str):
+        return GEval(
+            name="chat_criteria",
+            criteria=criteria,
+            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+            model=_build_judge_model(cfg.judge),
+        )
+
+    judge = ChatJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
+    report = run_chat_eval(cases, target, judge, seed=42)
+    gate = evaluate_gate(report, cfg.gate.thresholds)
+    return report, gate
+
+
+def chat_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="gnomon chat", description="Run a ChatEval evaluation.")
+    parser.add_argument("-c", "--config", required=True, help="path to the chat run config TOML")
+    parser.add_argument("--pilot", action="store_true", help="run only the first 5 cases")
+    parser.add_argument("--json", action="store_true", help="emit the machine-readable report")
+    args = parser.parse_args(argv)
+
+    cfg = ChatRunConfig.from_file(args.config)
+    report, gate = run_chat_from_config(cfg, pilot=args.pilot)
+
+    if args.json:
+        print(json.dumps(to_dict(report), indent=2))
+    else:
+        print(to_text(report))
+    for failure in gate.failures:
+        print(f"GATE FAIL: {failure}", file=sys.stderr)
+    return 0 if gate.passed else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] == "session":
         return session_main(argv[1:])
+    if argv and argv[0] == "chat":
+        return chat_main(argv[1:])
 
     parser = argparse.ArgumentParser(prog="gnomon", description="Run a GNOMON evaluation.")
     parser.add_argument("-c", "--config", required=True, help="path to the run config TOML")
