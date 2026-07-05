@@ -1,0 +1,19 @@
+# wiring
+repo_slug: sammyjdev/gnomon-eval
+default_branch: master
+gate_cmd: "ruff check src tests && ruff format --check src tests && python -m pytest -q"
+setup_cmd: "pip install -e '.[dev]'"
+labels:
+  ready: agent:ready
+  blocked: agent:blocked
+
+# posture (research tool, not a shipped product)
+posture: research
+risk_areas:
+  - judge
+  - gate
+  - dataset
+quality_rubric:
+  testability: true
+  scalability: false
+  progression: true
