@@ -1,0 +1,15 @@
+dataset_path = "datasets/lina_chateval/cases.json"
+
+[target]
+script_path = "gateway/scripts/run_chateval_case.py"
+cwd = "/Users/samdev/dev/lina"
+
+[judge]
+primary_model = "meta/llama-3.3-70b-instruct"
+fallback_model = "phi4:14b"
+fallback_base_url = "http://localhost:11434"
+
+[gate]
+tool_selection_accuracy = 0.90
+tone_brand = 0.80
+hallucination = 0.90
