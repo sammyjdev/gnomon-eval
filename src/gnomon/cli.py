@@ -198,7 +198,7 @@ def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
     )
 
     def tool_metric_factory():
-        return ToolCorrectnessMetric()
+        return ToolCorrectnessMetric(model=_build_judge_model(cfg.judge))
 
     def geval_factory(criteria: str):
         return GEval(
