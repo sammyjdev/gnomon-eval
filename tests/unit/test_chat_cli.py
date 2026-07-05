@@ -61,9 +61,11 @@ def test_chat_pilot_slices_cases_to_five(monkeypatch):
     monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
 
     recorded = []
+    seeds_used = []
 
     def fake_run_chat_eval(cases, target, judge, *, seed):
         recorded.append(cases)
+        seeds_used.append(seed)
         return _empty_report()
 
     monkeypatch.setattr(cli, "run_chat_eval", fake_run_chat_eval)
@@ -79,6 +81,44 @@ def test_chat_pilot_slices_cases_to_five(monkeypatch):
 
     cli.run_chat_from_config(cfg, pilot=False)
     assert len(recorded[-1]) == 7
+    assert seeds_used == [cfg.seed, cfg.seed]
+
+
+def test_run_chat_from_config_uses_configured_seed_not_a_hardcoded_one(monkeypatch):
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
+    monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
+    monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
+
+    seeds_used = []
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed: (seeds_used.append(seed), _empty_report())[1],
+    )
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    cfg = ChatRunConfig(
+        dataset_path="datasets/lina_chateval/cases.json",
+        target=ChatTargetConfig(
+            script_path="gateway/scripts/run_chateval_case.py",
+            cwd="<CHATEVAL_TARGET_CWD>",
+        ),
+        judge=ChatJudgeConfig(
+            primary_model="meta/llama-3.3-70b-instruct",
+            fallback_model="phi4:14b",
+            fallback_base_url="http://localhost:11434",
+        ),
+        gate=ChatGateConfig(thresholds={"tool_selection_accuracy": 0.90}),
+        seed=1234,
+    )
+    cli.run_chat_from_config(cfg, pilot=False)
+    assert seeds_used == [1234]
 
 
 @pytest.mark.parametrize("gate_passed,expected_exit", [(True, 0), (False, 1)])
@@ -132,7 +172,7 @@ def test_judge_model_uses_nim_when_ok(monkeypatch):
     assert record[0]["model"] == "nvidia_nim/meta/llama-3.3-70b-instruct"
 
 
-def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch):
+def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch, caplog):
     from gnomon.cli import _build_judge_model
 
     record = []
@@ -145,10 +185,16 @@ def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch):
         fallback_base_url="http://localhost:11434",
     )
     model = _build_judge_model(cfg)
-    assert model.generate("hi") == "OLLAMA-ANSWER"
+    with caplog.at_level("WARNING"):
+        assert model.generate("hi") == "OLLAMA-ANSWER"
     assert len(record) == 2
     assert record[1]["model"] == "ollama/phi4:14b"
     assert record[1]["api_base"] == "http://localhost:11434"
+    assert any(
+        "meta/llama-3.3-70b-instruct" in r.message and "phi4:14b" in r.message
+        for r in caplog.records
+        if r.levelname == "WARNING"
+    )
 
 
 def test_judge_model_propagates_when_both_fail(monkeypatch):

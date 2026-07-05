@@ -8,6 +8,7 @@ makes the same command usable as a CI regression gate (RF-09).
 
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -65,6 +66,9 @@ def build_judge(cfg: JudgeConfig) -> Judge:
     )
 
 
+_logger = logging.getLogger(__name__)
+
+
 def _build_judge_model(cfg):
     """Wraps DeepEval's model interface to try NIM first, fall back to local
     Ollama on any failure -- required per this feature's design doc (no free
@@ -78,7 +82,14 @@ def _build_judge_model(cfg):
         def generate(self, prompt: str) -> str:
             try:
                 return self._call_nim(prompt)
-            except Exception:  # noqa: BLE001 - any NIM failure falls back
+            except Exception as exc:  # noqa: BLE001 - any NIM failure falls back
+                _logger.warning(
+                    "NIM judge call failed (%s), falling back from %s to Ollama %s: %s",
+                    type(exc).__name__,
+                    cfg.primary_model,
+                    cfg.fallback_model,
+                    exc,
+                )
                 return self._call_ollama(prompt)
 
         async def a_generate(self, prompt: str) -> str:
@@ -198,7 +209,7 @@ def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
         )
 
     judge = ChatJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
-    report = run_chat_eval(cases, target, judge, seed=42)
+    report = run_chat_eval(cases, target, judge, seed=cfg.seed)
     gate = evaluate_gate(report, cfg.gate.thresholds)
     return report, gate
 
