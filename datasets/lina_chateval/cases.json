@@ -55,7 +55,9 @@
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
       {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
-      {"role": "user", "content": "Sim, pode confirmar o das 10h"}
+      {"role": "user", "content": "Sim, pode confirmar o das 10h"},
+      {"role": "assistant", "content": "Perfeito! Para finalizar, qual e o seu nome completo?"},
+      {"role": "user", "content": "Ana Souza"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
     "expected_tools": ["book"]
@@ -65,7 +67,9 @@
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
       {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
-      {"role": "user", "content": "Sim, pode confirmar"}
+      {"role": "user", "content": "Sim, pode confirmar"},
+      {"role": "assistant", "content": "Perfeito! Para finalizar, qual e o seu nome completo?"},
+      {"role": "user", "content": "Bruno Lima"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
     "expected_tools": ["book"],
@@ -128,7 +132,9 @@
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
       {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
-      {"role": "user", "content": "Confirma meu agendamento de limpeza de pele amanha as 10h"}
+      {"role": "user", "content": "Confirma meu agendamento de limpeza de pele amanha as 10h"},
+      {"role": "assistant", "content": "Perfeito! Para finalizar, qual e o seu nome completo?"},
+      {"role": "user", "content": "Carla Mendes"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
     "expected_tools": ["book"],
