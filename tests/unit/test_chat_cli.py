@@ -252,6 +252,92 @@ def test_judge_model_propagates_when_both_fail(monkeypatch):
         model.generate("hi")
 
 
+def _make_completion_with_groq(record, *, nim_ok, groq_ok):
+    def completion(**kw):
+        record.append(kw)
+        if kw["model"].startswith("nvidia_nim/") and not nim_ok:
+            raise RuntimeError("NIM down")
+        if kw["model"].startswith("groq/") and not groq_ok:
+            raise RuntimeError("Groq down")
+        if kw["model"].startswith("nvidia_nim/"):
+            content = "NIM-ANSWER"
+        elif kw["model"].startswith("groq/"):
+            content = "GROQ-ANSWER"
+        else:
+            content = "OLLAMA-ANSWER"
+        msg = types.SimpleNamespace(content=content)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+
+    return completion
+
+
+def test_judge_model_falls_back_to_groq_when_nim_fails_and_secondary_model_configured(
+    monkeypatch, caplog
+):
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=True)
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    cfg = ChatJudgeConfig(
+        primary_model="meta/llama-3.3-70b-instruct",
+        secondary_model="llama-3.3-70b-versatile",
+        fallback_model="phi4:14b",
+        fallback_base_url="http://localhost:11434",
+    )
+    model = _build_judge_model(cfg)
+    with caplog.at_level("WARNING"):
+        assert model.generate("hi") == "GROQ-ANSWER"
+    assert len(record) == 2
+    assert record[1]["model"] == "groq/llama-3.3-70b-versatile"
+
+
+def test_judge_model_falls_back_to_ollama_when_nim_and_groq_both_fail(monkeypatch):
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=False)
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    cfg = ChatJudgeConfig(
+        primary_model="meta/llama-3.3-70b-instruct",
+        secondary_model="llama-3.3-70b-versatile",
+        fallback_model="phi4:14b",
+        fallback_base_url="http://localhost:11434",
+    )
+    model = _build_judge_model(cfg)
+    assert model.generate("hi") == "OLLAMA-ANSWER"
+    assert len(record) == 3
+    assert record[2]["model"] == "ollama/phi4:14b"
+
+
+def test_judge_model_skips_groq_when_secondary_model_not_configured(monkeypatch):
+    # Backward compatibility: existing configs with no secondary_model must
+    # keep the old NIM -> Ollama 2-tier behavior unchanged.
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=True)
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    cfg = ChatJudgeConfig(
+        primary_model="meta/llama-3.3-70b-instruct",
+        fallback_model="phi4:14b",
+        fallback_base_url="http://localhost:11434",
+    )
+    model = _build_judge_model(cfg)
+    assert model.generate("hi") == "OLLAMA-ANSWER"
+    assert len(record) == 2
+    assert record[1]["model"] == "ollama/phi4:14b"
+
+
 def test_pilot_selection_covers_hallucination_and_tone_brand_metrics():
     # Bug 1: a plain cases[:5] file-order slice can never reach the
     # tone-*/hallucination-* cases near the end of the dataset, so those two
