@@ -70,12 +70,15 @@ _logger = logging.getLogger(__name__)
 
 
 def _build_judge_model(cfg):
-    """Wraps DeepEval's model interface to try NIM first, fall back to local
-    Ollama on any failure -- required per this feature's design doc (no free
-    hosted judge is assumed reliable enough to be a single point of failure)."""
+    """Wraps DeepEval's model interface to try NIM first, then an optional
+    secondary provider (Groq, fast but still free-tier), then fall back to
+    local Ollama on any failure -- required per this feature's design doc
+    (no free hosted judge is assumed reliable enough to be a single point
+    of failure). secondary_model is optional so existing configs without it
+    keep the original NIM -> Ollama 2-tier behavior unchanged."""
     from deepeval.models import DeepEvalBaseLLM
 
-    class NimThenOllama(DeepEvalBaseLLM):
+    class NimThenGroqThenOllama(DeepEvalBaseLLM):
         def load_model(self):
             return None
 
@@ -83,10 +86,32 @@ def _build_judge_model(cfg):
             try:
                 return self._call_nim(prompt)
             except Exception as exc:  # noqa: BLE001 - any NIM failure falls back
+                if cfg.secondary_model:
+                    _logger.warning(
+                        "NIM judge call failed (%s), falling back from %s to Groq %s: %s",
+                        type(exc).__name__,
+                        cfg.primary_model,
+                        cfg.secondary_model,
+                        exc,
+                    )
+                    return self._call_groq_then_ollama(prompt)
                 _logger.warning(
                     "NIM judge call failed (%s), falling back from %s to Ollama %s: %s",
                     type(exc).__name__,
                     cfg.primary_model,
+                    cfg.fallback_model,
+                    exc,
+                )
+                return self._call_ollama(prompt)
+
+        def _call_groq_then_ollama(self, prompt: str) -> str:
+            try:
+                return self._call_groq(prompt)
+            except Exception as exc:  # noqa: BLE001 - any Groq failure falls back
+                _logger.warning(
+                    "Groq judge call failed (%s), falling back from %s to Ollama %s: %s",
+                    type(exc).__name__,
+                    cfg.secondary_model,
                     cfg.fallback_model,
                     exc,
                 )
@@ -107,6 +132,15 @@ def _build_judge_model(cfg):
             )
             return response.choices[0].message.content
 
+        def _call_groq(self, prompt: str) -> str:
+            import litellm
+
+            response = litellm.completion(
+                model=f"groq/{cfg.secondary_model}",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content
+
         def _call_ollama(self, prompt: str) -> str:
             import litellm
 
@@ -117,7 +151,7 @@ def _build_judge_model(cfg):
             )
             return response.choices[0].message.content
 
-    return NimThenOllama()
+    return NimThenGroqThenOllama()
 
 
 def run_from_config(cfg: RunConfig):

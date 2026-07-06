@@ -17,6 +17,7 @@ class ChatTargetConfig(BaseModel):
 class ChatJudgeConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
     primary_model: str = Field(min_length=1)
+    secondary_model: str | None = None
     fallback_model: str = Field(min_length=1)
     fallback_base_url: str = Field(min_length=1)
 

@@ -6,6 +6,7 @@ cwd = "<CHATEVAL_TARGET_CWD>"
 
 [judge]
 primary_model = "meta/llama-3.3-70b-instruct"
+secondary_model = "llama-3.3-70b-versatile"
 fallback_model = "phi4:14b"
 fallback_base_url = "http://localhost:11434"
 
