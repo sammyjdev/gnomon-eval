@@ -35,21 +35,28 @@ class ChatJudge:
     ) -> None:
         self._tool_metric_factory = tool_metric_factory
         self._geval_factory = geval_factory
+        self.last_reasons: dict[str, str | None] = {}
 
     def score(self, case: ChatCase, result: ChatResult) -> dict[str, float]:
         scores: dict[str, float] = {}
+        reasons: dict[str, str | None] = {}
         try:
-            scores["tool_selection_accuracy"] = self._score_tool_selection(case, result)
+            tool_score, tool_reason = self._score_tool_selection(case, result)
+            scores["tool_selection_accuracy"] = tool_score
+            reasons["tool_selection_accuracy"] = tool_reason
             if case.criteria:
-                scores[case.criteria_metric] = self._score_criteria(case, result)
+                criteria_score, criteria_reason = self._score_criteria(case, result)
+                scores[case.criteria_metric] = criteria_score
+                reasons[case.criteria_metric] = criteria_reason
         except Exception as exc:  # noqa: BLE001 - deliberately broad: any
             # provider failure (NIM down, Ollama fallback also down, DeepEval
             # raising its own exception types) must fail closed as one named
             # error, not leak a random third-party exception to the runner.
             raise ChatJudgeRuntimeError(f"chat judge scoring failed: {exc}") from exc
+        self.last_reasons = reasons
         return scores
 
-    def _score_tool_selection(self, case: ChatCase, result: ChatResult) -> float:
+    def _score_tool_selection(self, case: ChatCase, result: ChatResult) -> tuple[float, str | None]:
         from deepeval.test_case import LLMTestCase, ToolCall
 
         metric = self._tool_metric_factory()
@@ -62,9 +69,9 @@ class ChatJudge:
             expected_tools=expected_tools,
         )
         metric.measure(test_case)
-        return float(metric.score)
+        return float(metric.score), getattr(metric, "reason", None)
 
-    def _score_criteria(self, case: ChatCase, result: ChatResult) -> float:
+    def _score_criteria(self, case: ChatCase, result: ChatResult) -> tuple[float, str | None]:
         from deepeval.test_case import LLMTestCase
 
         metric = self._geval_factory(case.criteria)
@@ -73,7 +80,7 @@ class ChatJudge:
             actual_output=result.reply_text,
         )
         metric.measure(test_case)
-        return float(metric.score)
+        return float(metric.score), getattr(metric, "reason", None)
 
 
 def _render_conversation(conversation: list[dict]) -> str:

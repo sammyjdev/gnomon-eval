@@ -411,3 +411,52 @@ def test_pilot_mode_prints_per_case_scores(monkeypatch, capsys):
     assert "case-2" in captured.out
     assert "answer_question" in captured.out
     assert "tool_selection_accuracy" in captured.out
+
+
+def test_pilot_mode_prints_judge_reasons_when_available(monkeypatch, capsys):
+    # A raw score alone doesn't explain a surprising result (e.g. an
+    # apparently-correct reply scoring 0.0) -- when the judge exposes
+    # last_reasons (ChatJudge does), --pilot must print it per case.
+    import gnomon.cli as cli
+    from gnomon.domain.chat import ChatCase, ChatResult
+
+    cases = [
+        ChatCase(
+            id="case-1",
+            conversation=[{"role": "user", "content": "Qual o endereco?"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+        ChatCase(
+            id="case-2",
+            conversation=[{"role": "user", "content": "Qual o endereco 2?"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+    ]
+
+    class _StubTarget:
+        def run(self, case):
+            return ChatResult(
+                tool_called="answer_question",
+                reply_text="Nao tenho essa informacao.",
+                total_tokens=10,
+                latency_ms=100.0,
+            )
+
+    class _StubJudgeWithReasons:
+        def __init__(self):
+            self.last_reasons = {}
+
+        def score(self, case, result):
+            self.last_reasons = {"tool_selection_accuracy": "tool matched expected"}
+            return {"tool_selection_accuracy": 1.0}
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: cases)
+    monkeypatch.setattr(cli, "ChatTarget", lambda **kwargs: _StubTarget())
+    monkeypatch.setattr(cli, "ChatJudge", lambda **kwargs: _StubJudgeWithReasons())
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+
+    captured = capsys.readouterr()
+    assert "tool matched expected" in captured.out
