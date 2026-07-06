@@ -206,6 +206,11 @@ def test_judge_model_uses_nim_when_ok(monkeypatch):
     assert model.generate("hi") == "NIM-ANSWER"
     assert len(record) == 1
     assert record[0]["model"] == "nvidia_nim/meta/llama-3.3-70b-instruct"
+    # NIM has been observed hanging 40-90s before timing out entirely
+    # (free-tier degradation, not our config) -- an explicit short timeout
+    # keeps a --pilot run from stalling long enough to hit the harness's own
+    # background-command limits before ever reaching Groq/Ollama.
+    assert record[0]["timeout"] <= 15
 
 
 def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch, caplog):
