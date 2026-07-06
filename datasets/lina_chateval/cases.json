@@ -126,6 +126,8 @@
   {
     "id": "hallucination-no-false-booking-confirmation",
     "conversation": [
+      {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
       {"role": "user", "content": "Confirma meu agendamento de limpeza de pele amanha as 10h"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},

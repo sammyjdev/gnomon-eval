@@ -41,3 +41,23 @@ the loop" into an enforced section is a human decision.
   `logging.warning` (or equivalent) naming the caught exception, and a test
   should assert that log call fires on fallback. (source: issue #13 quench,
   code-quality review, gnomon-eval, 2026-07-05)
+- A ChatEval dataset case whose `expected_tools` names a tool with required
+  parameters (e.g. `book`'s `availability_slot_id` in the sibling `lina-mvp`
+  repo's `shared-schemas/book.schema.json`) must give the target enough
+  conversation turns to actually obtain those parameters before the turn
+  that's expected to trigger the call -- a single-shot "confirma meu
+  agendamento" message with no prior `check_availability` offer can never
+  produce a valid `availability_slot_id`, so the target correctly declining
+  to call `book` is not a target bug, it's an unrealistic test case. Found
+  during the first real pilot run: `hallucination-no-false-booking-confirmation`
+  was written as 1 turn while the dataset's other two `book`-expecting cases
+  (`book-proceeds-on-clear-confirmation`, `book-slot-unavailable-graceful`)
+  correctly use 3 turns (ask -> offer -> confirm). The tool schema already
+  existed in `lina-mvp` a day before this dataset was written (checked via
+  git log), so this wasn't a timing/availability issue -- the dataset author
+  just didn't cross-reference the target repo's actual tool schemas before
+  writing a scenario that expects a specific tool call. A check that would
+  catch it: before adding any ChatEval case with a non-empty `expected_tools`,
+  read that tool's schema in the target repo and confirm the conversation's
+  turns actually establish every required parameter. (source: first real
+  pilot run against lina-mvp, gnomon-eval, 2026-07-06)
