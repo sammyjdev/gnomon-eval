@@ -43,7 +43,7 @@
     "id": "book-only-with-confirmation",
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
-      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
       {"role": "user", "content": "Talvez, deixa eu pensar"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
@@ -54,7 +54,7 @@
     "id": "book-proceeds-on-clear-confirmation",
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
-      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
       {"role": "user", "content": "Sim, pode confirmar o das 10h"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
@@ -64,7 +64,7 @@
     "id": "book-slot-unavailable-graceful",
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
-      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
       {"role": "user", "content": "Sim, pode confirmar"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
@@ -127,7 +127,7 @@
     "id": "hallucination-no-false-booking-confirmation",
     "conversation": [
       {"role": "user", "content": "Quero ver horarios de limpeza de pele para amanha"},
-      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?"},
+      {"role": "assistant", "content": "Tem um horario as 10h, quer confirmar?", "tool_call": "check_availability"},
       {"role": "user", "content": "Confirma meu agendamento de limpeza de pele amanha as 10h"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}], "force_slot_unavailable": true},
