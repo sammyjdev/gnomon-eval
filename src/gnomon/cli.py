@@ -129,6 +129,7 @@ def _build_judge_model(cfg):
             response = litellm.completion(
                 model=f"nvidia_nim/{cfg.primary_model}",
                 messages=[{"role": "user", "content": prompt}],
+                timeout=10,
             )
             return response.choices[0].message.content
 
