@@ -247,13 +247,16 @@ def select_pilot_cases(cases: list, n: int = _PILOT_CASE_COUNT) -> list:
     return sorted(cases, key=_pilot_priority)[:n]
 
 
-def _print_pilot_case_score(case, result, case_scores: dict) -> None:
-    reply_excerpt = result.reply_text[:80]
+def _print_pilot_case_score(case, result, case_scores: dict, reasons: dict) -> None:
+    reply_excerpt = result.reply_text[:200]
     print(
         f"  case={case.id} tool_called={result.tool_called!r} "
         f"expected_tools={case.expected_tools!r} reply={reply_excerpt!r} "
         f"scores={case_scores}"
     )
+    for metric_name, reason in reasons.items():
+        if reason:
+            print(f"    {metric_name} reason: {reason}")
 
 
 class _PilotScorePrinter:
@@ -262,14 +265,17 @@ class _PilotScorePrinter:
     this per-case visibility (see run_chat_eval's own on_case_scored hook,
     used here at the CLI layer via wrapping instead of passing the kwarg
     through, so cli.run_chat_eval's call signature stays exactly what
-    existing tests already monkeypatch against)."""
+    existing tests already monkeypatch against). Also prints each metric's
+    .reason when the wrapped judge exposes a last_reasons mapping (ChatJudge
+    does) -- a bare score can't explain a surprising result on its own."""
 
     def __init__(self, judge):
         self._judge = judge
 
     def score(self, case, result):
         case_scores = self._judge.score(case, result)
-        _print_pilot_case_score(case, result, case_scores)
+        reasons = getattr(self._judge, "last_reasons", {})
+        _print_pilot_case_score(case, result, case_scores, reasons)
         return case_scores
 
 

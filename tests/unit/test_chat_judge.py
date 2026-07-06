@@ -5,8 +5,9 @@ from gnomon.judge.chat_judge import ChatJudge, ChatJudgeRuntimeError
 
 
 class StubToolMetric:
-    def __init__(self, score: float):
+    def __init__(self, score: float, reason: str | None = None):
         self._score = score
+        self.reason = reason
         self.measured_with = None
 
     def measure(self, test_case):
@@ -15,8 +16,9 @@ class StubToolMetric:
 
 
 class StubGEval:
-    def __init__(self, score: float):
+    def __init__(self, score: float, reason: str | None = None):
         self._score = score
+        self.reason = reason
         self.measured_with = None
 
     def measure(self, test_case):
@@ -99,6 +101,34 @@ def test_case_with_hallucination_criteria_metric_scores_hallucination_not_tone_b
     scores = judge.score(case, result)
     assert scores["hallucination"] == 0.9
     assert "tone_brand" not in scores
+
+
+def test_score_captures_each_metrics_reason_for_debugging():
+    # A raw score alone doesn't explain why a reply got that score -- this
+    # matters most exactly when a score looks wrong (e.g. an apparently
+    # correct reply scoring 0.0), which is impossible to diagnose without
+    # the underlying GEval/ToolCorrectnessMetric .reason text.
+    case = ChatCase(
+        id="c5",
+        conversation=[{"role": "user", "content": "Qual o endereco?"}],
+        tenant={"name": "Clinica Aurora", "tone": "amigavel"},
+        expected_tools=["answer_question"],
+        criteria="Must not invent a street address.",
+    )
+    result = ChatResult(
+        tool_called="answer_question",
+        tool_args={},
+        reply_text="Nao tenho essa informacao.",
+        total_tokens=10,
+        latency_ms=100.0,
+    )
+    judge = ChatJudge(
+        tool_metric_factory=lambda: StubToolMetric(1.0, reason="tool matched expected"),
+        geval_factory=lambda criteria: StubGEval(0.0, reason="reply hedges instead of answering"),
+    )
+    judge.score(case, result)
+    assert judge.last_reasons["tool_selection_accuracy"] == "tool matched expected"
+    assert judge.last_reasons["tone_brand"] == "reply hedges instead of answering"
 
 
 def test_both_providers_failing_raises_chat_judge_runtime_error():
