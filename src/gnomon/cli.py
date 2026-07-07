@@ -69,16 +69,30 @@ def build_judge(cfg: JudgeConfig) -> Judge:
 _logger = logging.getLogger(__name__)
 
 
+_JSON_RESPONSE_FORMAT = {"type": "json_object"}
+
+
 def _build_judge_model(cfg):
-    """Wraps DeepEval's model interface to try NIM first, then an optional
-    secondary provider (Groq, fast but still free-tier), then fall back to
+    """Wraps DeepEval's model interface to try NIM first, then optional
+    secondary (Groq) and tertiary (Cerebras) providers, then fall back to
     local Ollama on any failure -- required per this feature's design doc
     (no free hosted judge is assumed reliable enough to be a single point
-    of failure). secondary_model is optional so existing configs without it
-    keep the original NIM -> Ollama 2-tier behavior unchanged."""
+    of failure). secondary_model/tertiary_model are optional so existing
+    configs without them keep the shorter fallback chain unchanged; a
+    tertiary_model with no secondary_model configured is inert (Groq is
+    skipped straight to Ollama, matching the pre-Cerebras behavior).
+
+    Every tier requests JSON-mode output: DeepEval's GEval metric falls back
+    to a plain-text JSON extraction path for custom models like this one
+    (no native structured-output support), and free-tier models left
+    unconstrained sometimes wrap their answer in prose or markdown fences,
+    which breaks that extraction. This applies to every fallback tier, not
+    just the primary -- a fallback crashing on malformed JSON is just as bad
+    as the primary doing it.
+    """
     from deepeval.models import DeepEvalBaseLLM
 
-    class NimThenGroqThenOllama(DeepEvalBaseLLM):
+    class NimThenGroqThenCerebrasThenOllama(DeepEvalBaseLLM):
         def load_model(self):
             return None
 
@@ -94,7 +108,7 @@ def _build_judge_model(cfg):
                         cfg.secondary_model,
                         exc,
                     )
-                    return self._call_groq_then_ollama(prompt)
+                    return self._call_groq_then_cerebras_then_ollama(prompt)
                 _logger.warning(
                     "NIM judge call failed (%s), falling back from %s to Ollama %s: %s",
                     type(exc).__name__,
@@ -104,14 +118,36 @@ def _build_judge_model(cfg):
                 )
                 return self._call_ollama(prompt)
 
-        def _call_groq_then_ollama(self, prompt: str) -> str:
+        def _call_groq_then_cerebras_then_ollama(self, prompt: str) -> str:
             try:
                 return self._call_groq(prompt)
             except Exception as exc:  # noqa: BLE001 - any Groq failure falls back
+                if cfg.tertiary_model:
+                    _logger.warning(
+                        "Groq judge call failed (%s), falling back from %s to Cerebras %s: %s",
+                        type(exc).__name__,
+                        cfg.secondary_model,
+                        cfg.tertiary_model,
+                        exc,
+                    )
+                    return self._call_cerebras_then_ollama(prompt)
                 _logger.warning(
                     "Groq judge call failed (%s), falling back from %s to Ollama %s: %s",
                     type(exc).__name__,
                     cfg.secondary_model,
+                    cfg.fallback_model,
+                    exc,
+                )
+                return self._call_ollama(prompt)
+
+        def _call_cerebras_then_ollama(self, prompt: str) -> str:
+            try:
+                return self._call_cerebras(prompt)
+            except Exception as exc:  # noqa: BLE001 - any Cerebras failure falls back
+                _logger.warning(
+                    "Cerebras judge call failed (%s), falling back from %s to Ollama %s: %s",
+                    type(exc).__name__,
+                    cfg.tertiary_model,
                     cfg.fallback_model,
                     exc,
                 )
@@ -130,6 +166,7 @@ def _build_judge_model(cfg):
                 model=f"nvidia_nim/{cfg.primary_model}",
                 messages=[{"role": "user", "content": prompt}],
                 timeout=10,
+                response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
 
@@ -139,6 +176,17 @@ def _build_judge_model(cfg):
             response = litellm.completion(
                 model=f"groq/{cfg.secondary_model}",
                 messages=[{"role": "user", "content": prompt}],
+                response_format=_JSON_RESPONSE_FORMAT,
+            )
+            return response.choices[0].message.content
+
+        def _call_cerebras(self, prompt: str) -> str:
+            import litellm
+
+            response = litellm.completion(
+                model=f"cerebras/{cfg.tertiary_model}",
+                messages=[{"role": "user", "content": prompt}],
+                response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
 
@@ -149,10 +197,11 @@ def _build_judge_model(cfg):
                 model=f"ollama/{cfg.fallback_model}",
                 api_base=cfg.fallback_base_url,
                 messages=[{"role": "user", "content": prompt}],
+                response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
 
-    return NimThenGroqThenOllama()
+    return NimThenGroqThenCerebrasThenOllama()
 
 
 def run_from_config(cfg: RunConfig):

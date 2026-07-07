@@ -343,6 +343,127 @@ def test_judge_model_skips_groq_when_secondary_model_not_configured(monkeypatch)
     assert record[1]["model"] == "ollama/phi4:14b"
 
 
+def _make_completion_with_cerebras(record, *, nim_ok, groq_ok, cerebras_ok):
+    def completion(**kw):
+        record.append(kw)
+        if kw["model"].startswith("nvidia_nim/") and not nim_ok:
+            raise RuntimeError("NIM down")
+        if kw["model"].startswith("groq/") and not groq_ok:
+            raise RuntimeError("Groq down")
+        if kw["model"].startswith("cerebras/") and not cerebras_ok:
+            raise RuntimeError("Cerebras down")
+        if kw["model"].startswith("nvidia_nim/"):
+            content = "NIM-ANSWER"
+        elif kw["model"].startswith("groq/"):
+            content = "GROQ-ANSWER"
+        elif kw["model"].startswith("cerebras/"):
+            content = "CEREBRAS-ANSWER"
+        else:
+            content = "OLLAMA-ANSWER"
+        msg = types.SimpleNamespace(content=content)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+
+    return completion
+
+
+def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
+    defaults = dict(
+        primary_model="meta/llama-3.3-70b-instruct",
+        secondary_model="llama-3.3-70b-versatile",
+        tertiary_model="gpt-oss-120b",
+        fallback_model="phi4:14b",
+        fallback_base_url="http://localhost:11434",
+    )
+    defaults.update(overrides)
+    return ChatJudgeConfig(**defaults)
+
+
+def test_judge_model_falls_back_to_cerebras_when_nim_and_groq_fail_and_tertiary_model_configured(
+    monkeypatch, caplog
+):
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_cerebras(
+            record, nim_ok=False, groq_ok=False, cerebras_ok=True
+        )
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    model = _build_judge_model(_cfg_with_cerebras())
+    with caplog.at_level("WARNING"):
+        assert model.generate("hi") == "CEREBRAS-ANSWER"
+    assert len(record) == 3
+    assert record[2]["model"] == "cerebras/gpt-oss-120b"
+    assert any(
+        "llama-3.3-70b-versatile" in r.message and "gpt-oss-120b" in r.message
+        for r in caplog.records
+        if r.levelname == "WARNING"
+    )
+
+
+def test_judge_model_falls_back_to_ollama_when_nim_groq_and_cerebras_all_fail(monkeypatch):
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_cerebras(
+            record, nim_ok=False, groq_ok=False, cerebras_ok=False
+        )
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    model = _build_judge_model(_cfg_with_cerebras())
+    assert model.generate("hi") == "OLLAMA-ANSWER"
+    assert len(record) == 4
+    assert record[3]["model"] == "ollama/phi4:14b"
+
+
+def test_judge_model_skips_cerebras_when_tertiary_model_not_configured(monkeypatch):
+    # Backward compatibility: existing configs with secondary_model but no
+    # tertiary_model keep the NIM -> Groq -> Ollama 3-tier behavior unchanged.
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_cerebras(
+            record, nim_ok=False, groq_ok=False, cerebras_ok=True
+        )
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    cfg = _cfg_with_cerebras(tertiary_model=None)
+    model = _build_judge_model(cfg)
+    assert model.generate("hi") == "OLLAMA-ANSWER"
+    assert len(record) == 3
+    assert record[2]["model"] == "ollama/phi4:14b"
+
+
+def test_judge_model_requests_json_object_response_format_on_every_tier(monkeypatch):
+    # GEval needs valid {"score", "reason"} JSON back; our custom model has no
+    # native structured-output support, so DeepEval falls back to a plain-text
+    # extraction path that breaks whenever a free-tier model wraps its answer
+    # in prose or markdown fences. Forcing JSON mode on every provider call
+    # (not just the primary) is the fix -- a fallback tier crashing on
+    # malformed JSON is just as bad as the primary doing it.
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_cerebras(
+            record, nim_ok=False, groq_ok=False, cerebras_ok=False
+        )
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    model = _build_judge_model(_cfg_with_cerebras())
+    model.generate("hi")
+    assert len(record) == 4
+    for call in record:
+        assert call.get("response_format") == {"type": "json_object"}, call["model"]
+
+
 def test_pilot_selection_covers_hallucination_and_tone_brand_metrics():
     # Bug 1: a plain cases[:5] file-order slice can never reach the
     # tone-*/hallucination-* cases near the end of the dataset, so those two
