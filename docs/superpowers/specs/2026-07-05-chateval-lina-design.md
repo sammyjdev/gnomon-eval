@@ -14,9 +14,11 @@ Lina's own regression eval suite (built earlier, `gateway/tests/test_scenarios.p
 
 A related, separate gap surfaced during this design (documented as `sammyjdev/lina-mvp#1`, not part of this spec): Lina has no way to look up which of a tenant's configured services/prices applies to an ambiguous request (e.g. gendered pricing for the same service name), and no mechanism for marking a service as "human-only, never AI." That gap blocks specifically the "variable service pricing" test cases and is out of scope here -- the 17-case dataset below does not include those cases.
 
-## Golden dataset (17 cases, Lina as first target)
+## Golden dataset (17 cases at design time, 28 as of 2026-07-06, Lina as first target)
 
 Lives at `gnomon-eval/datasets/lina_chateval/`, following the existing `datasets/<name>/` convention (see `datasets/rpg_master_example/`, `datasets/second_brain/`).
+
+Original 17 cases from this design session:
 
 - `answer_question` (3): real FAQ match, no-match fallback without hallucinating an answer, does not invent an answer absent from the FAQ.
 - `check_availability` (3): correct date/service extraction, ambiguous date handled (asks, doesn't guess), correctly reports "no slots" rather than inventing one.
@@ -25,6 +27,22 @@ Lives at `gnomon-eval/datasets/lina_chateval/`, following the existing `datasets
 - `request_handoff` (2): triggers on an explicit request for a human, does not trigger prematurely on a simple question.
 - Tone/brand (2): never says "I'm Lina," matches the tenant's configured tone.
 - Hallucination vs. tool output (2): does not claim a slot is free when `check_availability` said otherwise, does not confirm a booking that failed.
+
+**Update (2026-07-06):** N=2 per GEval metric was too small to trust after the
+first real pilot run across 4 providers. Also found and fixed: 3 of the
+original 17 cases set `criteria` without an explicit `criteria_metric`, so
+they silently scored as `tone_brand` (the pydantic field default) despite
+being hallucination checks (`answer_question-no-hallucinated-answer`,
+`check_availability-no-slots-honest`, `book-slot-unavailable-graceful`) --
+now explicit. Added 11 cases: 3 hallucination (invented price, fabricated
+service, reversed a previously-stated fact), 4 tone_brand (sustained tone
+across turns, warmth under complaint, honest-but-in-character on "are you a
+bot", professionalism under a price objection), 4 tool_selection_accuracy
+stress cases targeting gaps confirmed absent from Lina's system prompt
+(ambiguous service with no clarifying question, vague relative date, calling
+`book` before a customer name is known, correct disambiguation when only one
+service actually matches). Dataset is now 28 cases; see `cases.json` for the
+authoritative current breakdown.
 
 Each case: `input` (the conversation so far), `expected_tools` (DeepEval's field, empty list if a pure-text reply is correct), and a natural-language `criteria` string for the GEval-scored cases (tone, hallucination).
 

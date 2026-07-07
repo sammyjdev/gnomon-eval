@@ -242,10 +242,28 @@ def select_pilot_cases(cases: list, n: int = _PILOT_CASE_COUNT) -> list:
     tone_brand/hallucination cases whenever they are not near the front of
     the dataset -- tool_selection_accuracy is scored for every case
     unconditionally, but those two are conditional on case.criteria, so
-    pilot mode must deliberately front-load them. Sort is stable, so cases
-    within the same priority keep their original relative order.
+    pilot mode must deliberately front-load them.
+
+    Round-robins across priority groups (hallucination, tone_brand, rest)
+    instead of draining the highest-priority group first -- a flat
+    sort-then-slice degrades back to single-metric coverage as soon as one
+    group alone has >= n cases. Order within each group is preserved.
     """
-    return sorted(cases, key=_pilot_priority)[:n]
+    groups: dict[int, list] = {}
+    for case in cases:
+        groups.setdefault(_pilot_priority(case), []).append(case)
+
+    selected: list = []
+    round_index = 0
+    while len(selected) < n and any(round_index < len(group) for group in groups.values()):
+        for priority in sorted(groups):
+            if len(selected) >= n:
+                break
+            group = groups[priority]
+            if round_index < len(group):
+                selected.append(group[round_index])
+        round_index += 1
+    return selected
 
 
 def _print_pilot_case_score(case, result, case_scores: dict, reasons: dict) -> None:

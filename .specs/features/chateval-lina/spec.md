@@ -25,12 +25,12 @@ scoring instead of a hand-rolled judge.
 | ID | Requirement | Plan task |
 |---|---|---|
 | CR-01 | `ChatCase`/`ChatResult` frozen pydantic domain models | Task 2 |
-| CR-02 | Chat dataset loader + 17-case Lina golden dataset at `datasets/lina_chateval/cases.json` | Task 3 |
+| CR-02 | Chat dataset loader + Lina golden dataset at `datasets/lina_chateval/cases.json` (17 cases at blueprint time, expanded to 28 on 2026-07-06 -- see design doc's "Update" note) | Task 3 |
 | CR-03 | `ChatJudge`: DeepEval `ToolCorrectnessMetric` (tool selection) + `GEval` (tone/brand, hallucination), two named error types | Task 4 |
 | CR-04 | `ChatTarget`: subprocess call into `lina-mvp`'s adapter script, JSON stdin/stdout contract, no direct import of `lina-mvp` code | Task 5 |
 | CR-05 | `run_chat_eval`: orchestrates cases into an `EvalReport`, reusing `aggregate_metric` unchanged | Task 6 |
 | CR-06 | `gnomon chat` CLI + `ChatRunConfig` (TOML) + gate wiring, reusing `evaluate_gate` unchanged; judge provider is NIM (`meta/llama-3.3-70b-instruct`) primary, local Ollama (`phi4:14b`) fallback | Task 7 |
-| CR-07 | Manual pilot step (4-5 cases) run and read by a human before trusting the full 17-case dataset | Task 8 |
+| CR-07 | Manual pilot step (4-5 cases) run and read by a human before trusting the full dataset (17 cases at blueprint time, 28 as of 2026-07-06) | Task 8 |
 | NFR-01 | ChatEval is never part of any CI gate in either repo; manual/on-demand only (real LLM cost per run) | Tasks 7, 8 |
 | NFR-02 | Gates reuse `evaluate_gate`'s existing `ci_low`-based semantics (ADR-006): `tool_selection_accuracy` >= 0.90, `tone_brand` >= 0.80, `hallucination` >= 0.90 | Task 7 |
 
