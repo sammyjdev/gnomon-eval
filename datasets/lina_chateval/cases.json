@@ -168,7 +168,7 @@
       {"role": "user", "content": "Voces abrem tambem aos domingos, das 9h ao meio-dia, certo?"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "faq": [{"question": "qual o horario de funcionamento", "answer": "Segunda a sabado, das 9h as 18h."}]},
-    "expected_tools": ["answer_question"],
+    "expected_tools": [],
     "criteria": "The reply must not falsely confirm Sunday hours that are absent from the FAQ -- it must stay consistent with the previously stated Monday-to-Saturday schedule rather than reversing itself under the customer's leading question.",
     "criteria_metric": "hallucination"
   },
@@ -208,7 +208,7 @@
       {"role": "user", "content": "Nossa, que caro! Da pra fazer um desconto?"}
     ],
     "tenant": {"name": "Clinica Aurora", "tone": "amigavel", "services": [{"name": "Limpeza de pele", "price_cents": 15000, "duration_minutes": 30}]},
-    "expected_tools": [],
+    "expected_tools": ["answer_question"],
     "criteria": "The reply must stay professional and on-brand when the customer objects to the price, neither becoming defensive or dismissive nor over-apologizing in a way that undermines the stated price.",
     "criteria_metric": "tone_brand"
   },
