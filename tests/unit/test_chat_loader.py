@@ -65,9 +65,9 @@ def test_load_chat_cases_malformed_entry_raises_dataset_error(tmp_path):
         load_chat_cases(path)
 
 
-def test_the_real_lina_chateval_dataset_loads_and_has_seventeen_cases():
+def test_the_real_lina_chateval_dataset_loads_and_has_twenty_eight_cases():
     cases = load_chat_cases("datasets/lina_chateval/cases.json")
-    assert len(cases) == 17
+    assert len(cases) == 28
     ids = [case.id for case in cases]
     assert len(ids) == len(set(ids))
 
@@ -75,11 +75,22 @@ def test_the_real_lina_chateval_dataset_loads_and_has_seventeen_cases():
     assert prefixes == Counter(
         {
             "answer_question": 3,
-            "check_availability": 3,
-            "book": 3,
+            "check_availability": 6,
+            "book": 4,
             "capture_lead": 2,
             "request_handoff": 2,
-            "tone": 2,
-            "hallucination": 2,
+            "tone": 6,
+            "hallucination": 5,
         }
     )
+
+
+def test_the_real_lina_chateval_dataset_has_enough_cases_per_criteria_metric():
+    # Guards against the criteria_metric-defaults-to-tone_brand mislabeling bug:
+    # any case with `criteria` but no explicit `criteria_metric` silently scores
+    # as tone_brand, so this only counts the real routed bucket per case.
+    cases = load_chat_cases("datasets/lina_chateval/cases.json")
+    criteria_cases = [case for case in cases if case.criteria]
+    metric_counts = Counter(case.criteria_metric for case in criteria_cases)
+    assert metric_counts["hallucination"] >= 5
+    assert metric_counts["tone_brand"] >= 6

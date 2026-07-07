@@ -363,6 +363,27 @@ def test_pilot_selection_covers_hallucination_and_tone_brand_metrics():
     )
 
 
+def test_pilot_selection_does_not_starve_tone_brand_when_hallucination_alone_fills_n():
+    # Bug 2: a flat sorted-by-priority-then-slice degrades back to bug 1's
+    # symptom once a single priority group (e.g. hallucination) has >= n cases
+    # on its own -- the whole pilot becomes that one metric with zero
+    # tone_brand coverage. select_pilot_cases must round-robin across metric
+    # groups instead of draining the highest-priority group first.
+    from gnomon.cli import select_pilot_cases
+
+    def case(id_, metric):
+        return types.SimpleNamespace(id=id_, criteria="check something", criteria_metric=metric)
+
+    hallucination_cases = [case(f"hallucination-{i}", "hallucination") for i in range(5)]
+    tone_cases = [case(f"tone-{i}", "tone_brand") for i in range(5)]
+
+    pilot_cases = select_pilot_cases(hallucination_cases + tone_cases, n=5)
+
+    assert len(pilot_cases) == 5
+    assert any(c.criteria_metric == "hallucination" for c in pilot_cases)
+    assert any(c.criteria_metric == "tone_brand" for c in pilot_cases)
+
+
 def test_pilot_selection_is_a_noop_shape_for_non_chat_case_objects():
     # Guards select_pilot_cases against assuming every element has
     # .criteria/.criteria_metric (the existing test_chat_pilot_slices_cases_to_five
