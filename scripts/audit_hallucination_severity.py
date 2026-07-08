@@ -11,6 +11,8 @@ cases are then scored with the production ChatJudge/GEval pipeline
 Never imported by production code. The reply-generation step for the 8
 missing cases costs real Anthropic money (8 calls); the scoring step costs
 real (free-tier) judge-provider calls. Run deliberately, never in CI.
+Requires DATABASE_URL set in the environment for lina-mvp's
+run_chateval_case.py (see that script for the connection string).
 """
 import json
 import os
@@ -45,8 +47,10 @@ _CLEARLY_FINE_THRESHOLD = 0.7
 
 
 def _get_real_reply(case: dict) -> dict:
+    # python3 (PATH), not sys.executable: this repo's own venv lacks lina-mvp's
+    # deps (sqlalchemy/psycopg); PATH python3 has lina-mvp's `pip install -e` deps.
     proc = subprocess.run(
-        [sys.executable, RUN_CASE_SCRIPT],
+        ["python3", RUN_CASE_SCRIPT],
         input=json.dumps(case),
         capture_output=True,
         text=True,
