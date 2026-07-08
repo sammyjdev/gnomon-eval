@@ -1,6 +1,20 @@
-This repo has no enforced invariants yet. This file exists so the `forge`
-loop has somewhere to record lessons; promoting an entry out of "Proposed by
-the loop" into an enforced section is a human decision.
+This file exists so the `forge` loop has somewhere to record lessons;
+promoting an entry out of "Proposed by the loop" into an enforced section is
+a human decision.
+
+## Enforced
+
+- A "grep for the literal file path in tests/" precheck (e.g. `grep -rn
+  "config/chat.toml" tests/`) misses references built via `pathlib` joins
+  (`repo_root / "config" / "chat.toml"`), f-strings, or any construction that
+  doesn't contain the literal substring -- `tests/unit/test_chat_config.py`'s
+  `test_real_chat_toml_matches_spec` loads the real file this way and was
+  missed by exactly that grep pattern, hard-pinning the pre-recalibration gate
+  thresholds. A check that would catch it: search for the bare filename
+  (`grep -rn "chat.toml" tests/`) or the loader call site
+  (`grep -rn "ChatRunConfig.from_file" tests/`) instead of the joined path
+  string, before treating a config-file change as "no test depends on this."
+  (source: issue #22, gate-phase discovery, gnomon-eval, 2026-07-08)
 
 ## Proposed by the loop
 
@@ -61,14 +75,3 @@ the loop" into an enforced section is a human decision.
   read that tool's schema in the target repo and confirm the conversation's
   turns actually establish every required parameter. (source: first real
   pilot run against lina-mvp, gnomon-eval, 2026-07-06)
-- A "grep for the literal file path in tests/" precheck (e.g. `grep -rn
-  "config/chat.toml" tests/`) misses references built via `pathlib` joins
-  (`repo_root / "config" / "chat.toml"`), f-strings, or any construction that
-  doesn't contain the literal substring -- `tests/unit/test_chat_config.py`'s
-  `test_real_chat_toml_matches_spec` loads the real file this way and was
-  missed by exactly that grep pattern, hard-pinning the pre-recalibration gate
-  thresholds. A check that would catch it: search for the bare filename
-  (`grep -rn "chat.toml" tests/`) or the loader call site
-  (`grep -rn "ChatRunConfig.from_file" tests/`) instead of the joined path
-  string, before treating a config-file change as "no test depends on this."
-  (source: issue #22, gate-phase discovery, gnomon-eval, 2026-07-08)
