@@ -12,6 +12,18 @@ fallback_model = "phi4:14b"
 fallback_base_url = "http://localhost:11434"
 
 [gate]
-tool_selection_accuracy = 0.90
-tone_brand = 0.80
-hallucination = 0.90
+# Recalibrated 2026-07-08 (dec-622/625 in lina's AXON project) from a
+# measured, statistically trustworthy baseline (206-case suite,
+# tool_selection_accuracy N=206, tone_brand/hallucination N=100 each) --
+# the previous 0.90/0.80/0.90 values were unvalidated placeholders from
+# the commit that first wired up this CLI. Formula (per deep-research
+# synthesis, PERPLEXITY_GATE_CALIBRATION_PROMPT.md):
+#   threshold = max(absolute_floor, current_mean - allowed_drop)
+# Baseline means: tool_selection_accuracy=0.786, tone_brand=0.722,
+# hallucination=0.697.
+tool_selection_accuracy = 0.756  # max(0.72, 0.786 - 0.03)
+tone_brand = 0.672               # max(0.65, 0.722 - 0.05)
+hallucination = 0.70             # max(0.70, 0.697 - 0.02) -- current mean
+                                  # fails this by 0.003; intentional, flags
+                                  # a real gap rather than hiding it behind
+                                  # a lowered floor.
