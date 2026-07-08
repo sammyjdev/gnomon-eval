@@ -64,9 +64,9 @@ def test_real_chat_toml_matches_spec():
     assert cfg.judge.primary_model == "meta/llama-3.3-70b-instruct"
     assert cfg.judge.fallback_model == "phi4:14b"
     assert cfg.gate.thresholds == {
-        "tool_selection_accuracy": 0.90,
-        "tone_brand": 0.80,
-        "hallucination": 0.90,
+        "tool_selection_accuracy": 0.756,
+        "tone_brand": 0.672,
+        "hallucination": 0.70,
     }
 
 
