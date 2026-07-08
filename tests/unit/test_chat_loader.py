@@ -65,9 +65,15 @@ def test_load_chat_cases_malformed_entry_raises_dataset_error(tmp_path):
         load_chat_cases(path)
 
 
-def test_the_real_lina_chateval_dataset_loads_and_has_twenty_eight_cases():
+def test_the_real_lina_chateval_dataset_loads_and_has_two_hundred_six_cases():
+    # Expanded from the original 28 cases (dec-618/dec-619 in lina-mvp's
+    # AXON project, 2026-07-08) to get a statistically decision-useful
+    # bootstrap CI: 8 hallucination cases and 14 tone_brand cases were too
+    # few for the CI half-width to mean anything at the configured gate
+    # thresholds. Batch generated via Codex (gpt-5.5) from a diversity-grid
+    # brief, validated for schema/id-uniqueness on the host before merging.
     cases = load_chat_cases("datasets/lina_chateval/cases.json")
-    assert len(cases) == 28
+    assert len(cases) == 206
     ids = [case.id for case in cases]
     assert len(ids) == len(set(ids))
 
@@ -76,11 +82,11 @@ def test_the_real_lina_chateval_dataset_loads_and_has_twenty_eight_cases():
         {
             "answer_question": 3,
             "check_availability": 6,
-            "book": 4,
-            "capture_lead": 2,
+            "book": 19,
+            "capture_lead": 5,
             "request_handoff": 2,
-            "tone": 6,
-            "hallucination": 5,
+            "tone": 92,
+            "hallucination": 79,
         }
     )
 
