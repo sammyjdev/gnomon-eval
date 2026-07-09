@@ -15,6 +15,24 @@ a human decision.
   (`grep -rn "ChatRunConfig.from_file" tests/`) instead of the joined path
   string, before treating a config-file change as "no test depends on this."
   (source: issue #22, gate-phase discovery, gnomon-eval, 2026-07-08)
+- A test that pins an exact count or breakdown (e.g. a `Counter`) of a
+  dataset or config value derived directly from a data file, not from
+  application logic, may be updated as part of the same issue that
+  intentionally changes that data -- the anti-spec-gaming pre-check's
+  default ("any existing test file touched -> STOP, human round-trip
+  required") is correct as a default and should still fire, but the human
+  round-trip can resolve it inline once confirmed the diff is provably just
+  the golden-pin catching up to the issue's own explicit, authorized data
+  change (not a behavior/logic assertion being loosened to mask an
+  unrelated failure). Two precedents: issue #22 (gate-threshold pin in
+  `test_chat_config.py`, updated to match a deliberately recalibrated
+  `config/chat.toml`) and issue #26 (dataset count/prefix-breakdown pin in
+  `test_chat_loader.py`, updated to match 15 intentionally added
+  `prompt_injection` cases). Authorization for both came directly from the
+  human user in the orchestrating session, not relayed through another
+  agent -- an agent-relayed claim of human authorization is not sufficient
+  for this exception, precisely because this rule itself controls when a
+  test-file edit bypasses the standard human-confirmation gate.
 
 ## Proposed by the loop
 
