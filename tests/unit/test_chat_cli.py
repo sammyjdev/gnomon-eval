@@ -1,3 +1,4 @@
+import json
 import sys
 import types
 
@@ -10,6 +11,17 @@ from gnomon.config.chat_config import (
     ChatTargetConfig,
 )
 from gnomon.domain.models import EvalReport
+
+
+def _a_chat_case():
+    from gnomon.domain.chat import ChatCase
+
+    return ChatCase(
+        id="case-1",
+        conversation=[{"role": "user", "content": "Oi"}],
+        tenant={"name": "T", "tone": "amigavel"},
+        expected_tools=["answer_question"],
+    )
 
 
 def _make_cfg() -> ChatRunConfig:
@@ -63,7 +75,7 @@ def test_chat_pilot_slices_cases_to_five(monkeypatch):
     recorded = []
     seeds_used = []
 
-    def fake_run_chat_eval(cases, target, judge, *, seed):
+    def fake_run_chat_eval(cases, target, judge, *, seed, generations_path=None, pregenerated=None):
         recorded.append(cases)
         seeds_used.append(seed)
         return _empty_report()
@@ -95,7 +107,10 @@ def test_run_chat_from_config_uses_configured_seed_not_a_hardcoded_one(monkeypat
     monkeypatch.setattr(
         cli,
         "run_chat_eval",
-        lambda cases, target, judge, *, seed: (seeds_used.append(seed), _empty_report())[1],
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            seeds_used.append(seed),
+            _empty_report(),
+        )[1],
     )
     monkeypatch.setattr(
         cli,
@@ -121,6 +136,103 @@ def test_run_chat_from_config_uses_configured_seed_not_a_hardcoded_one(monkeypat
     assert seeds_used == [1234]
 
 
+def test_run_chat_from_config_threads_generations_path_into_run_chat_eval(monkeypatch):
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
+    monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
+    monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
+
+    paths_used = []
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            paths_used.append(generations_path),
+            _empty_report(),
+        )[1],
+    )
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    cli.run_chat_from_config(_make_cfg(), pilot=False, generations_path="out/gens.jsonl")
+    assert paths_used == ["out/gens.jsonl"]
+
+
+def test_chat_main_parses_save_generations_flag(monkeypatch):
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli.ChatRunConfig, "from_file", classmethod(lambda cls, path: _make_cfg()))
+
+    captured = {}
+
+    def fake_run_chat_from_config(cfg, *, pilot, generations_path=None, load_generations_path=None):
+        captured["generations_path"] = generations_path
+        return _empty_report(), types.SimpleNamespace(passed=True, failures=[])
+
+    monkeypatch.setattr(cli, "run_chat_from_config", fake_run_chat_from_config)
+
+    cli.chat_main(["-c", "config/chat.toml", "--save-generations", "out/gens.jsonl"])
+    assert captured["generations_path"] == "out/gens.jsonl"
+
+
+def test_chat_main_parses_load_generations_flag(monkeypatch):
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli.ChatRunConfig, "from_file", classmethod(lambda cls, path: _make_cfg()))
+
+    captured = {}
+
+    def fake_run_chat_from_config(cfg, *, pilot, generations_path=None, load_generations_path=None):
+        captured["load_generations_path"] = load_generations_path
+        return _empty_report(), types.SimpleNamespace(passed=True, failures=[])
+
+    monkeypatch.setattr(cli, "run_chat_from_config", fake_run_chat_from_config)
+
+    cli.chat_main(["-c", "config/chat.toml", "--load-generations", "out/gens.jsonl"])
+    assert captured["load_generations_path"] == "out/gens.jsonl"
+
+
+def test_run_chat_from_config_loads_pregenerated_results_and_skips_target(monkeypatch, tmp_path):
+    import gnomon.cli as cli
+    from gnomon.domain.chat import ChatResult
+    from gnomon.runner.chat_runner import run_chat_eval as real_run_chat_eval
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: [_a_chat_case()])
+
+    class ExplodingTarget:
+        def __init__(self, **kwargs):
+            pass
+
+        def run(self, case):
+            raise AssertionError("target.run() must not be called when fully pregenerated")
+
+    monkeypatch.setattr(cli, "ChatTarget", ExplodingTarget)
+    monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
+    monkeypatch.setattr(cli, "run_chat_eval", real_run_chat_eval)
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    path = tmp_path / "gens.jsonl"
+    result = ChatResult(
+        tool_called="answer_question", reply_text="ok", total_tokens=5, latency_ms=1.0
+    )
+    path.write_text(
+        json.dumps({"case_id": "case-1", "result": result.model_dump()}) + "\n", encoding="utf-8"
+    )
+
+    report, _ = cli.run_chat_from_config(
+        _make_cfg(), pilot=False, load_generations_path=str(path)
+    )
+    assert report.total_tokens == 5
+
+
 @pytest.mark.parametrize("gate_passed,expected_exit", [(True, 0), (False, 1)])
 def test_chat_main_exit_code_follows_gate(monkeypatch, gate_passed, expected_exit):
     import gnomon.cli as cli
@@ -129,7 +241,11 @@ def test_chat_main_exit_code_follows_gate(monkeypatch, gate_passed, expected_exi
     monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
     monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
     monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
-    monkeypatch.setattr(cli, "run_chat_eval", lambda cases, target, judge, *, seed: _empty_report())
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: _empty_report(),
+    )
     monkeypatch.setattr(
         cli,
         "evaluate_gate",
@@ -142,12 +258,12 @@ def test_chat_main_exit_code_follows_gate(monkeypatch, gate_passed, expected_exi
     assert exit_code == expected_exit
 
 
-def _make_completion(record, nim_ok):
+def _make_completion(record, deepinfra_ok):
     def completion(**kw):
         record.append(kw)
-        if kw["model"].startswith("nvidia_nim/") and not nim_ok:
-            raise RuntimeError("NIM down")
-        content = "NIM-ANSWER" if kw["model"].startswith("nvidia_nim/") else "OLLAMA-ANSWER"
+        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
+            raise RuntimeError("DeepInfra down")
+        content = "DEEPINFRA-ANSWER" if kw["model"].startswith("deepinfra/") else "OLLAMA-ANSWER"
         msg = types.SimpleNamespace(content=content)
         return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
 
@@ -161,7 +277,11 @@ def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(mon
 
     monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
     monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
-    monkeypatch.setattr(cli, "run_chat_eval", lambda cases, target, judge, *, seed: _empty_report())
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: _empty_report(),
+    )
     monkeypatch.setattr(
         cli,
         "evaluate_gate",
@@ -190,38 +310,33 @@ def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(mon
     assert recorded_kwargs.get("model") is not None
 
 
-def test_judge_model_uses_nim_when_ok(monkeypatch):
+def test_judge_model_uses_deepinfra_when_ok(monkeypatch):
     from gnomon.cli import _build_judge_model
 
     record = []
-    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, nim_ok=True))
+    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, deepinfra_ok=True))
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
     )
     model = _build_judge_model(cfg)
-    assert model.generate("hi") == "NIM-ANSWER"
+    assert model.generate("hi") == "DEEPINFRA-ANSWER"
     assert len(record) == 1
-    assert record[0]["model"] == "nvidia_nim/meta/llama-3.3-70b-instruct"
-    # NIM has been observed hanging 40-90s before timing out entirely
-    # (free-tier degradation, not our config) -- an explicit short timeout
-    # keeps a --pilot run from stalling long enough to hit the harness's own
-    # background-command limits before ever reaching Groq/Ollama.
-    assert record[0]["timeout"] <= 15
+    assert record[0]["model"] == "deepinfra/meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
 
-def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch, caplog):
+def test_judge_model_falls_back_to_ollama_on_deepinfra_failure(monkeypatch, caplog):
     from gnomon.cli import _build_judge_model
 
     record = []
-    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, nim_ok=False))
+    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, deepinfra_ok=False))
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
     )
@@ -231,8 +346,15 @@ def test_judge_model_falls_back_to_ollama_on_nim_failure(monkeypatch, caplog):
     assert len(record) == 2
     assert record[1]["model"] == "ollama/phi4:14b"
     assert record[1]["api_base"] == "http://localhost:11434"
+    # Ollama is the last-resort tier and typically not running on this
+    # machine (2026-07-09 incident: an unreachable Ollama hung the whole
+    # judge chain until the underlying connection error surfaced, killing a
+    # ~52min run with zero output because run_chat_eval has no per-case
+    # recovery). A short explicit timeout makes "Ollama is down/cold" fail
+    # fast instead of stalling the run.
+    assert record[1]["timeout"] <= 15
     assert any(
-        "meta/llama-3.3-70b-instruct" in r.message and "phi4:14b" in r.message
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo" in r.message and "phi4:14b" in r.message
         for r in caplog.records
         if r.levelname == "WARNING"
     )
@@ -248,7 +370,7 @@ def test_judge_model_propagates_when_both_fail(monkeypatch):
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
     )
@@ -257,15 +379,15 @@ def test_judge_model_propagates_when_both_fail(monkeypatch):
         model.generate("hi")
 
 
-def _make_completion_with_groq(record, *, nim_ok, groq_ok):
+def _make_completion_with_groq(record, *, deepinfra_ok, groq_ok):
     def completion(**kw):
         record.append(kw)
-        if kw["model"].startswith("nvidia_nim/") and not nim_ok:
-            raise RuntimeError("NIM down")
+        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
+            raise RuntimeError("DeepInfra down")
         if kw["model"].startswith("groq/") and not groq_ok:
             raise RuntimeError("Groq down")
-        if kw["model"].startswith("nvidia_nim/"):
-            content = "NIM-ANSWER"
+        if kw["model"].startswith("deepinfra/"):
+            content = "DEEPINFRA-ANSWER"
         elif kw["model"].startswith("groq/"):
             content = "GROQ-ANSWER"
         else:
@@ -276,19 +398,19 @@ def _make_completion_with_groq(record, *, nim_ok, groq_ok):
     return completion
 
 
-def test_judge_model_falls_back_to_groq_when_nim_fails_and_secondary_model_configured(
+def test_judge_model_falls_back_to_groq_when_deepinfra_fails_and_secondary_model_configured(
     monkeypatch, caplog
 ):
     from gnomon.cli import _build_judge_model
 
     record = []
     fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=True)
+        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=True)
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         secondary_model="llama-3.3-70b-versatile",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
@@ -300,17 +422,17 @@ def test_judge_model_falls_back_to_groq_when_nim_fails_and_secondary_model_confi
     assert record[1]["model"] == "groq/llama-3.3-70b-versatile"
 
 
-def test_judge_model_falls_back_to_ollama_when_nim_and_groq_both_fail(monkeypatch):
+def test_judge_model_falls_back_to_ollama_when_deepinfra_and_groq_both_fail(monkeypatch):
     from gnomon.cli import _build_judge_model
 
     record = []
     fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=False)
+        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=False)
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         secondary_model="llama-3.3-70b-versatile",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
@@ -323,17 +445,17 @@ def test_judge_model_falls_back_to_ollama_when_nim_and_groq_both_fail(monkeypatc
 
 def test_judge_model_skips_groq_when_secondary_model_not_configured(monkeypatch):
     # Backward compatibility: existing configs with no secondary_model must
-    # keep the old NIM -> Ollama 2-tier behavior unchanged.
+    # keep the DeepInfra -> Ollama 2-tier behavior unchanged.
     from gnomon.cli import _build_judge_model
 
     record = []
     fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, nim_ok=False, groq_ok=True)
+        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=True)
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
     cfg = ChatJudgeConfig(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
     )
@@ -343,17 +465,17 @@ def test_judge_model_skips_groq_when_secondary_model_not_configured(monkeypatch)
     assert record[1]["model"] == "ollama/phi4:14b"
 
 
-def _make_completion_with_cerebras(record, *, nim_ok, groq_ok, cerebras_ok):
+def _make_completion_with_cerebras(record, *, deepinfra_ok, groq_ok, cerebras_ok):
     def completion(**kw):
         record.append(kw)
-        if kw["model"].startswith("nvidia_nim/") and not nim_ok:
-            raise RuntimeError("NIM down")
+        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
+            raise RuntimeError("DeepInfra down")
         if kw["model"].startswith("groq/") and not groq_ok:
             raise RuntimeError("Groq down")
         if kw["model"].startswith("cerebras/") and not cerebras_ok:
             raise RuntimeError("Cerebras down")
-        if kw["model"].startswith("nvidia_nim/"):
-            content = "NIM-ANSWER"
+        if kw["model"].startswith("deepinfra/"):
+            content = "DEEPINFRA-ANSWER"
         elif kw["model"].startswith("groq/"):
             content = "GROQ-ANSWER"
         elif kw["model"].startswith("cerebras/"):
@@ -368,7 +490,7 @@ def _make_completion_with_cerebras(record, *, nim_ok, groq_ok, cerebras_ok):
 
 def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
     defaults = dict(
-        primary_model="meta/llama-3.3-70b-instruct",
+        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         secondary_model="llama-3.3-70b-versatile",
         tertiary_model="gpt-oss-120b",
         fallback_model="phi4:14b",
@@ -378,7 +500,7 @@ def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
     return ChatJudgeConfig(**defaults)
 
 
-def test_judge_model_falls_back_to_cerebras_when_nim_and_groq_fail_and_tertiary_model_configured(
+def test_judge_model_falls_back_to_cerebras_when_deepinfra_and_groq_fail_and_tertiary_model_configured(
     monkeypatch, caplog
 ):
     from gnomon.cli import _build_judge_model
@@ -386,7 +508,7 @@ def test_judge_model_falls_back_to_cerebras_when_nim_and_groq_fail_and_tertiary_
     record = []
     fake_litellm = types.SimpleNamespace(
         completion=_make_completion_with_cerebras(
-            record, nim_ok=False, groq_ok=False, cerebras_ok=True
+            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=True
         )
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
@@ -403,13 +525,13 @@ def test_judge_model_falls_back_to_cerebras_when_nim_and_groq_fail_and_tertiary_
     )
 
 
-def test_judge_model_falls_back_to_ollama_when_nim_groq_and_cerebras_all_fail(monkeypatch):
+def test_judge_model_falls_back_to_ollama_when_deepinfra_groq_and_cerebras_all_fail(monkeypatch):
     from gnomon.cli import _build_judge_model
 
     record = []
     fake_litellm = types.SimpleNamespace(
         completion=_make_completion_with_cerebras(
-            record, nim_ok=False, groq_ok=False, cerebras_ok=False
+            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
         )
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
@@ -422,13 +544,14 @@ def test_judge_model_falls_back_to_ollama_when_nim_groq_and_cerebras_all_fail(mo
 
 def test_judge_model_skips_cerebras_when_tertiary_model_not_configured(monkeypatch):
     # Backward compatibility: existing configs with secondary_model but no
-    # tertiary_model keep the NIM -> Groq -> Ollama 3-tier behavior unchanged.
+    # tertiary_model keep the DeepInfra -> Groq -> Ollama 3-tier behavior
+    # unchanged.
     from gnomon.cli import _build_judge_model
 
     record = []
     fake_litellm = types.SimpleNamespace(
         completion=_make_completion_with_cerebras(
-            record, nim_ok=False, groq_ok=False, cerebras_ok=True
+            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=True
         )
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
@@ -452,7 +575,7 @@ def test_judge_model_requests_json_object_response_format_on_every_tier(monkeypa
     record = []
     fake_litellm = types.SimpleNamespace(
         completion=_make_completion_with_cerebras(
-            record, nim_ok=False, groq_ok=False, cerebras_ok=False
+            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
         )
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
@@ -462,6 +585,46 @@ def test_judge_model_requests_json_object_response_format_on_every_tier(monkeypa
     assert len(record) == 4
     for call in record:
         assert call.get("response_format") == {"type": "json_object"}, call["model"]
+
+
+def test_judge_model_requests_a_timeout_on_every_tier(monkeypatch):
+    # 2026-07-09 incident, part 1: no tier but Ollama had a client-side
+    # timeout, so one stuck connection hung the whole 206-case run
+    # indefinitely instead of falling through. Every tier needs one -- paid
+    # provider or not, any single network call can stall.
+    #
+    # Part 2, same day: an initial flat 10s guess (copied from NIM, which
+    # really was that fast-or-dead) turned out too short for DeepInfra
+    # specifically -- a real GEval-sized prompt (conversation + rubric +
+    # JSON-format instructions, not a toy "reply OK") measured 15-23s end to
+    # end against DeepInfra's live API, so a 10s cap was timing out nearly
+    # every real call before the answer ever arrived. DeepInfra's timeout
+    # must have headroom above that; Groq/Cerebras (both known for very fast
+    # inference hardware) and Ollama (explicitly a short-leash last resort,
+    # see the 2026-07-09 "avoid a slow Ollama blocking the run" discussion)
+    # can stay short.
+    from gnomon.cli import _build_judge_model
+
+    record = []
+    fake_litellm = types.SimpleNamespace(
+        completion=_make_completion_with_cerebras(
+            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
+        )
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    model = _build_judge_model(_cfg_with_cerebras())
+    model.generate("hi")
+    assert len(record) == 4
+    for call in record:
+        assert isinstance(call.get("timeout"), int | float), call["model"]
+
+    deepinfra_call, groq_call, cerebras_call, ollama_call = record
+    # Above the observed 15-23s real-prompt latency, with headroom.
+    assert 25 <= deepinfra_call["timeout"] <= 35
+    assert groq_call["timeout"] <= 15
+    assert cerebras_call["timeout"] <= 15
+    assert ollama_call["timeout"] <= 15
 
 
 def test_pilot_selection_covers_hallucination_and_tone_brand_metrics():

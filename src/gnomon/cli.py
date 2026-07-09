@@ -73,14 +73,18 @@ _JSON_RESPONSE_FORMAT = {"type": "json_object"}
 
 
 def _build_judge_model(cfg):
-    """Wraps DeepEval's model interface to try NIM first, then optional
+    """Wraps DeepEval's model interface to try DeepInfra first, then optional
     secondary (Groq) and tertiary (Cerebras) providers, then fall back to
     local Ollama on any failure -- required per this feature's design doc
-    (no free hosted judge is assumed reliable enough to be a single point
-    of failure). secondary_model/tertiary_model are optional so existing
-    configs without them keep the shorter fallback chain unchanged; a
-    tertiary_model with no secondary_model configured is inert (Groq is
-    skipped straight to Ollama, matching the pre-Cerebras behavior).
+    (no single hosted judge is assumed reliable enough to be a single point
+    of failure). NIM was dropped from this chain: it shares its free-tier
+    quota with AXON's own NIM-backed ADR classifier on this machine
+    (AXON_ADR_MODEL=nvidia_nim/meta/llama-3.3-70b-instruct, same account),
+    so its 429s/timeouts were never fixable from this repo's config alone.
+    secondary_model/tertiary_model are optional so existing configs without
+    them keep the shorter fallback chain unchanged; a tertiary_model with no
+    secondary_model configured is inert (Groq is skipped straight to
+    Ollama, matching the pre-Cerebras behavior).
 
     Every tier requests JSON-mode output: DeepEval's GEval metric falls back
     to a plain-text JSON extraction path for custom models like this one
@@ -92,17 +96,17 @@ def _build_judge_model(cfg):
     """
     from deepeval.models import DeepEvalBaseLLM
 
-    class NimThenGroqThenCerebrasThenOllama(DeepEvalBaseLLM):
+    class DeepInfraThenGroqThenCerebrasThenOllama(DeepEvalBaseLLM):
         def load_model(self):
             return None
 
         def generate(self, prompt: str) -> str:
             try:
-                return self._call_nim(prompt)
-            except Exception as exc:  # noqa: BLE001 - any NIM failure falls back
+                return self._call_deepinfra(prompt)
+            except Exception as exc:  # noqa: BLE001 - any DeepInfra failure falls back
                 if cfg.secondary_model:
                     _logger.warning(
-                        "NIM judge call failed (%s), falling back from %s to Groq %s: %s",
+                        "DeepInfra judge call failed (%s), falling back from %s to Groq %s: %s",
                         type(exc).__name__,
                         cfg.primary_model,
                         cfg.secondary_model,
@@ -110,7 +114,7 @@ def _build_judge_model(cfg):
                     )
                     return self._call_groq_then_cerebras_then_ollama(prompt)
                 _logger.warning(
-                    "NIM judge call failed (%s), falling back from %s to Ollama %s: %s",
+                    "DeepInfra judge call failed (%s), falling back from %s to Ollama %s: %s",
                     type(exc).__name__,
                     cfg.primary_model,
                     cfg.fallback_model,
@@ -159,13 +163,17 @@ def _build_judge_model(cfg):
         def get_model_name(self) -> str:
             return f"{cfg.primary_model} (fallback: {cfg.fallback_model})"
 
-        def _call_nim(self, prompt: str) -> str:
+        def _call_deepinfra(self, prompt: str) -> str:
             import litellm
 
             response = litellm.completion(
-                model=f"nvidia_nim/{cfg.primary_model}",
+                model=f"deepinfra/{cfg.primary_model}",
                 messages=[{"role": "user", "content": prompt}],
-                timeout=10,
+                # A real GEval-sized prompt (conversation + rubric + JSON
+                # instructions) measured 15-23s end to end against DeepInfra's
+                # live API (2026-07-09) -- 10s (copied from NIM's own tier)
+                # was timing out nearly every real call. 30s gives headroom.
+                timeout=30,
                 response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
@@ -176,6 +184,7 @@ def _build_judge_model(cfg):
             response = litellm.completion(
                 model=f"groq/{cfg.secondary_model}",
                 messages=[{"role": "user", "content": prompt}],
+                timeout=10,
                 response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
@@ -186,6 +195,7 @@ def _build_judge_model(cfg):
             response = litellm.completion(
                 model=f"cerebras/{cfg.tertiary_model}",
                 messages=[{"role": "user", "content": prompt}],
+                timeout=10,
                 response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
@@ -197,11 +207,12 @@ def _build_judge_model(cfg):
                 model=f"ollama/{cfg.fallback_model}",
                 api_base=cfg.fallback_base_url,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=10,
                 response_format=_JSON_RESPONSE_FORMAT,
             )
             return response.choices[0].message.content
 
-    return NimThenGroqThenCerebrasThenOllama()
+    return DeepInfraThenGroqThenCerebrasThenOllama()
 
 
 def run_from_config(cfg: RunConfig):
@@ -347,9 +358,17 @@ class _PilotScorePrinter:
         return case_scores
 
 
-def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
+def run_chat_from_config(
+    cfg: ChatRunConfig,
+    *,
+    pilot: bool,
+    generations_path: str | None = None,
+    load_generations_path: str | None = None,
+):
     from deepeval.metrics import GEval, ToolCorrectnessMetric
     from deepeval.test_case import LLMTestCaseParams
+
+    from gnomon.runner.chat_runner import load_generations
 
     cases = load_chat_cases(cfg.dataset_path)
     if pilot:
@@ -373,7 +392,15 @@ def run_chat_from_config(cfg: ChatRunConfig, *, pilot: bool):
     judge = ChatJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
     if pilot:
         judge = _PilotScorePrinter(judge)
-    report = run_chat_eval(cases, target, judge, seed=cfg.seed)
+    pregenerated = load_generations(load_generations_path) if load_generations_path else None
+    report = run_chat_eval(
+        cases,
+        target,
+        judge,
+        seed=cfg.seed,
+        generations_path=generations_path,
+        pregenerated=pregenerated,
+    )
     gate = evaluate_gate(report, cfg.gate.thresholds)
     return report, gate
 
@@ -383,10 +410,34 @@ def chat_main(argv: list[str] | None = None) -> int:
     parser.add_argument("-c", "--config", required=True, help="path to the chat run config TOML")
     parser.add_argument("--pilot", action="store_true", help="run only the first 5 cases")
     parser.add_argument("--json", action="store_true", help="emit the machine-readable report")
+    parser.add_argument(
+        "--save-generations",
+        metavar="PATH",
+        help=(
+            "write each case's raw generation to PATH (JSONL) as soon as it "
+            "completes, before judging starts -- so a judge-stage failure "
+            "can never lose the real generation spend already made"
+        ),
+    )
+    parser.add_argument(
+        "--load-generations",
+        metavar="PATH",
+        help=(
+            "reuse case results already saved via --save-generations instead "
+            "of re-running the target -- lets you re-judge (new judge config, "
+            "new criteria) without spending real generation money again. "
+            "Cases missing from PATH are still freshly generated."
+        ),
+    )
     args = parser.parse_args(argv)
 
     cfg = ChatRunConfig.from_file(args.config)
-    report, gate = run_chat_from_config(cfg, pilot=args.pilot)
+    report, gate = run_chat_from_config(
+        cfg,
+        pilot=args.pilot,
+        generations_path=args.save_generations,
+        load_generations_path=args.load_generations,
+    )
 
     if args.json:
         print(json.dumps(to_dict(report), indent=2))
