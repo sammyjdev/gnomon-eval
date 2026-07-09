@@ -61,7 +61,7 @@ def test_real_chat_toml_matches_spec():
     repo_root = Path(__file__).parent.parent.parent
     cfg = ChatRunConfig.from_file(repo_root / "config" / "chat.toml")
 
-    assert cfg.judge.primary_model == "meta/llama-3.3-70b-instruct"
+    assert cfg.judge.primary_model == "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     assert cfg.judge.fallback_model == "phi4:14b"
     assert cfg.gate.thresholds == {
         "tool_selection_accuracy": 0.756,

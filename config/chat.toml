@@ -5,7 +5,15 @@ script_path = "gateway/scripts/run_chateval_case.py"
 cwd = "/Users/samdev/dev/lina"
 
 [judge]
-primary_model = "meta/llama-3.3-70b-instruct"
+# NIM removed 2026-07-09: shares its free-tier quota with AXON's own
+# NIM-backed ADR classifier on this machine (AXON_ADR_MODEL points at the
+# exact same nvidia_nim/meta/llama-3.3-70b-instruct model, same account) --
+# every 429/timeout observed in the 2026-07-09 Tier 2 rerun traces back to
+# that contention, not to gnomon-eval's own config. DeepInfra is now
+# primary: paid, private account, cheapest of the 4 providers evaluated
+# (Bedrock/Together/Fireworks/DeepInfra), highest effective throughput
+# ceiling (200 concurrent requests vs Fireworks' fixed 6k RPM).
+primary_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 secondary_model = "llama-3.3-70b-versatile"
 tertiary_model = "gpt-oss-120b"
 fallback_model = "phi4:14b"
