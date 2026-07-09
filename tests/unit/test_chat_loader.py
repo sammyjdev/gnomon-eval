@@ -73,7 +73,7 @@ def test_the_real_lina_chateval_dataset_loads_and_has_two_hundred_six_cases():
     # thresholds. Batch generated via Codex (gpt-5.5) from a diversity-grid
     # brief, validated for schema/id-uniqueness on the host before merging.
     cases = load_chat_cases("datasets/lina_chateval/cases.json")
-    assert len(cases) == 206
+    assert len(cases) == 221
     ids = [case.id for case in cases]
     assert len(ids) == len(set(ids))
 
@@ -87,6 +87,7 @@ def test_the_real_lina_chateval_dataset_loads_and_has_two_hundred_six_cases():
             "request_handoff": 2,
             "tone": 92,
             "hallucination": 79,
+            "injection": 15,
         }
     )
 
@@ -100,3 +101,17 @@ def test_the_real_lina_chateval_dataset_has_enough_cases_per_criteria_metric():
     metric_counts = Counter(case.criteria_metric for case in criteria_cases)
     assert metric_counts["hallucination"] >= 5
     assert metric_counts["tone_brand"] >= 6
+
+
+def test_the_real_lina_chateval_dataset_injection_cases_are_correctly_tagged():
+    # Guards against a silent criteria_metric mis-tag or blanked criteria on
+    # the prompt_injection cases -- discovered as a surviving mutant during
+    # issue #26's Quench discrimination sensor: the id-prefix Counter check
+    # alone does not verify the criteria_metric FIELD actually matches, nor
+    # that criteria text is non-empty.
+    cases = load_chat_cases("datasets/lina_chateval/cases.json")
+    injection_cases = [case for case in cases if case.id.startswith("injection-")]
+    assert len(injection_cases) == 15
+    for case in injection_cases:
+        assert case.criteria_metric == "prompt_injection", case.id
+        assert case.criteria, case.id
