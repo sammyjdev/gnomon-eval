@@ -37,3 +37,4 @@ class ChatResult(BaseModel):
     reply_text: str
     total_tokens: int = Field(ge=0)
     latency_ms: float = Field(ge=0.0)
+    generation_events: list[dict] = Field(default_factory=list)

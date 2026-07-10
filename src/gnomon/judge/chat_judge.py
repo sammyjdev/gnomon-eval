@@ -20,6 +20,15 @@ class ChatJudgeRuntimeError(ChatJudgeError):
     timed out, or returned an unusable response)."""
 
 
+_SUPPRESSION_EVENT_TYPES = frozenset(
+    {
+        "malformed_reply_suppressed",
+        "unverified_action_claim_suppressed",
+        "persona_leak_suppressed",
+    }
+)
+
+
 class ChatJudge:
     """`tool_metric_factory` and `geval_factory` are injected so tests can
     stub DeepEval's real metric classes; production wiring (Task 7) passes
@@ -36,8 +45,10 @@ class ChatJudge:
         self._tool_metric_factory = tool_metric_factory
         self._geval_factory = geval_factory
         self.last_reasons: dict[str, str | None] = {}
+        self.last_generation_status: str | None = None
 
     def score(self, case: ChatCase, result: ChatResult) -> dict[str, float]:
+        self.last_generation_status = None  # reset at START, mirrors CR-04
         scores: dict[str, float] = {}
         reasons: dict[str, str | None] = {}
         try:
@@ -45,9 +56,10 @@ class ChatJudge:
             scores["tool_selection_accuracy"] = tool_score
             reasons["tool_selection_accuracy"] = tool_reason
             if case.criteria:
-                criteria_score, criteria_reason = self._score_criteria(case, result)
+                criteria_score, criteria_reason, gen_status = self._score_criteria(case, result)
                 scores[case.criteria_metric] = criteria_score
                 reasons[case.criteria_metric] = criteria_reason
+                self.last_generation_status = gen_status
         except Exception as exc:  # noqa: BLE001 - deliberately broad: any
             # provider failure (NIM down, Ollama fallback also down, DeepEval
             # raising its own exception types) must fail closed as one named
@@ -71,16 +83,41 @@ class ChatJudge:
         metric.measure(test_case)
         return float(metric.score), getattr(metric, "reason", None)
 
-    def _score_criteria(self, case: ChatCase, result: ChatResult) -> tuple[float, str | None]:
+    def _score_criteria(
+        self, case: ChatCase, result: ChatResult
+    ) -> tuple[float, str | None, str | None]:
+        import json
+
         from deepeval.test_case import LLMTestCase
 
-        metric = self._geval_factory(case.criteria)
+        # A generation_events entry already tells us the reply is a known
+        # fallback (malformed/unverified-action/persona-leak suppression) --
+        # scoring that with GEval would risk misjudging a generation-level
+        # failure as a content/hallucination verdict, and burns an LLM call
+        # whose answer is already known. Use .get(), never [...]: a
+        # malformed entry missing "event_type" must not raise here (score()
+        # wraps any exception as ChatJudgeRuntimeError, which would be wrong
+        # for a merely-malformed telemetry entry).
+        for event in result.generation_events:
+            event_type = event.get("event_type")
+            if event_type in _SUPPRESSION_EVENT_TYPES:
+                return 0.0, f"generation suppressed ({event_type}); GEval skipped", event_type
+
+        # geval_factory now builds GEval from a shared, hand-written rubric
+        # keyed by criteria_metric (see gnomon.judge.rubrics) -- the
+        # case-specific requirement reaches the judge via expected_output,
+        # and the tenant's real configured data via context, so the judge
+        # can actually verify a claim like "must state the configured
+        # price" instead of guessing.
+        metric = self._geval_factory(case.criteria_metric)
         test_case = LLMTestCase(
             input=_render_conversation(case.conversation),
             actual_output=result.reply_text,
+            expected_output=case.criteria,
+            context=[json.dumps(case.tenant, ensure_ascii=False)],
         )
         metric.measure(test_case)
-        return float(metric.score), getattr(metric, "reason", None)
+        return float(metric.score), getattr(metric, "reason", None), None
 
 
 def _render_conversation(conversation: list[dict]) -> str:

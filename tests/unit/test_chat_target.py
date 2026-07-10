@@ -102,3 +102,35 @@ def test_run_wraps_missing_executable_os_error():
 
     with pytest.raises(ChatTargetRuntimeError):
         _target(missing_executable_runner).run(_case())
+
+
+def test_run_reads_generation_events_from_adapter_body():
+    events = [{"event_type": "malformed_reply_suppressed"}]
+
+    def fake_runner(args, *, input, cwd, capture_output, text, timeout):
+        return FakeCompletedProcess(
+            0,
+            json.dumps(
+                {
+                    "reply_text": "Oi!",
+                    "total_tokens": 5,
+                    "generation_events": events,
+                }
+            ),
+        )
+
+    result = _target(fake_runner).run(_case())
+
+    assert result.generation_events == events
+
+
+def test_run_defaults_generation_events_to_empty_when_key_absent():
+    def fake_runner(args, *, input, cwd, capture_output, text, timeout):
+        return FakeCompletedProcess(
+            0,
+            json.dumps({"reply_text": "Oi!", "total_tokens": 5}),
+        )
+
+    result = _target(fake_runner).run(_case())
+
+    assert result.generation_events == []
