@@ -64,6 +64,66 @@ def test_chat_help_exits_zero():
     assert exc.value.code == 0
 
 
+def _case_with_id(case_id: str):
+    from gnomon.domain.chat import ChatCase
+
+    return ChatCase(
+        id=case_id,
+        conversation=[{"role": "user", "content": "Oi"}],
+        tenant={"name": "T", "tone": "amigavel"},
+        expected_tools=["answer_question"],
+    )
+
+
+def test_run_chat_from_config_filters_to_case_ids_when_given(monkeypatch):
+    # A curated ablation run (e.g. re-testing 39 known-hard cases against a
+    # code variant) must not pay for or judge the other 182 cases -- filter
+    # to just the requested ids, preserving dataset order.
+    import gnomon.cli as cli
+
+    all_cases = [_case_with_id("a"), _case_with_id("b"), _case_with_id("c")]
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: all_cases)
+    monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
+    monkeypatch.setattr(cli, "ChatJudge", _FakeJudge)
+
+    recorded = []
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            recorded.append(cases),
+            _empty_report(),
+        )[1],
+    )
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    cli.run_chat_from_config(_make_cfg(), pilot=False, case_ids=["c", "a"])
+    assert [c.id for c in recorded[-1]] == ["a", "c"]
+
+
+def test_chat_main_parses_cases_flag(monkeypatch):
+    import gnomon.cli as cli
+
+    monkeypatch.setattr(cli.ChatRunConfig, "from_file", classmethod(lambda cls, path: _make_cfg()))
+
+    captured = {}
+
+    def fake_run_chat_from_config(
+        cfg, *, pilot, generations_path=None, load_generations_path=None, case_ids=None
+    ):
+        captured["case_ids"] = case_ids
+        return _empty_report(), types.SimpleNamespace(passed=True, failures=[])
+
+    monkeypatch.setattr(cli, "run_chat_from_config", fake_run_chat_from_config)
+
+    cli.chat_main(["-c", "config/chat.toml", "--cases", "case-3,case-7"])
+    assert captured["case_ids"] == ["case-3", "case-7"]
+
+
 def test_chat_pilot_slices_cases_to_five(monkeypatch):
     import gnomon.cli as cli
 
@@ -169,7 +229,9 @@ def test_chat_main_parses_save_generations_flag(monkeypatch):
 
     captured = {}
 
-    def fake_run_chat_from_config(cfg, *, pilot, generations_path=None, load_generations_path=None):
+    def fake_run_chat_from_config(
+        cfg, *, pilot, generations_path=None, load_generations_path=None, case_ids=None
+    ):
         captured["generations_path"] = generations_path
         return _empty_report(), types.SimpleNamespace(passed=True, failures=[])
 
@@ -186,7 +248,9 @@ def test_chat_main_parses_load_generations_flag(monkeypatch):
 
     captured = {}
 
-    def fake_run_chat_from_config(cfg, *, pilot, generations_path=None, load_generations_path=None):
+    def fake_run_chat_from_config(
+        cfg, *, pilot, generations_path=None, load_generations_path=None, case_ids=None
+    ):
         captured["load_generations_path"] = load_generations_path
         return _empty_report(), types.SimpleNamespace(passed=True, failures=[])
 

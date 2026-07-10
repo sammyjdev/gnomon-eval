@@ -368,6 +368,7 @@ def run_chat_from_config(
     pilot: bool,
     generations_path: str | None = None,
     load_generations_path: str | None = None,
+    case_ids: list[str] | None = None,
 ):
     from deepeval.metrics import GEval, ToolCorrectnessMetric
     from deepeval.test_case import SingleTurnParams
@@ -376,6 +377,9 @@ def run_chat_from_config(
     from gnomon.runner.chat_runner import load_generations
 
     cases = load_chat_cases(cfg.dataset_path)
+    if case_ids is not None:
+        wanted = set(case_ids)
+        cases = [case for case in cases if case.id in wanted]
     if pilot:
         cases = select_pilot_cases(cases)
 
@@ -443,6 +447,11 @@ def chat_main(argv: list[str] | None = None) -> int:
             "Cases missing from PATH are still freshly generated."
         ),
     )
+    parser.add_argument(
+        "--cases",
+        metavar="ID,ID,...",
+        help="run only these comma-separated case ids, instead of the full dataset",
+    )
     args = parser.parse_args(argv)
 
     cfg = ChatRunConfig.from_file(args.config)
@@ -451,6 +460,7 @@ def chat_main(argv: list[str] | None = None) -> int:
         pilot=args.pilot,
         generations_path=args.save_generations,
         load_generations_path=args.load_generations,
+        case_ids=args.cases.split(",") if args.cases else None,
     )
 
     if args.json:
