@@ -326,12 +326,15 @@ def select_pilot_cases(cases: list, n: int = _PILOT_CASE_COUNT) -> list:
     return selected
 
 
-def _print_pilot_case_score(case, result, case_scores: dict, reasons: dict) -> None:
+def _print_pilot_case_score(
+    case, result, case_scores: dict, reasons: dict, generation_status: str | None = None
+) -> None:
     reply_excerpt = result.reply_text[:200]
+    status_suffix = f" generation_status={generation_status!r}" if generation_status else ""
     print(
         f"  case={case.id} tool_called={result.tool_called!r} "
         f"expected_tools={case.expected_tools!r} reply={reply_excerpt!r} "
-        f"scores={case_scores}"
+        f"scores={case_scores}{status_suffix}"
     )
     for metric_name, reason in reasons.items():
         if reason:
@@ -354,7 +357,8 @@ class _PilotScorePrinter:
     def score(self, case, result):
         case_scores = self._judge.score(case, result)
         reasons = getattr(self._judge, "last_reasons", {})
-        _print_pilot_case_score(case, result, case_scores, reasons)
+        generation_status = getattr(self._judge, "last_generation_status", None)
+        _print_pilot_case_score(case, result, case_scores, reasons, generation_status)
         return case_scores
 
 
@@ -366,8 +370,9 @@ def run_chat_from_config(
     load_generations_path: str | None = None,
 ):
     from deepeval.metrics import GEval, ToolCorrectnessMetric
-    from deepeval.test_case import LLMTestCaseParams
+    from deepeval.test_case import SingleTurnParams
 
+    from gnomon.judge.rubrics import EVALUATION_STEPS
     from gnomon.runner.chat_runner import load_generations
 
     cases = load_chat_cases(cfg.dataset_path)
@@ -381,11 +386,20 @@ def run_chat_from_config(
     def tool_metric_factory():
         return ToolCorrectnessMetric(model=_build_judge_model(cfg.judge))
 
-    def geval_factory(criteria: str):
+    def geval_factory(criteria_metric: str):
+        # Hand-written, shared evaluation_steps replace GEval's
+        # auto-generation (see gnomon.judge.rubrics for why) -- no
+        # `criteria=` kwarg here, since passing one is what triggers
+        # auto-generation.
         return GEval(
             name="chat_criteria",
-            criteria=criteria,
-            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+            evaluation_steps=EVALUATION_STEPS[criteria_metric],
+            evaluation_params=[
+                SingleTurnParams.INPUT,
+                SingleTurnParams.ACTUAL_OUTPUT,
+                SingleTurnParams.EXPECTED_OUTPUT,
+                SingleTurnParams.CONTEXT,
+            ],
             model=_build_judge_model(cfg.judge),
         )
 

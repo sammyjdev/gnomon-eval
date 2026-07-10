@@ -93,3 +93,28 @@ a human decision.
   read that tool's schema in the target repo and confirm the conversation's
   turns actually establish every required parameter. (source: first real
   pilot run against lina-mvp, gnomon-eval, 2026-07-06)
+- A test that re-scores a second case to prove a "reset at start of call"
+  side effect (e.g. `ChatJudge.last_generation_status` reset at the top of
+  `score()`) can pass for the wrong reason if the second case still takes
+  the same code branch that independently re-sets the same attribute (here:
+  a second case that still has `criteria` re-enters `_score_criteria`, whose
+  own assignment already clears the attribute on a normal GEval path,
+  masking whether the top-of-method reset line does anything at all). A
+  check that would catch it: when testing a "reset at the top of a method"
+  invariant, the second call in the test must take a code path that does
+  NOT also assign that same attribute elsewhere (here, a case with no
+  `criteria` at all) -- otherwise mutation testing (dropping the reset line)
+  survives silently. (source: issue chateval-generation-status-skip quench,
+  mutation sensor, gnomon-eval, 2026-07-10)
+- A `.get(key)` defensive read on an externally-sourced dict (adapter/API
+  telemetry, e.g. a `generation_events` entry's `event_type`) needs its own
+  test constructing a malformed entry missing that key -- a happy-path-only
+  test suite can't distinguish `.get(key)` from `dict[key]`, so a later
+  "cleanup" swap to bracket indexing survives every existing test and then
+  crashes (and gets mis-wrapped as an unrelated error type, e.g.
+  `ChatJudgeRuntimeError`, by a broad `except Exception` upstream) the first
+  time real malformed telemetry arrives. A check that would catch it: any
+  `.get()` on an externally-sourced dict needs an adjacent test with that
+  key absent, asserting no exception and the documented fallback behavior.
+  (source: issue chateval-generation-status-skip quench, mutation sensor,
+  gnomon-eval, 2026-07-10)
