@@ -309,6 +309,60 @@ def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(mon
     cli.run_chat_from_config(_make_cfg(), pilot=True)
     captured["tool_metric_factory"]()
 
+
+def test_run_chat_from_config_wires_hand_written_evaluation_steps_into_geval(monkeypatch):
+    # Root fix for GEval auto-generating evaluation_steps per case (padded
+    # to a forced 3-4 steps regardless of the criteria's real requirement
+    # count, and hallucinating unrelated ones like an output-format check
+    # -- confirmed against deepeval 4.0.7's own template, 2026-07-09): the
+    # factory now builds GEval from a small, shared, hand-written rubric
+    # keyed by criteria_metric, and never passes the deprecated `criteria=`
+    # kwarg (which is what triggers auto-generation).
+    import deepeval.metrics as deepeval_metrics
+    from deepeval.test_case import SingleTurnParams
+
+    import gnomon.cli as cli
+    from gnomon.judge.rubrics import EVALUATION_STEPS
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: ["case-1"])
+    monkeypatch.setattr(cli, "ChatTarget", _FakeTarget)
+    monkeypatch.setattr(
+        cli,
+        "run_chat_eval",
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            _empty_report()
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "evaluate_gate",
+        lambda report, thresholds: types.SimpleNamespace(passed=True, failures=[]),
+    )
+
+    captured = {}
+
+    def fake_chat_judge(*, tool_metric_factory, geval_factory):
+        captured["geval_factory"] = geval_factory
+        return _FakeJudge(tool_metric_factory=tool_metric_factory, geval_factory=geval_factory)
+
+    monkeypatch.setattr(cli, "ChatJudge", fake_chat_judge)
+
+    recorded_kwargs = {}
+
+    class FakeGEval:
+        def __init__(self, **kwargs):
+            recorded_kwargs.update(kwargs)
+
+    monkeypatch.setattr(deepeval_metrics, "GEval", FakeGEval)
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+    captured["geval_factory"]("hallucination")
+
+    assert recorded_kwargs["evaluation_steps"] == EVALUATION_STEPS["hallucination"]
+    assert "criteria" not in recorded_kwargs
+    assert SingleTurnParams.EXPECTED_OUTPUT in recorded_kwargs["evaluation_params"]
+    assert SingleTurnParams.CONTEXT in recorded_kwargs["evaluation_params"]
+
     assert recorded_kwargs.get("model") is not None
 
 
@@ -772,3 +826,91 @@ def test_pilot_mode_prints_judge_reasons_when_available(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert "tool matched expected" in captured.out
+
+
+def test_pilot_mode_prints_generation_status_when_available(monkeypatch, capsys):
+    import gnomon.cli as cli
+    from gnomon.domain.chat import ChatCase, ChatResult
+
+    cases = [
+        ChatCase(
+            id="case-1",
+            conversation=[{"role": "user", "content": "Oi"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+        ChatCase(
+            id="case-2",
+            conversation=[{"role": "user", "content": "Oi 2"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+    ]
+
+    class _StubTarget:
+        def run(self, case):
+            return ChatResult(
+                tool_called="answer_question",
+                reply_text="Desculpe, nao entendi.",
+                total_tokens=10,
+                latency_ms=100.0,
+            )
+
+    class _StubJudgeWithGenerationStatus:
+        def __init__(self):
+            self.last_generation_status = None
+
+        def score(self, case, result):
+            self.last_generation_status = "malformed_reply_suppressed"
+            return {"tone_brand": 0.0}
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: cases)
+    monkeypatch.setattr(cli, "ChatTarget", lambda **kwargs: _StubTarget())
+    monkeypatch.setattr(cli, "ChatJudge", lambda **kwargs: _StubJudgeWithGenerationStatus())
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+
+    captured = capsys.readouterr()
+    assert "malformed_reply_suppressed" in captured.out
+
+
+def test_pilot_mode_omits_generation_status_when_none(monkeypatch, capsys):
+    import gnomon.cli as cli
+    from gnomon.domain.chat import ChatCase, ChatResult
+
+    cases = [
+        ChatCase(
+            id="case-1",
+            conversation=[{"role": "user", "content": "Oi"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+        ChatCase(
+            id="case-2",
+            conversation=[{"role": "user", "content": "Oi 2"}],
+            tenant={"name": "T", "tone": "amigavel"},
+            expected_tools=["answer_question"],
+        ),
+    ]
+
+    class _StubTarget:
+        def run(self, case):
+            return ChatResult(
+                tool_called="answer_question",
+                reply_text="Funcionamos das 9h as 18h.",
+                total_tokens=10,
+                latency_ms=100.0,
+            )
+
+    class _StubJudge:
+        def score(self, case, result):
+            return {"tool_selection_accuracy": 1.0}
+
+    monkeypatch.setattr(cli, "load_chat_cases", lambda path: cases)
+    monkeypatch.setattr(cli, "ChatTarget", lambda **kwargs: _StubTarget())
+    monkeypatch.setattr(cli, "ChatJudge", lambda **kwargs: _StubJudge())
+
+    cli.run_chat_from_config(_make_cfg(), pilot=True)
+
+    captured = capsys.readouterr()
+    assert "generation_status" not in captured.out

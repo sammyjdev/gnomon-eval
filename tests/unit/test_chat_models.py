@@ -45,3 +45,23 @@ def test_chat_result_tool_called_defaults_to_none_for_a_text_only_reply():
     )
     assert result.tool_called is None
     assert result.reply_text == "Oi! Como posso ajudar?"
+
+
+def test_chat_result_generation_events_defaults_to_empty_list():
+    result = ChatResult(
+        reply_text="Oi! Como posso ajudar?",
+        total_tokens=42,
+        latency_ms=850.0,
+    )
+    assert result.generation_events == []
+
+
+def test_chat_result_accepts_generation_events_list_of_dicts():
+    events = [{"event_type": "malformed_reply_suppressed"}]
+    result = ChatResult(
+        reply_text="Oi! Como posso ajudar?",
+        total_tokens=42,
+        latency_ms=850.0,
+        generation_events=events,
+    )
+    assert result.generation_events == events

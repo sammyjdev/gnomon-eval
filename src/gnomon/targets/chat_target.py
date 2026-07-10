@@ -71,6 +71,7 @@ class ChatTarget:
                 reply_text=body["reply_text"],
                 total_tokens=body["total_tokens"],
                 latency_ms=latency_ms,
+                generation_events=body.get("generation_events", []),
             )
         except (KeyError, ValidationError) as exc:
             raise ChatTargetRuntimeError(
