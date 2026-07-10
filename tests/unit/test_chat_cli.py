@@ -227,9 +227,7 @@ def test_run_chat_from_config_loads_pregenerated_results_and_skips_target(monkey
         json.dumps({"case_id": "case-1", "result": result.model_dump()}) + "\n", encoding="utf-8"
     )
 
-    report, _ = cli.run_chat_from_config(
-        _make_cfg(), pilot=False, load_generations_path=str(path)
-    )
+    report, _ = cli.run_chat_from_config(_make_cfg(), pilot=False, load_generations_path=str(path))
     assert report.total_tokens == 5
 
 
@@ -244,7 +242,9 @@ def test_chat_main_exit_code_follows_gate(monkeypatch, gate_passed, expected_exi
     monkeypatch.setattr(
         cli,
         "run_chat_eval",
-        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: _empty_report(),
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            _empty_report()
+        ),
     )
     monkeypatch.setattr(
         cli,
@@ -280,7 +280,9 @@ def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(mon
     monkeypatch.setattr(
         cli,
         "run_chat_eval",
-        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: _empty_report(),
+        lambda cases, target, judge, *, seed, generations_path=None, pregenerated=None: (
+            _empty_report()
+        ),
     )
     monkeypatch.setattr(
         cli,
@@ -500,7 +502,7 @@ def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
     return ChatJudgeConfig(**defaults)
 
 
-def test_judge_model_falls_back_to_cerebras_when_deepinfra_and_groq_fail_and_tertiary_model_configured(
+def test_judge_model_falls_back_to_cerebras_when_deepinfra_and_groq_fail_and_tertiary_configured(
     monkeypatch, caplog
 ):
     from gnomon.cli import _build_judge_model
