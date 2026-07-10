@@ -1,3 +1,4 @@
+import contextlib
 import json
 
 from gnomon.domain.chat import ChatCase, ChatResult
@@ -359,7 +360,9 @@ def test_run_chat_eval_persists_generations_even_when_judging_crashes(tmp_path):
         def score(self, case, result):
             raise ZeroDivisionError("judge stage is broken, not just one case")
 
-    try:
+    with contextlib.suppress(Exception):
+        # Deliberately broad -- this test only cares that the file survives
+        # an unhandled judge-stage exception.
         run_chat_eval(
             cases,
             FakeTarget(results),
@@ -367,9 +370,6 @@ def test_run_chat_eval_persists_generations_even_when_judging_crashes(tmp_path):
             seed=42,
             generations_path=str(path),
         )
-    except Exception:  # noqa: BLE001 - deliberately broad, this test only
-        # cares that the file survives an unhandled judge-stage exception.
-        pass
 
     lines = path.read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 2
