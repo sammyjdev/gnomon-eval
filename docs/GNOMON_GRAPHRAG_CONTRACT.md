@@ -2,6 +2,8 @@
 
 > Validado lendo código e testes do repositório `sammyjdev/gnomon-eval`. Cada item cita a fonte real (`arquivo:linha`).
 >
+> **As-of:** validado contra o master de 2026-06-11 (commit `b32d69c`). O master avançou desde então (ChatEval multi-turn etc.); as citações `arquivo:linha` podem ter drifted — reverifique antes de depender de uma linha específica. A superfície do contrato (RagTarget/RagResponse/run_eval) é estável.
+>
 > **Aviso:** alguns nomes assumidos na pergunta não batem com o código — as divergências estão sinalizadas em cada item.
 
 ---
