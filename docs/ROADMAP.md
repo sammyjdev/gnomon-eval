@@ -1,6 +1,8 @@
 # GNOMON — Roadmap v2
 
 > **Status: draft, not committed.** This document is a backlog of candidates for after v1, with dependencies and a **proposed** sequencing (adjustable). It is not an executable plan: when a wave is chosen, it becomes a plan via `superpowers:writing-plans`, following `docs/DEVELOPMENT_LOOP.md`.
+>
+> **Measurement/dataset ops live as GitHub issues, not here:** #4 (second judge), #5 (session dataset expansion, owner-gated), #6 (single-turn case expansion). This roadmap covers feature waves only.
 
 v1 (delivered) is in `docs/REQUIREMENTS.md`. The "Out of scope for v1" section lists what was deliberately deferred; this roadmap details those items and adds the debt discovered while validating the real path (Ollama judge).
 
