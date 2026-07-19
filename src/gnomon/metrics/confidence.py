@@ -32,6 +32,11 @@ def aggregate_metric(
     metric: str, case_scores: list[float], *, confidence_level: float = 0.95, seed: int
 ) -> MetricResult:
     """Mean over cases with a seeded percentile-bootstrap confidence interval."""
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError(
+            f"confidence_level must be strictly between 0 and 1 (exclusive), got {confidence_level}"
+        )
+
     n = len(case_scores)
     if n < MIN_CASES:
         raise ValueError(
