@@ -63,6 +63,12 @@ def test_result_records_n_cases_and_confidence_level():
     assert result.metric == "faithfulness"
 
 
+@pytest.mark.parametrize("level", [0.0, 1.0, -0.1, 1.5])
+def test_confidence_level_outside_open_unit_interval_is_rejected(level):
+    with pytest.raises(ValueError, match="strictly between 0 and 1"):
+        aggregate_metric("faithfulness", [0.8, 0.9], confidence_level=level, seed=1)
+
+
 def test_below_minimum_cases_is_rejected():
     # One case cannot bound a population of questions.
     assert MIN_CASES >= 2
