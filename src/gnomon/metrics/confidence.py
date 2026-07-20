@@ -6,11 +6,21 @@ independent samples (counting N identical deterministic runs as N observations
 would fake a tighter interval than the data supports — a RNF-03 violation).
 
 The dataset is a sample of questions, so the confidence interval is taken over
-the CASES: a seeded percentile bootstrap of the per-case mean. Because every
-bootstrap resample is a mean of scores already in [0, 1], the interval is
-bounded by construction — no clamp, and no t-interval blow-up to amputate at
-low n (ADR-008 supersedes the t-interval + clamp of ADR-006). Fewer than two
-cases cannot bound a population and is rejected.
+the CASES: a seeded percentile bootstrap of the per-case mean. Every bootstrap
+resample is a mean of scores already in [0, 1], so the interval never
+overflows the metric's own range - no t-interval blow-up to amputate at low n
+(ADR-008 supersedes the t-interval + clamp of ADR-006). Fewer than two cases
+cannot bound a population and is rejected.
+
+The percentile bootstrap is NOT bounded relative to the mean by construction,
+though: at a low confidence_level with asymmetric per-case scores, floating
+point rounding in the resample sums can place ci_low above the mean (or
+ci_high below it), an ordering violation, not a range overflow. The two
+endpoints are clamped against the mean (min/max) to guarantee
+ci_low <= mean <= ci_high; this never fires at the confidence_level actually
+used in practice (0.95) and is not the clamp ADR-008 rejected (that one hid a
+t-interval overflowing past [0, 1] near the extremes; this one only fixes
+percentile ordering around the mean). See the amendment note in ADR-008.
 """
 
 import random
