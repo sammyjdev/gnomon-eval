@@ -45,7 +45,7 @@ def aggregate_metric(
         )
 
     mean = sum(case_scores) / n
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - deterministic bootstrap sampling is not cryptographic.
     boot_means: list[float] = []
     for _ in range(_BOOTSTRAP_RESAMPLES):
         total = 0.0
@@ -60,8 +60,8 @@ def aggregate_metric(
     return MetricResult(
         metric=metric,
         mean=mean,
-        ci_low=boot_means[lo_index],
-        ci_high=boot_means[hi_index],
+        ci_low=min(boot_means[lo_index], mean),
+        ci_high=max(boot_means[hi_index], mean),
         n=n,
         confidence_level=confidence_level,
     )

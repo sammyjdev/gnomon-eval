@@ -31,14 +31,16 @@ class UrllibTransport:
         self, url: str, payload: dict, *, headers: dict[str, str], timeout_s: float
     ) -> tuple[int, dict]:
         data = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310 - endpoint is caller-configured harness input.
             url,
             data=data,
             headers={"Content-Type": "application/json", **headers},
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            with urllib.request.urlopen(  # noqa: S310 - request uses the caller-configured endpoint.
+                request, timeout=timeout_s
+            ) as response:
                 body = response.read().decode("utf-8")
                 return response.status, (json.loads(body) if body else {})
         except urllib.error.HTTPError as exc:  # non-2xx with a body

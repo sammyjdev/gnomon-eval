@@ -29,7 +29,9 @@ class StubJudge:
     def score(self, case: EvalCase, response: RagResponse, *, seed: int, run: int) -> MetricScores:
         scores: dict[str, float] = {}
         for metric in V1_METRICS:
-            rng = random.Random(self._derive_seed(metric, case, response, seed, run))
+            rng = random.Random(  # noqa: S311 - deterministic evaluation jitter is not cryptographic.
+                self._derive_seed(metric, case, response, seed, run)
+            )
             raw = self._base + rng.uniform(-self._jitter, self._jitter)
             scores[metric] = max(0.0, min(1.0, raw))
         return MetricScores(scores=scores)
