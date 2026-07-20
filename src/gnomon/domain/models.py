@@ -85,6 +85,20 @@ class CaseCost(BaseModel):
     latency_ms: float = Field(ge=0.0)
 
 
+class CaseScore(BaseModel):
+    """One case's denoised score for one metric (RF-06): the mean of that
+    case's judge runs, before the cross-case bootstrap aggregation into
+    MetricResult (ADR-008). This is the same value run_eval already computes
+    and feeds into aggregate_metric -- exposed here so downstream (glyph
+    ADR-G8) can see it without re-deriving it.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    case_id: str = Field(min_length=1)
+    score: float = Field(ge=0.0, le=1.0)
+
+
 class EvalReport(BaseModel):
     """Result of one evaluation run: quality, cost and latency together.
 
@@ -97,6 +111,7 @@ class EvalReport(BaseModel):
 
     metrics: list[MetricResult]
     per_case_cost: list[CaseCost]
+    case_scores: dict[str, list[CaseScore]] = Field(default_factory=dict)
 
     def metric(self, name: str) -> MetricResult:
         for result in self.metrics:
