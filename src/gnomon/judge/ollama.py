@@ -31,6 +31,21 @@ class JudgeProtocolError(JudgeError):
     """Model answer was not the agreed JSON object keyed by metric name."""
 
 
+def parse_v1_judge_response(content: str) -> MetricScores:
+    """Parse a v1 judge response: a JSON object keyed by V1_METRICS, each value
+    clamped to [0, 1]. Raises JudgeProtocolError on any shape violation (not
+    JSON, missing a v1 metric key, non-numeric value) -- the stable public
+    parse contract downstream (glyph ADR-G8) pins against.
+    """
+    try:
+        parsed = json.loads(content)
+        return MetricScores(
+            scores={metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in V1_METRICS}
+        )
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
+
+
 class OllamaJudge:
     def __init__(
         self,
@@ -82,8 +97,6 @@ class OllamaJudge:
 
         try:
             content = body["message"]["content"]
-            parsed = json.loads(content)
-            scores = {metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in V1_METRICS}
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        except (KeyError, TypeError) as exc:
             raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
-        return MetricScores(scores=scores)
+        return parse_v1_judge_response(content)

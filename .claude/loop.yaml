@@ -12,9 +12,9 @@ labels:
 # posture (research tool, not a shipped product)
 posture: research
 risk_areas:
-  - judge
-  - gate
-  - dataset
+  - judge: [llm-as-judge, judge prompt, scoring, judge_runs, faithfulness, context_precision]
+  - eval-gate: [fail-closed, threshold, eval gate, gate_cmd, pass/fail]
+  - dataset: [eval case, EvalCase, golden, loader, expected_answer, expected_contexts]
 quality_rubric:
   testability: true
   scalability: false
