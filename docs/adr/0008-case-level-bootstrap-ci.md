@@ -45,3 +45,18 @@ The gate continues comparing `ci_low >= threshold` (ADR-006), now over the boots
 | Wilson/Jeffreys (F1, binary) | Would require binarizing the judge score (✓/✗), losing the 0–1 gradation; this is a product change. Reserved if extra robustness against a weak judge is desired. |
 | Judge variance with `temperature>0` (measuring Q1) | Measures the less useful question for the gate; our measurement showed variance ≈0 even at temp=0.8 for clear cases, and temp>0 complicates reproducibility. |
 | Hierarchical model (2 levels, Q1+Q2) | Statistically more complete, but with a deterministic judge collapses exactly to the bootstrap over cases; implementation cost is not justified in v1. |
+
+## Amendment (2026-07-19)
+
+A hypothesis property test found that the percentile bootstrap is bounded
+within [0, 1] by construction, but NOT bounded relative to the mean: at a low
+`confidence_level` with asymmetric per-case scores, floating point rounding
+in the resample sums can place `ci_low` above the mean (or `ci_high` below
+it) - an ordering violation, not the range overflow this ADR's clamp
+discussion is about. Fixed by clamping both endpoints against the mean
+(`ci_low = min(ci_low, mean)`, `ci_high = max(ci_high, mean)`) in
+`aggregate_metric`. This does not reintroduce the clamp rejected above: that
+one hid a t-interval overflowing past [0, 1] near the extremes and lied
+about the upper bound; this one only fixes percentile ordering around the
+mean, never fires at the `confidence_level` used in practice (0.95), and the
+interval still never overflows [0, 1].
