@@ -184,6 +184,19 @@ A agregação acontece **dentro** de `run_eval` (`runner.py:50-56`, que chama `a
 
 ---
 
+## H. Superfície estável do judge v1
+
+### 16. Artefatos públicos para consumidores downstream
+
+- `gnomon.judge.prompts.V1_PROMPT_INSTRUCTIONS: str` (`judge/prompts.py:28-32`) é o cabeçalho instrucional estático, com descrições das métricas e o aviso para entrada não confiável, estável entre chamadas.
+- `gnomon.judge.prompts.V1_PROMPT_JSON_SHAPE: str` (`judge/prompts.py:33`) é o descritor exato da forma JSON que o judge deve retornar.
+- `gnomon.judge.prompts.build_prompt(case, response)` (`judge/prompts.py:36-44`) monta o prompt completo por caso a partir das duas constantes e de `question`, `answer` e `contexts` do caso.
+- `gnomon.judge.ollama.parse_v1_judge_response(content)` (`judge/ollama.py:34-46`) é a função pública de parse e lança `JudgeProtocolError` para qualquer violação de forma, além de poder ser importada diretamente de `gnomon.judge.ollama`.
+
+Esta é a superfície estável v1 introduzida por gnomon-eval#47 para que consumidores downstream, incluindo glyph ADR-G8, façam pin contra ela em vez de duplicar o texto de prompt ou parse. Uma mudança semântica aqui é uma mudança visível de API na própria suíte de testes do gnomon.
+
+---
+
 ## Resumo dos 3 pontos que mais afetam a P3.0
 
 1. **Per-case scores de qualidade não saem de `run_eval`** — você precisa chamar `judge.score` por caso (ou patchear o runner) para o seu bootstrap percentil. `aggregate_metric` já faz bootstrap percentil semeado e é reutilizável.
