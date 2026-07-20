@@ -7,6 +7,7 @@ number of metrics). The parser validates the object against V1_METRICS.
 """
 
 from gnomon.domain.models import EvalCase, RagResponse
+from gnomon.judge.untrusted import UNTRUSTED_INPUT_WARNING, wrap_untrusted
 from gnomon.metrics.names import V1_METRICS
 
 # Per-metric descriptions. Keys must stay in sync with V1_METRICS — adding a
@@ -26,11 +27,13 @@ _JSON_SHAPE = ", ".join(f'"{m}": <float 0..1>' for m in V1_METRICS)
 
 
 def build_prompt(case: EvalCase, response: RagResponse) -> str:
+    contexts_block = "- " + "\n- ".join(response.contexts)
     return (
         "You are grading a RAG answer on these metrics, each a float in [0, 1]:\n"
         f"{_METRIC_LINES}\n\n"
+        f"{UNTRUSTED_INPUT_WARNING}\n\n"
         f"QUESTION: {case.question}\n"
-        f"ANSWER: {response.answer}\n"
-        f"CONTEXTS:\n- " + "\n- ".join(response.contexts) + "\n\n"
+        f"ANSWER:\n{wrap_untrusted(response.answer)}\n"
+        f"CONTEXTS:\n{wrap_untrusted(contexts_block)}\n\n"
         f"Return ONLY a JSON object: {{{_JSON_SHAPE}}}. No prose, no explanation."
     )

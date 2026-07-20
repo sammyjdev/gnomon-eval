@@ -9,6 +9,7 @@ ChatJudgeRuntimeError when the underlying provider call fails outright.
 from collections.abc import Callable
 
 from gnomon.domain.chat import ChatCase, ChatResult
+from gnomon.judge.untrusted import wrap_untrusted
 
 
 class ChatJudgeError(Exception):
@@ -76,7 +77,7 @@ class ChatJudge:
         expected_tools = [ToolCall(name=name) for name in case.expected_tools]
         test_case = LLMTestCase(
             input=_render_conversation(case.conversation),
-            actual_output=result.reply_text,
+            actual_output=wrap_untrusted(result.reply_text),
             tools_called=actual_tools,
             expected_tools=expected_tools,
         )
@@ -112,7 +113,7 @@ class ChatJudge:
         metric = self._geval_factory(case.criteria_metric)
         test_case = LLMTestCase(
             input=_render_conversation(case.conversation),
-            actual_output=result.reply_text,
+            actual_output=wrap_untrusted(result.reply_text),
             expected_output=case.criteria,
             context=[json.dumps(case.tenant, ensure_ascii=False)],
         )
