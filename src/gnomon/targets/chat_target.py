@@ -40,7 +40,7 @@ class ChatTarget:
         payload = json.dumps({"conversation": case.conversation, "tenant": case.tenant})
         start = time.perf_counter()
         try:
-            completed = self._run(
+            completed = self._run(  # noqa: S603 - sys.executable and construction-time script config are trusted.
                 [sys.executable, self._script_path],
                 input=payload,
                 cwd=self._cwd,

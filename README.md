@@ -57,6 +57,15 @@ pip install -e ".[dev]"
 gnomon --config config/example.toml
 ```
 
+### Pre-commit setup
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Run `pre-commit install` once per clone.
+
 ### Deterministic check (no Ollama, no Docker)
 
 ```bash
