@@ -16,7 +16,7 @@ from collections import defaultdict
 
 from gnomon.config.config import EvalConfig
 from gnomon.domain.interfaces import Judge, RagTarget
-from gnomon.domain.models import CaseCost, EvalCase, EvalReport
+from gnomon.domain.models import CaseCost, CaseScore, EvalCase, EvalReport
 from gnomon.metrics.confidence import aggregate_metric
 
 
@@ -25,7 +25,7 @@ def run_eval(
 ) -> EvalReport:
     """Run every case against the target, score with the judge, aggregate."""
     per_case_cost: list[CaseCost] = []
-    case_scores_by_metric: dict[str, list[float]] = defaultdict(list)
+    case_scores: dict[str, list[CaseScore]] = defaultdict(list)
 
     for case in cases:
         response = target.query(case.question)
@@ -45,12 +45,17 @@ def run_eval(
             for metric_name, value in run_scores.scores.items():
                 runs_by_metric[metric_name].append(value)
         for metric_name, values in runs_by_metric.items():
-            case_scores_by_metric[metric_name].append(sum(values) / len(values))
+            case_scores[metric_name].append(
+                CaseScore(case_id=case.id, score=sum(values) / len(values))
+            )
 
     metrics = [
         aggregate_metric(
-            name, case_scores, confidence_level=config.confidence_level, seed=config.seed
+            name,
+            [cs.score for cs in scores],
+            confidence_level=config.confidence_level,
+            seed=config.seed,
         )
-        for name, case_scores in case_scores_by_metric.items()
+        for name, scores in case_scores.items()
     ]
-    return EvalReport(metrics=metrics, per_case_cost=per_case_cost)
+    return EvalReport(metrics=metrics, per_case_cost=per_case_cost, case_scores=dict(case_scores))

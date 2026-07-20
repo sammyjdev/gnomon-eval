@@ -124,9 +124,16 @@ Configuração via bloco TOML `[judge]` (`config/run_config.py:29-35`; wiring em
 - `metrics: list[MetricResult]` + `per_case_cost: list[CaseCost]`.
 - `MetricResult` (`models.py:51-67`): `metric, mean, ci_low, ci_high, n (≥2), confidence_level`.
 - Helpers: `.metric(name)` (`models.py:101`), `.total_tokens` (`:107`), `.mean_latency_ms` (`:112`).
-- **NÃO contém scores por-exemplo de qualidade.** `per_case_cost` é só custo/latência por caso (`CaseCost`: `case_id, total_tokens, latency_ms`, `models.py:78-85`).
+- `per_case_cost`: custo e latência por caso (`CaseCost`: `case_id, total_tokens, latency_ms`).
+- `case_scores`: scores denoised por caso, organizados por métrica.
 
-### 15. `aggregate_metric`
+### 15. Scores por caso
+
+- `gnomon.domain.models.CaseScore`: `case_id: str` e `score: float` em `[0, 1]`; é o score denoised de um caso para uma métrica, isto é, a média das judge runs do caso.
+- `EvalReport.case_scores: dict[str, list[CaseScore]]`: chaveado pelo nome da métrica, os mesmos nomes de `MetricResult.metric` e `V1_METRICS`, com um `CaseScore` por caso na mesma ordem de `per_case_cost`. É o valor exato por caso que alimenta o bootstrap CI de `MetricResult`, portanto `sum(cs.score for cs in report.case_scores[name]) / len(report.case_scores[name])` reproduz `report.metric(name).mean`.
+- O novo campo tem default `{}`, não altera `MetricResult` nem qualquer call site existente de `EvalReport(...)`. Isso resolve gnomon-eval#46 e o glyph ADR-G8 pode retirar seu loop de eval customizado.
+
+### 16. `aggregate_metric`
 `metrics/confidence.py:31-33`:
 
 ```python
@@ -136,9 +143,7 @@ def aggregate_metric(
 ```
 
 - Retorna `MetricResult` = média sobre casos + **CI por bootstrap percentil semeado** (2000 resamples, `confidence.py:28,44-54`). Exige n≥2 (`MIN_CASES`, `confidence.py:22,36`).
-- **Crítico para o seu bootstrap de CI percentil:** **`run_eval` NÃO expõe os scores por-exemplo.** O runner monta `case_scores_by_metric` internamente (`runner.py:28,47-48`) e o **descarta** após agregar — o `EvalReport` guarda só `MetricResult` agregado + custo por-caso. **Você não consegue os scores de qualidade por-caso a partir do output de `run_eval`.** Opções para a P3.0:
-  - **(a)** não usar `run_eval`: chame `judge.score(case, response, seed=..., run=...)` você mesmo por caso, colete os floats por-métrica, e então passe sua própria `list[float]` para `aggregate_metric` (que já faz exatamente o bootstrap percentil que você quer — pode reusar em vez de reimplementar); ou
-  - **(b)** alterar `run_eval` para devolver também `case_scores_by_metric`. **Essa é a principal lacuna de integração da P3.0.**
+- `run_eval` expõe esses mesmos scores em `EvalReport.case_scores`, sem alterar a agregação.*
 
 ---
 
@@ -180,13 +185,13 @@ assert faithfulness.n == 2                      # n = nº de CASOS, não runs (A
 assert 0.0 <= faithfulness.ci_low <= faithfulness.mean <= faithfulness.ci_high <= 1.0
 ```
 
-A agregação acontece **dentro** de `run_eval` (`runner.py:50-56`, que chama `aggregate_metric`). Para o seu fluxo pull-based, o equivalente substituindo `MockTarget`/`StubJudge` pelos seus adaptadores GraphRAG é trivial — o único ponto de atrito é o item 15 (per-case scores não expostos).
+A agregação acontece **dentro** de `run_eval` (`runner.py:50-56`, que chama `aggregate_metric`). Para o seu fluxo pull-based, o equivalente substituindo `MockTarget`/`StubJudge` pelos seus adaptadores GraphRAG é trivial — o único ponto de atrito é o item 15 (`case_scores`).
 
 ---
 
 ## H. Superfície estável do judge v1
 
-### 16. Artefatos públicos para consumidores downstream
+### 17. Artefatos públicos para consumidores downstream
 
 - `gnomon.judge.prompts.V1_PROMPT_INSTRUCTIONS: str` (`judge/prompts.py:28-32`) é o cabeçalho instrucional estático, com descrições das métricas e o aviso para entrada não confiável, estável entre chamadas.
 - `gnomon.judge.prompts.V1_PROMPT_JSON_SHAPE: str` (`judge/prompts.py:33`) é o descritor exato da forma JSON que o judge deve retornar.

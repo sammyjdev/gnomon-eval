@@ -9,7 +9,7 @@ in one flow.
 import pytest
 
 from gnomon.config.config import EvalConfig
-from gnomon.domain.models import EvalCase, MetricScores, RagResponse
+from gnomon.domain.models import CaseScore, EvalCase, MetricScores, RagResponse
 from gnomon.judge.stub import StubJudge
 from gnomon.runner.runner import run_eval
 from gnomon.targets.mock import MockTarget
@@ -78,3 +78,17 @@ def test_judge_call_count_is_function_of_cases_and_runs():
     counting = _CountingJudge()
     run_eval([CASE, CASE2], _target(), counting, cfg)
     assert counting.calls == 2 * 5
+
+
+def test_run_exposes_per_case_scores():
+    cfg = EvalConfig(reproducible=True, seed=42, judge_runs=5)
+    report = run_eval([CASE, CASE2], _target(), _CountingJudge(), cfg)
+
+    assert report.case_scores["faithfulness"] == [
+        CaseScore(case_id="case-1", score=0.8),
+        CaseScore(case_id="case-2", score=0.8),
+    ]
+    assert (
+        sum(cs.score for cs in report.case_scores["faithfulness"]) / 2
+        == report.metric("faithfulness").mean
+    )
