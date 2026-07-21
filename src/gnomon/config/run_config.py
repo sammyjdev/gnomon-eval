@@ -11,7 +11,7 @@ import tomllib
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from gnomon.config.config import EvalConfig
 
@@ -40,6 +40,34 @@ class JudgeConfig(BaseModel):
     timeout_s: float = Field(default=60.0, gt=0.0)
 
 
+MIN_PANEL_JUDGES = 2
+
+
+class PanelJudgeConfig(JudgeConfig):
+    """One panel member: everything JudgeConfig has, plus its vendor family
+    (ADR-0012 #1 - no two panel members may share a family).
+    """
+
+    family: str = Field(min_length=1)
+    screening_evidence: str | None = None
+
+
+class PanelConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    judges: list[PanelJudgeConfig] = Field(min_length=MIN_PANEL_JUDGES)
+
+    @model_validator(mode="after")
+    def _distinct_families(self) -> "PanelConfig":
+        families = [judge.family for judge in self.judges]
+        if len(families) != len(set(families)):
+            duplicates = sorted({family for family in families if families.count(family) > 1})
+            raise ValueError(
+                "panel judges must be from distinct vendor families (ADR-0012); "
+                f"duplicate families: {duplicates}"
+            )
+        return self
+
+
 class GateConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
     thresholds: dict[str, float]
@@ -62,6 +90,7 @@ class RunConfig(BaseModel):
     target: TargetConfig
     judge: JudgeConfig
     gate: GateConfig
+    panel: PanelConfig | None = None
 
     @classmethod
     def from_file(cls, path: str | Path) -> "RunConfig":

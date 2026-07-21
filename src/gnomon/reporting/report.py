@@ -33,6 +33,10 @@ def to_dict(report: EvalReport) -> dict:
             }
             for c in report.per_case_cost
         ],
+        "case_scores": {
+            metric: [{"case_id": cs.case_id, "score": cs.score} for cs in scores]
+            for metric, scores in report.case_scores.items()
+        },
     }
 
 

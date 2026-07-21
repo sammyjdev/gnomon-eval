@@ -204,6 +204,19 @@ This is the stable v1 surface introduced by gnomon-eval#47 so that downstream co
 
 ---
 
+## I. Panel surface (ADR-0012, issue #53)
+
+- `gnomon.config.run_config.PanelJudgeConfig` and `PanelConfig` (`config/run_config.py:46-67`) declare panel members and enforce at least two distinct vendor families.
+- `gnomon.runner.panel_runner.PanelMember` and `run_panel_eval` (`runner/panel_runner.py:19-74`) query the target once per case and fan the same response out to every judge.
+- `gnomon.domain.models.PanelJudgeReport`, `DisagreementStat`, and `PanelReport` (`domain/models.py:133-196`) keep judge results side by side with shared cost and structured disagreement.
+- `gnomon.metrics.disagreement.compute_disagreement` (`metrics/disagreement.py:30-60`) computes per-case score deltas and pairwise Pearson correlations.
+- `gnomon.gate.panel_gate.evaluate_panel_gate` (`gate/panel_gate.py:7-32`) applies the explicit majority vote and returns the same `gnomon.gate.gate.GateResult` as the single-judge gate.
+- `gnomon.reporting.panel_report.panel_to_dict` and `panel_to_text` (`reporting/panel_report.py:6-83`) serialize the panel for machines and humans without averaging judge scores.
+
+This surface is additive. Existing single-judge configs, `run_eval`, and `evaluate_gate` remain unchanged and valid. CLI wiring is out of scope for this execution item.
+
+---
+
 ## Summary of the 3 points that most affect P3.0
 
 1. **Per-case quality scores do not come out of `run_eval`** — you need to call `judge.score` per case (or patch the runner) for your own percentile bootstrap. `aggregate_metric` already does a seeded percentile bootstrap and is reusable.

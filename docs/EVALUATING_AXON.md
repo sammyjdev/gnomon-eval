@@ -6,7 +6,18 @@ This guide explains how to evaluate AXON (a personal second-brain recall system)
 
 - **AXON**: A personal knowledge retrieval system you are building.
 - **GNOMON**: An offline evaluation harness that measures answer faithfulness and context precision.
-- **Judge**: Ollama (local, free) running llama3—no external API calls, no costs.
+- **Judge**: Ollama, running on the desktop (free, no external API calls).
+
+For the current, validated evaluation (the recall A/B: does retrieved context
+actually help AXON's answers), use the real configs and follow
+[`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md):
+`config/axon-recall-on.toml` / `config/axon-recall-off.toml`, judged by
+`llama3.1:8b` at the desktop Tailscale Ollama endpoint, over the 17-case
+`datasets/second_brain/cases.json`. The rest of this document explains the
+AXON target contract GNOMON expects (unchanged) and a minimal quickstart with
+a toy config (`config/axon.toml`, localhost judge, 5-case example dataset) --
+useful to sanity-check the contract, not the configuration to reach for when
+evaluating real AXON changes.
 
 ## AXON Target Contract
 
@@ -80,7 +91,9 @@ Standard OpenAI Chat Completions format:
    }
    ```
 
-## Running the Evaluation
+## Running the Evaluation (quickstart with the toy config)
+
+For the real A/B evaluation, skip to [RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md) instead.
 
 ### Prerequisites
 
@@ -133,7 +146,10 @@ Gate Status:
 
 ## Configuration
 
-The evaluation is controlled by `config/axon.toml`:
+The quickstart above is controlled by `config/axon.toml` (toy config). The
+real A/B configs (`config/axon-recall-on.toml` / `axon-recall-off.toml`)
+follow the same shape with a different judge and dataset -- see
+[RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md) for the actual values.
 
 ```toml
 [target]
@@ -196,8 +212,11 @@ Example:
 - Check that the OpenAI-compat endpoint is `/v1/chat/completions`.
 
 ### Ollama connection refused
-- Start Ollama: `ollama serve` (or equivalent for your OS).
-- Ensure llama3 is downloaded: `ollama pull llama3`.
+- Quickstart (toy config): start Ollama locally (`ollama serve`) and ensure
+  llama3 is downloaded (`ollama pull llama3`).
+- Real A/B configs (`axon-recall-on.toml` / `axon-recall-off.toml`) judge
+  against `llama3.1:8b` on the desktop Tailscale endpoint, not localhost --
+  see [RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md) for prerequisites.
 
 ### Missing contexts field in response
 - AXON must include a top-level `"contexts"` field with a list of strings.
@@ -210,6 +229,10 @@ Example:
 
 ## See Also
 
+- [`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md): the real, current
+  recall A/B procedure -- start here for evaluating actual AXON changes.
+- `config/axon-recall-on.toml` / `config/axon-recall-off.toml`: the real
+  configs the runbook uses.
 - `config/example.toml`: Example with a mock target (no external system needed).
 - `src/gnomon/domain/models.py`: Definition of EvalCase and other core types.
 - `src/gnomon/targets/openai_compat.py`: Implementation of OpenAI-compat target handler.
