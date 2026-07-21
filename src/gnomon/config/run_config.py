@@ -34,9 +34,10 @@ class SessionConfig(TargetConfig):
 
 class JudgeConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
-    provider: Literal["ollama", "stub"]
+    provider: Literal["ollama", "openai_compat", "stub"]
     model: str | None = None
     base_url: str | None = None
+    api_key_env: str | None = None
     timeout_s: float = Field(default=60.0, gt=0.0)
 
 

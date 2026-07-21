@@ -20,9 +20,14 @@ timeout_s = 30.0
 include_context = true
 
 [judge]
-provider = "ollama"
-model = "llama3.1:8b"
-base_url = "http://<judge-host>:11434"
+# ponytail: judge swapped to DeepInfra-hosted Llama-3.1-8B-Instruct (same
+# weights as the local llama3.1:8b) because the desktop Ollama host was
+# offline; revert base_url/provider back to ollama once it's back if local
+# judge comparability is needed again.
+provider = "openai_compat"
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
 timeout_s = 60.0
 
 [gate]

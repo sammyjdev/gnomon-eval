@@ -22,6 +22,7 @@ from gnomon.gate.gate import evaluate_gate
 from gnomon.judge.cache import JudgeCache
 from gnomon.judge.chat_judge import ChatJudge
 from gnomon.judge.ollama import OllamaJudge
+from gnomon.judge.openai_compat import OpenAICompatJudge
 from gnomon.judge.session_judge import SessionOllamaJudge
 from gnomon.judge.stub import StubJudge
 from gnomon.reporting.report import to_dict, to_text
@@ -58,6 +59,15 @@ def build_target(cfg: TargetConfig) -> RagTarget:
 def build_judge(cfg: JudgeConfig) -> Judge:
     if cfg.provider == "stub":
         return StubJudge()
+    if cfg.provider == "openai_compat":
+        api_key = os.environ.get(cfg.api_key_env) if cfg.api_key_env else None
+        return OpenAICompatJudge(
+            model=cfg.model,
+            base_url=cfg.base_url,
+            api_key=api_key,
+            cache=JudgeCache(),
+            timeout_s=cfg.timeout_s,
+        )
     return OllamaJudge(
         model=cfg.model,
         base_url=cfg.base_url,
