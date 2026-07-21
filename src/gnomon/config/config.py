@@ -8,7 +8,14 @@ time, rather than mid-run (non-negotiable #6).
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from gnomon.metrics.confidence import MIN_JUDGE_RUNS
 
@@ -26,16 +33,21 @@ class EvalConfig(BaseModel):
 
     reproducible: bool = True
     seed: int | None = None
+    deterministic_judge: bool = False
     judge_runs: int
     confidence_level: float = Field(default=0.95, gt=0.0, lt=1.0)
 
     @field_validator("judge_runs")
     @classmethod
-    def _judge_runs_meets_minimum(cls, value: int) -> int:
+    def _judge_runs_meets_minimum(cls, value: int, info: ValidationInfo) -> int:
         # VAL-04: N below the minimum cannot yield a confidence interval.
-        if value < MIN_JUDGE_RUNS:
+        # Roadmap B1: a judge declared deterministic (temperature=0) makes
+        # repeated runs identical copies, so the floor relaxes to 1
+        # (ADR-002/008 semantics are unaffected for non-deterministic judges).
+        minimum = 1 if info.data.get("deterministic_judge") else MIN_JUDGE_RUNS
+        if value < minimum:
             raise ValueError(
-                f"judge_runs must be at least {MIN_JUDGE_RUNS} to compute a "
+                f"judge_runs must be at least {minimum} to compute a "
                 f"confidence interval, got {value}"
             )
         return value
