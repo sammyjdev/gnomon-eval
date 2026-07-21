@@ -32,23 +32,25 @@ Validate the file parses before running:
     python -c "from gnomon.dataset.loader import load_dataset; \
     print(len(load_dataset('datasets/second_brain/cases.json')), 'cases')"
 
-## Draft candidates (owner review required, issue #6)
+## Draft review outcome (2026-07-21, issue #6)
 
-`cases.draft.json` holds 13 candidate cases (`sb-018`..`sb-030`) drafted by an
-agent to close the RF-09 gate near-miss by growing N from 17 to ~30
-(ADR-0006, ADR-0011). It is a SEPARATE file from `cases.json` on purpose: no
-config points at it, so it cannot leak into a gate run or a published number
-by accident.
+The 13 drafts (`sb-018`..`sb-030`) were validated against the real vault
+(delegated review, recorded in issue #6). Outcome:
 
-**These are drafts, not verified cases.** The agent has no access to the
-actual vault, so `expected_contexts` here are paraphrased from session-memory
-summaries of real past decisions, not exact vault snippets. Before any case
-is promoted into `cases.json`:
-- the owner must verify `expected_answer` and `expected_contexts` against the
-  real vault content (same provenance discipline as the rest of this file);
-- `expected_contexts` must be replaced with the actual verbatim snippet(s);
-- only then does the case count toward a published N>=30 measurement.
+- **Promoted to `cases.json` (4)** - `sb-018`, `sb-023`, `sb-026`, `sb-028`,
+  each rewritten to the scope the vault actually supports and with
+  `expected_contexts` replaced by verbatim snippets from the source notes
+  (afya-prep-3-pilares.md, daily/2026-07-13.md, forge-closed-agentic-loop/
+  CONTEXT.md, AXON/Decisions/dec-032.md + the 2026-05-28 session note).
+  `sb-018`/`sb-026`/`sb-028` were narrowed: exact counts/dates and claims
+  present only in session memories (119/34 counts, 2026-06-29 reverification,
+  "~/code/forge retired", the Grafana/Micrometer contrast) were dropped.
+- **Rejected (9)** - `sb-019`..`sb-022`, `sb-024`, `sb-025`, `sb-027`,
+  `sb-029`, `sb-030`: zero vault grounding (the knowledge lives only in
+  Claude session memories / machine-local state). Promoting them would make
+  the eval measure "does the vault contain X" instead of retrieval quality.
+  If any of that knowledge deserves vault status, write the vault note first,
+  then redraft the case. `cases.draft.json` was removed with this review.
 
-Do not run the A/B gate against a merged `cases.json` + `cases.draft.json`
-count without this review — the "N>=30 owner-validated" acceptance criterion
-of issue #6 is not met until it happens.
+Current N = 21 owner-validated cases. The N>=30 target of issue #6 remains
+open - it now requires either new vault-grounded drafts or new vault notes.

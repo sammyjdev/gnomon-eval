@@ -145,5 +145,38 @@
       "Deletar pipeline/hero_strategy.py + tests + integracao no Telegram approval.",
       "YAGNI: imagem agora e processo manual externo (Gemini/DALL-E via GPT customizado)."
     ]
+  },
+  {
+    "id": "sb-018",
+    "question": "Que bug real foi encontrado no backfill SQLite para Postgres do decision-store do AXON, e como foi corrigido?",
+    "expected_answer": "O backfill foi feito de forma idempotente e revelou um bug real de colisao de ID: o next_decision_id nao fazia max(id)+1. Foi encontrado e corrigido no commit 886ee6b.",
+    "expected_contexts": [
+      "Backfill SQLite→Postgres foi feito de forma idempotente, com um bug real de colisão de ID (`next_decision_id` não fazia `max(id)+1`) encontrado e corrigido (commit `886ee6b`)"
+    ]
+  },
+  {
+    "id": "sb-023",
+    "question": "Por que um modelo reasoning-heavy pode aparentar estar incompetente quando rodado via opencode, mesmo estando saudavel?",
+    "expected_answer": "Porque o opencode embute um cap de 32000 output tokens por requisicao, e reasoning e output dividem esse mesmo orcamento: um modelo pensador queima tudo raciocinando, emite output 0 com finish_reason length, e o loop registra isso como falha do modelo - quando na verdade e truncamento pelo cap.",
+    "expected_contexts": [
+      "o binario 1.17.18 embute `OUTPUT_TOKEN_MAX = 32000` e calcula `maxOutputTokens = min(model.limit.output, cap ?? 32000)` por REQUISICAO, com reasoning dividindo esse orcamento. Modelo pensador queima tudo pensando, emite `output: 0`, devolve `finish_reason: 'length'` - e o loop registra isso como falha do modelo."
+    ]
+  },
+  {
+    "id": "sb-026",
+    "question": "O FORGE (closed agentic loop) depende de um repositorio de codigo proprio? De onde ele roda?",
+    "expected_answer": "Nao - o FORGE roda repo-free, a partir de ~/.claude/agents/forge/.",
+    "expected_contexts": [
+      "FORGE: a closed agentic loop (issue → worktree → TDD → gate → quench → PR) que roda repo-free out of `~/.claude/agents/forge/`"
+    ]
+  },
+  {
+    "id": "sb-028",
+    "question": "O que significa 'Prometheus' nas referencias legadas do ecossistema, e o que foi feito com essas referencias?",
+    "expected_answer": "Prometheus e o nome legado do AXON. As referencias stale foram limpas e migradas: o MCP server prometheus quebrado foi removido, o shim pb saiu do venv prometheus-engine (deletado, ~460MB), e 8 projetos com refs mcp__prometheus__* foram varridos.",
+    "expected_contexts": [
+      "chore: clean up stale Prometheus references + migrate to dec-113 commands",
+      "MCP global + Prometheus removido — `prometheus` MCP server quebrado"
+    ]
   }
 ]
