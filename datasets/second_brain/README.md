@@ -52,5 +52,19 @@ The 13 drafts (`sb-018`..`sb-030`) were validated against the real vault
   If any of that knowledge deserves vault status, write the vault note first,
   then redraft the case. `cases.draft.json` was removed with this review.
 
-Current N = 21 owner-validated cases. The N>=30 target of issue #6 remains
-open - it now requires either new vault-grounded drafts or new vault notes.
+## Second draft round (2026-07-21, issue #6 closure)
+
+14 new drafts (sb-031..sb-044) were produced against the full vault after
+the index-coverage gap was found (knowledge/research/, projects/, inbox/
+were unindexed), with expected_contexts machine-verified as verbatim
+substrings of the source notes. Delegated review outcome:
+
+- **Promoted (13)** - sb-031..sb-039, sb-041..sb-044. sb-035 was adjusted
+  to add the third harness-debt snippet so every claim in its
+  expected_answer is grounded.
+- **Rejected (1)** - sb-040: its source note states the judge_runs=8 debt
+  is "not yet fixed", but gnomon #49 (judge_runs=1 for deterministic
+  judges) merged 2026-07-21 - stale ground truth. Update the vault note
+  first; redraft with historical phrasing if still wanted.
+
+Current N = 34 owner-validated cases - the N>=30 target of issue #6 is met.
