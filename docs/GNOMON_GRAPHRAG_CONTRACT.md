@@ -187,6 +187,8 @@ assert 0.0 <= faithfulness.ci_low <= faithfulness.mean <= faithfulness.ci_high <
 
 A agregação acontece **dentro** de `run_eval` (`runner.py:50-56`, que chama `aggregate_metric`). Para o seu fluxo pull-based, o equivalente substituindo `MockTarget`/`StubJudge` pelos seus adaptadores GraphRAG é trivial — o único ponto de atrito é o item 15 (`case_scores`).
 
+**`judge_runs=1` com judge determinístico (roadmap B1):** `EvalConfig` aceita `deterministic_judge: bool = False` (`config.py:36`). Com `deterministic_judge=True`, o piso de `judge_runs` relaxa de 2 para 1 (`config.py:40-53`) — com `temperature=0` as runs repetidas são cópias, então o piso `>=2` do VAL-04 é desperdício de chamada de modelo. O piso `>=2` continua valendo para judges não declarados determinísticos (semântica do ADR-002/008 intacta); `aggregate_metric` (item acima) não muda — a CI segue sendo sobre casos, não sobre runs.
+
 ---
 
 ## H. Superfície estável do judge v1
