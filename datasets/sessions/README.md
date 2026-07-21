@@ -66,6 +66,12 @@ snippets. Evidence per topic:
 | sess-009 | Vault knowledge strategy | `vault/knowledge/skill-priority-map.md` (top 5, tiers, curadoria); `vault/knowledge/ai-engineering/flows/{top5-skill-update-flow,top5-update-options-tradeoffs}.md` |
 | sess-010 | LinkedIn pipeline | `vault/personal/adrs/linkedin_content_manager.md` (Sonnet 4.6 / Opus cost, Rejeitar keyboard, hero_strategy deletion; rg: 2/6/7/3 hits) |
 
+Path update (2026-07-20 review): the vault was reorganized after these
+spot-checks; sess-010's note now lives at
+`vault/projects/linkedin-content-manager/adrs/decisions-log.md` (content
+verified present). Consequence for any measured run: refresh the AXON index
+first, or moved notes will unfairly depress the zero-history arm.
+
 No drafted topic lacked vault support; one candidate turn about the AXON
 Postgres port (dec-121 operational detail) was replaced with the
 pgvector-vs-Qdrant comparison because its grounding lives in machine-local
