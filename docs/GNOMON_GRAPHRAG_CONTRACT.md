@@ -1,76 +1,76 @@
-# Validação de contrato do GNOMON para integração GraphRAG (pull-based)
+# GNOMON contract validation for GraphRAG integration (pull-based)
 
-> Validado lendo código e testes do repositório `sammyjdev/gnomon-eval`. Cada item cita a fonte real (`arquivo:linha`).
+> Validated by reading the code and tests of the `sammyjdev/gnomon-eval` repository. Each item cites the real source (`file:line`).
 >
-> **As-of:** validado contra o master de 2026-06-11 (commit `b32d69c`). O master avançou desde então (ChatEval multi-turn etc.); as citações `arquivo:linha` podem ter drifted — reverifique antes de depender de uma linha específica. A superfície do contrato (RagTarget/RagResponse/run_eval) é estável.
+> **As-of:** validated against master as of 2026-06-11 (commit `b32d69c`). Master has moved since then (multi-turn ChatEval etc.); the `file:line` citations may have drifted — re-verify before depending on a specific line. The contract surface (RagTarget/RagResponse/run_eval) is stable.
 >
-> **Aviso:** alguns nomes assumidos na pergunta não batem com o código — as divergências estão sinalizadas em cada item.
+> **Note:** some names assumed in the question don't match the code — the divergences are flagged in each item.
 
 ---
 
-## A. Empacotamento / import
+## A. Packaging / import
 
-### 1. Nome da distribuição e referência sem PyPI
-- Nome da distribuição: **`gnomon-eval`**, versão `0.1.0` (`pyproject.toml:6-7`). Build backend: `hatchling`.
-- **Nome do pacote de import é diferente: `gnomon`** (≠ distribuição). Ver `pyproject.toml:25-26`: `[tool.hatch.build.targets.wheel] packages = ["src/gnomon"]`.
-- Não está no PyPI. Formas de referência no `pyproject` do consumidor:
-  - **git canônica**: `gnomon-eval @ git+https://github.com/sammyjdev/gnomon-eval.git@<ref>` (repo no escopo: `sammyjdev/gnomon-eval`; o `origin` local é apenas um proxy `http://local_proxy@127.0.0.1:.../git/sammyjdev/gnomon-eval`).
-  - **path local editável**: `pip install -e .` (usado no README, `README.md:55,63`), ou dependência por path `gnomon-eval @ file:///caminho`.
+### 1. Distribution name and reference without PyPI
+- Distribution name: **`gnomon-eval`**, version `0.1.0` (`pyproject.toml:6-7`). Build backend: `hatchling`.
+- **The import package name is different: `gnomon`** (≠ distribution). See `pyproject.toml:25-26`: `[tool.hatch.build.targets.wheel] packages = ["src/gnomon"]`.
+- Not on PyPI. Ways to reference it from the consumer's `pyproject`:
+  - **canonical git**: `gnomon-eval @ git+https://github.com/sammyjdev/gnomon-eval.git@<ref>` (repo in scope: `sammyjdev/gnomon-eval`; the local `origin` is just a proxy `http://local_proxy@127.0.0.1:.../git/sammyjdev/gnomon-eval`).
+  - **editable local path**: `pip install -e .` (used in the README, `README.md:55,63`), or a path dependency `gnomon-eval @ file:///path`.
 
-### 2. Caminhos de import exatos
-Não há re-export no topo (`src/gnomon/__init__.py` vazio; todos os `__init__.py` de subpacote vazios). Use o caminho completo:
+### 2. Exact import paths
+There is no top-level re-export (`src/gnomon/__init__.py` is empty; every subpackage `__init__.py` is empty). Use the full path:
 
 ```python
-from gnomon.runner.runner import run_eval               # runner.py:23 (usado em cli.py:22)
-from gnomon.metrics.confidence import aggregate_metric  # confidence.py:31 (usado em runner.py:20)
+from gnomon.runner.runner import run_eval               # runner.py:23 (used in cli.py:22)
+from gnomon.metrics.confidence import aggregate_metric  # confidence.py:31 (used in runner.py:20)
 ```
 
-### 3. Python e dependências de runtime
-- `requires-python = ">=3.11"` (`pyproject.toml:11`) — usa `tomllib` da stdlib (`run_config.py:10`).
-- **Única dependência de runtime: `pydantic>=2.6`** (`pyproject.toml:12-14`). HTTP é stdlib `urllib` (`UrllibTransport` em `gnomon/http.py`, sem lib externa).
-- **LLM-judge: o GNOMON traz o cliente embutido**, não espera que você traga o seu. Dois judges atrás do mesmo Protocol: `OllamaJudge` (cliente Ollama local via HTTP stdlib, `judge/ollama.py:34`) e `StubJudge` (determinístico, `judge/stub.py:20`). **Nenhum cliente OpenAI/Anthropic embutido** — o judge default é Ollama local. O consumidor só *configura* provider/modelo (TOML), não injeta um cliente.
+### 3. Python and runtime dependencies
+- `requires-python = ">=3.11"` (`pyproject.toml:11`) — uses stdlib `tomllib` (`run_config.py:10`).
+- **Single runtime dependency: `pydantic>=2.6`** (`pyproject.toml:12-14`). HTTP is stdlib `urllib` (`UrllibTransport` in `gnomon/http.py`, no external lib).
+- **LLM judge: GNOMON brings its own client**, it does not expect you to bring yours. Two judges behind the same Protocol: `OllamaJudge` (local Ollama client over stdlib HTTP, `judge/ollama.py:34`) and `StubJudge` (deterministic, `judge/stub.py:20`). **No built-in OpenAI/Anthropic client** — the default judge is local Ollama. The consumer only *configures* provider/model (TOML), it does not inject a client.
 
 ---
 
-## B. Contrato do target (pull-based)
+## B. Target contract (pull-based)
 
-### 4. Protocol do target — confirma `RagTarget`
-`domain/interfaces.py:13-19`, `@runtime_checkable Protocol`. Método único:
+### 4. Target Protocol — confirms `RagTarget`
+`domain/interfaces.py:13-19`, `@runtime_checkable Protocol`. Single method:
 
 ```python
 def query(self, question: str) -> RagResponse   # interfaces.py:17
 ```
 
-- `question: str` → retorna `RagResponse`. **É síncrono** (não async).
+- `question: str` → returns `RagResponse`. **It is synchronous** (not async).
 
-### 5. run_eval chama só `query`
-`target.query(case.question)` (`runner.py:31`). Não acessa `name`, `setup`, `teardown` nem qualquer outro atributo do target. (Os judges têm `model_name`, mas isso é do lado Judge, não do target.)
+### 5. run_eval only calls `query`
+`target.query(case.question)` (`runner.py:31`). It does not access `name`, `setup`, `teardown`, or any other target attribute. (Judges have `model_name`, but that is on the Judge side, not the target.)
 
 ---
 
-## C. RagResponse (`domain/models.py:25-33`, modelo `frozen`)
+## C. RagResponse (`domain/models.py:25-33`, `frozen` model)
 
-### 6. Campos completos
-Todos **obrigatórios**, sem default:
+### 6. Full field list
+All **required**, no default:
 
-| campo | tipo | constraint | fonte |
+| field | type | constraint | source |
 |---|---|---|---|
-| `answer` | `str` | nenhum | models.py:30 |
-| `contexts` | `list[str]` | nenhum | models.py:31 |
-| `total_tokens` | `int` | `Field(ge=0)` ✓ validado ≥0 | models.py:32 |
-| `latency_ms` | `float` | `Field(ge=0.0)` ✓ validado ≥0 | models.py:33 |
+| `answer` | `str` | none | models.py:30 |
+| `contexts` | `list[str]` | none | models.py:31 |
+| `total_tokens` | `int` | `Field(ge=0)` ✓ validated ≥0 | models.py:32 |
+| `latency_ms` | `float` | `Field(ge=0.0)` ✓ validated ≥0 | models.py:33 |
 
-### 7. Crítico
-- **Campo de resposta gerada: SIM → `answer: str`** (`models.py:30`).
-- **Campo de contextos recuperados: SIM → `contexts: list[str]`** (`models.py:31`). **Tipo é `list[str]` puro — NÃO são objetos com `.text`**, não há `source_documents`.
-- **NÃO há campo de id na resposta.** `RagResponse` não liga à pergunta. O vínculo é **posicional**: o runner pareia `case → response` no laço (`runner.py:30-31`), e o `id` mora no `EvalCase` (`models.py:19`), não no response.
+### 7. Critical
+- **Generated-answer field: YES → `answer: str`** (`models.py:30`).
+- **Retrieved-contexts field: YES → `contexts: list[str]`** (`models.py:31`). **The type is plain `list[str]` — NOT objects with `.text`**, there is no `source_documents`.
+- **There is NO id field on the response.** `RagResponse` does not link back to the question. The binding is **positional**: the runner pairs `case → response` in the loop (`runner.py:30-31`), and the `id` lives on `EvalCase` (`models.py:19`), not on the response.
 
 ---
 
-## D. Entrada de run_eval / dataset
+## D. run_eval input / dataset
 
-### 8. Assinatura de run_eval
-`runner.py:23-25` — sem defaults, tudo obrigatório:
+### 8. run_eval signature
+`runner.py:23-25` — no defaults, everything required:
 
 ```python
 def run_eval(
@@ -78,60 +78,60 @@ def run_eval(
 ) -> EvalReport
 ```
 
-### 9. Schema do exemplo — `EvalCase`
-`domain/models.py:14-22` (`frozen`), carregado por `load_dataset` (`dataset/loader.py:21`):
+### 9. Example schema — `EvalCase`
+`domain/models.py:14-22` (`frozen`), loaded by `load_dataset` (`dataset/loader.py:21`):
 
-| campo | tipo | obrigatório |
+| field | type | required |
 |---|---|---|
-| `id` | `str` (`min_length=1`) | sim |
-| `question` | `str` (`min_length=1`) | sim |
-| `expected_answer` | `str` (`min_length=1`) | sim |
-| `expected_contexts` | `list[str]` (`min_length=1`) | sim |
+| `id` | `str` (`min_length=1`) | yes |
+| `question` | `str` (`min_length=1`) | yes |
+| `expected_answer` | `str` (`min_length=1`) | yes |
+| `expected_contexts` | `list[str]` (`min_length=1`) | yes |
 
-- **Ground-truth (`expected_answer`, `expected_contexts`) é EXIGIDO pelo schema do dataset.** **PORÉM, atenção (divergência crítica):** o prompt do judge v1 **não usa** esses campos. `build_prompt` (`judge/prompts.py:28-36`) referencia apenas `case.question`, `response.answer`, `response.contexts`. **Logo, na implementação atual, `faithfulness` e `context_precision` são reference-free** — o ground-truth é obrigatório-porém-ignorado pelo scoring. Você precisa fornecê-lo para o dataset validar, mas ele não entra na nota.
+- **Ground truth (`expected_answer`, `expected_contexts`) is REQUIRED by the dataset schema.** **HOWEVER, a critical divergence to note:** the v1 judge prompt does **not use** these fields. `build_prompt` (`judge/prompts.py:28-36`) only references `case.question`, `response.answer`, `response.contexts`. **So, in the current implementation, `faithfulness` and `context_precision` are reference-free** — the ground truth is required-but-ignored by scoring. You must supply it for the dataset to validate, but it does not enter the score.
 
-### 10. Como as métricas são selecionadas
-**Não são passadas a `run_eval`.** As métricas são exatamente as chaves que o judge retorna em `MetricScores.scores`; o runner coleta por `metric_name` do output do judge (`runner.py:44-48`). O conjunto canônico `V1_METRICS = ("faithfulness", "context_precision")` está hardcoded no judge/prompt (`metrics/names.py:8`). Ou seja: **você seleciona métricas escolhendo/configurando o judge, não por argumento de `run_eval`.**
-
----
-
-## E. Métricas v1
-
-### 11. Identificadores exatos
-Strings `"faithfulness"` e `"context_precision"` (`metrics/names.py:8`). São **chaves string de dict**, não objetos.
-
-### 12. O que cada uma consome
-Do prompt, `judge/prompts.py:14-22`:
-
-- `faithfulness`: "how well the ANSWER is grounded in the CONTEXTS" → precisa de **`response.answer` + `response.contexts`**. **Exige resposta gerada.**
-- `context_precision`: "how relevant the CONTEXTS are to the QUESTION" → precisa de **`case.question` + `response.contexts`**. **NÃO usa a answer.**
-- **Decisão para o GLYPH:** `faithfulness` obriga um passo de geração (answer); `context_precision` sozinha não precisaria. Como ambas são pedidas numa única chamada, na prática você terá de fornecer `answer` de qualquer forma. Nenhuma das duas usa ground-truth.
-
-### 13. Exigem LLM-judge? SIM
-Configuração via bloco TOML `[judge]` (`config/run_config.py:29-35`; wiring em `cli.py:45-53`):
-
-- `provider`: `"ollama"` ou `"stub"` (`run_config.py:31`).
-- `OllamaJudge` (`judge/ollama.py:34-89`): `model` + `base_url`, `temperature=0.0`, `seed = seed + run` (`ollama.py:72`). **Uma chamada de modelo por `score()`** = por `(case, run)`. Custo billável = **`len(cases) * config.judge_runs`** chamadas, sem multiplicador por-métrica (todas as métricas numa só chamada) — documentado em `runner.py:8-12` e implementado em `ollama.py:64-89`. Cache por `(case, response, model, seed, run)` via `JudgeCache` (`ollama.py:53-62`).
-- **Não há env var para provider**; chave de API é só do *target* (`api_key_env`, `run_config.py:23`). **Chamada é por-exemplo → custo escala com dataset × judge_runs.**
+### 10. How metrics are selected
+**They are not passed to `run_eval`.** The metrics are exactly the keys the judge returns in `MetricScores.scores`; the runner collects them by `metric_name` from the judge's output (`runner.py:44-48`). The canonical set `V1_METRICS = ("faithfulness", "context_precision")` is hardcoded in the judge/prompt (`metrics/names.py:8`). In other words: **you select metrics by choosing/configuring the judge, not through a `run_eval` argument.**
 
 ---
 
-## F. Saída / agregação
+## E. v1 metrics
 
-### 14. run_eval retorna `EvalReport`
+### 11. Exact identifiers
+Strings `"faithfulness"` and `"context_precision"` (`metrics/names.py:8`). These are **dict string keys**, not objects.
+
+### 12. What each one consumes
+From the prompt, `judge/prompts.py:14-22`:
+
+- `faithfulness`: "how well the ANSWER is grounded in the CONTEXTS" → needs **`response.answer` + `response.contexts`**. **Requires the generated answer.**
+- `context_precision`: "how relevant the CONTEXTS are to the QUESTION" → needs **`case.question` + `response.contexts`**. **Does NOT use the answer.**
+- **Decision for GLYPH:** `faithfulness` forces a generation step (answer); `context_precision` alone would not need one. Since both are requested in a single call, in practice you will have to supply `answer` anyway. Neither one uses ground truth.
+
+### 13. Do they require an LLM judge? YES
+Configured via the TOML `[judge]` block (`config/run_config.py:29-35`; wired in `cli.py:45-53`):
+
+- `provider`: `"ollama"` or `"stub"` (`run_config.py:31`).
+- `OllamaJudge` (`judge/ollama.py:34-89`): `model` + `base_url`, `temperature=0.0`, `seed = seed + run` (`ollama.py:72`). **One model call per `score()`** = per `(case, run)`. Billable cost = **`len(cases) * config.judge_runs`** calls, with no per-metric multiplier (all metrics in a single call) — documented in `runner.py:8-12` and implemented in `ollama.py:64-89`. Cached by `(case, response, model, seed, run)` via `JudgeCache` (`ollama.py:53-62`).
+- **There is no env var for the provider**; the API key belongs only to the *target* (`api_key_env`, `run_config.py:23`). **The call is per-example → cost scales with dataset × judge_runs.**
+
+---
+
+## F. Output / aggregation
+
+### 14. run_eval returns `EvalReport`
 `models.py:88-115`:
 
 - `metrics: list[MetricResult]` + `per_case_cost: list[CaseCost]`.
 - `MetricResult` (`models.py:51-67`): `metric, mean, ci_low, ci_high, n (≥2), confidence_level`.
 - Helpers: `.metric(name)` (`models.py:101`), `.total_tokens` (`:107`), `.mean_latency_ms` (`:112`).
-- `per_case_cost`: custo e latência por caso (`CaseCost`: `case_id, total_tokens, latency_ms`).
-- `case_scores`: scores denoised por caso, organizados por métrica.
+- `per_case_cost`: cost and latency per case (`CaseCost`: `case_id, total_tokens, latency_ms`).
+- `case_scores`: per-case denoised scores, organized by metric.
 
-### 15. Scores por caso
+### 15. Per-case scores
 
-- `gnomon.domain.models.CaseScore`: `case_id: str` e `score: float` em `[0, 1]`; é o score denoised de um caso para uma métrica, isto é, a média das judge runs do caso.
-- `EvalReport.case_scores: dict[str, list[CaseScore]]`: chaveado pelo nome da métrica, os mesmos nomes de `MetricResult.metric` e `V1_METRICS`, com um `CaseScore` por caso na mesma ordem de `per_case_cost`. É o valor exato por caso que alimenta o bootstrap CI de `MetricResult`, portanto `sum(cs.score for cs in report.case_scores[name]) / len(report.case_scores[name])` reproduz `report.metric(name).mean`.
-- O novo campo tem default `{}`, não altera `MetricResult` nem qualquer call site existente de `EvalReport(...)`. Isso resolve gnomon-eval#46 e o glyph ADR-G8 pode retirar seu loop de eval customizado.
+- `gnomon.domain.models.CaseScore`: `case_id: str` and `score: float` in `[0, 1]`; it is the denoised score of one case for one metric, i.e. the mean over the case's judge runs.
+- `EvalReport.case_scores: dict[str, list[CaseScore]]`: keyed by metric name, the same names as `MetricResult.metric` and `V1_METRICS`, with one `CaseScore` per case in the same order as `per_case_cost`. It is the exact per-case value that feeds `MetricResult`'s bootstrap CI, so `sum(cs.score for cs in report.case_scores[name]) / len(report.case_scores[name])` reproduces `report.metric(name).mean`.
+- The new field defaults to `{}`, and does not change `MetricResult` or any existing `EvalReport(...)` call site. This closes gnomon-eval#46, and glyph ADR-G8 can retire its custom eval loop.
 
 ### 16. `aggregate_metric`
 `metrics/confidence.py:31-33`:
@@ -142,14 +142,14 @@ def aggregate_metric(
 ) -> MetricResult
 ```
 
-- Retorna `MetricResult` = média sobre casos + **CI por bootstrap percentil semeado** (2000 resamples, `confidence.py:28,44-54`). Exige n≥2 (`MIN_CASES`, `confidence.py:22,36`).
-- `run_eval` expõe esses mesmos scores em `EvalReport.case_scores`, sem alterar a agregação.*
+- Returns a `MetricResult` = mean over cases + **seeded percentile-bootstrap CI** (2000 resamples, `confidence.py:28,44-54`). Requires n≥2 (`MIN_CASES`, `confidence.py:22,36`).
+- `run_eval` exposes these same scores in `EvalReport.case_scores`, without changing the aggregation.*
 
 ---
 
-## G. Exemplo mínimo end-to-end
+## G. Minimal end-to-end example
 
-Real, de `tests/integration/test_runner_end_to_end.py:27-59` (o menor fluxo completo: definir cases + target, rodar `run_eval`, ler o report agregado):
+Real, from `tests/integration/test_runner_end_to_end.py:27-59` (the smallest complete flow: define cases + target, run `run_eval`, read the aggregated report):
 
 ```python
 from gnomon.config.config import EvalConfig
@@ -181,31 +181,31 @@ cfg = EvalConfig(reproducible=True, seed=42, judge_runs=8)
 report = run_eval([CASE, CASE2], target, StubJudge(), cfg)
 
 faithfulness = report.metric("faithfulness")   # MetricResult
-assert faithfulness.n == 2                      # n = nº de CASOS, não runs (ADR-008)
+assert faithfulness.n == 2                      # n = number of CASES, not runs (ADR-008)
 assert 0.0 <= faithfulness.ci_low <= faithfulness.mean <= faithfulness.ci_high <= 1.0
 ```
 
-A agregação acontece **dentro** de `run_eval` (`runner.py:50-56`, que chama `aggregate_metric`). Para o seu fluxo pull-based, o equivalente substituindo `MockTarget`/`StubJudge` pelos seus adaptadores GraphRAG é trivial — o único ponto de atrito é o item 15 (`case_scores`).
+Aggregation happens **inside** `run_eval` (`runner.py:50-56`, which calls `aggregate_metric`). For your pull-based flow, the equivalent, swapping `MockTarget`/`StubJudge` for your GraphRAG adapters, is trivial — the only point of friction is item 15 (`case_scores`).
 
-**`judge_runs=1` com judge determinístico (roadmap B1):** `EvalConfig` aceita `deterministic_judge: bool = False` (`config.py:36`). Com `deterministic_judge=True`, o piso de `judge_runs` relaxa de 2 para 1 (`config.py:40-53`) — com `temperature=0` as runs repetidas são cópias, então o piso `>=2` do VAL-04 é desperdício de chamada de modelo. O piso `>=2` continua valendo para judges não declarados determinísticos (semântica do ADR-002/008 intacta); `aggregate_metric` (item acima) não muda — a CI segue sendo sobre casos, não sobre runs.
-
----
-
-## H. Superfície estável do judge v1
-
-### 17. Artefatos públicos para consumidores downstream
-
-- `gnomon.judge.prompts.V1_PROMPT_INSTRUCTIONS: str` (`judge/prompts.py:28-32`) é o cabeçalho instrucional estático, com descrições das métricas e o aviso para entrada não confiável, estável entre chamadas.
-- `gnomon.judge.prompts.V1_PROMPT_JSON_SHAPE: str` (`judge/prompts.py:33`) é o descritor exato da forma JSON que o judge deve retornar.
-- `gnomon.judge.prompts.build_prompt(case, response)` (`judge/prompts.py:36-44`) monta o prompt completo por caso a partir das duas constantes e de `question`, `answer` e `contexts` do caso.
-- `gnomon.judge.ollama.parse_v1_judge_response(content)` (`judge/ollama.py:34-46`) é a função pública de parse e lança `JudgeProtocolError` para qualquer violação de forma, além de poder ser importada diretamente de `gnomon.judge.ollama`.
-
-Esta é a superfície estável v1 introduzida por gnomon-eval#47 para que consumidores downstream, incluindo glyph ADR-G8, façam pin contra ela em vez de duplicar o texto de prompt ou parse. Uma mudança semântica aqui é uma mudança visível de API na própria suíte de testes do gnomon.
+**`judge_runs=1` with a deterministic judge (roadmap B1):** `EvalConfig` accepts `deterministic_judge: bool = False` (`config.py:36`). With `deterministic_judge=True`, the `judge_runs` floor relaxes from 2 to 1 (`config.py:40-53`) — with `temperature=0` the repeated runs are copies, so the `>=2` floor from VAL-04 is a wasted model call. The `>=2` floor still stands for judges not declared deterministic (ADR-002/008 semantics intact); `aggregate_metric` (item above) is unchanged — the CI remains over cases, not over runs.
 
 ---
 
-## Resumo dos 3 pontos que mais afetam a P3.0
+## H. Stable v1 judge surface
 
-1. **Per-case scores de qualidade não saem de `run_eval`** — você precisa chamar `judge.score` por caso (ou patchear o runner) para o seu bootstrap percentil. `aggregate_metric` já faz bootstrap percentil semeado e é reutilizável.
-2. **Métricas v1 são reference-free na prática** — o judge ignora `expected_answer`/`expected_contexts` (embora o schema os exija). `faithfulness` precisa da `answer` gerada; `context_precision` não.
-3. **Judge embutido = Ollama local**, 1 chamada por `(case, run)`, custo = `len(cases) * judge_runs`. Nada de cliente externo a configurar além de `model`/`base_url` no TOML.
+### 17. Public artifacts for downstream consumers
+
+- `gnomon.judge.prompts.V1_PROMPT_INSTRUCTIONS: str` (`judge/prompts.py:28-32`) is the static instructional header, with the metric descriptions and the untrusted-input warning, stable across calls.
+- `gnomon.judge.prompts.V1_PROMPT_JSON_SHAPE: str` (`judge/prompts.py:33`) is the exact descriptor of the JSON shape the judge must return.
+- `gnomon.judge.prompts.build_prompt(case, response)` (`judge/prompts.py:36-44`) assembles the full per-case prompt from the two constants and the case's `question`, `answer`, and `contexts`.
+- `gnomon.judge.ollama.parse_v1_judge_response(content)` (`judge/ollama.py:34-46`) is the public parse function and raises `JudgeProtocolError` for any shape violation, and can also be imported directly from `gnomon.judge.ollama`.
+
+This is the stable v1 surface introduced by gnomon-eval#47 so that downstream consumers, including glyph ADR-G8, can pin against it instead of duplicating the prompt text or the parsing. A semantic change here is a visible API change in gnomon's own test suite.
+
+---
+
+## Summary of the 3 points that most affect P3.0
+
+1. **Per-case quality scores do not come out of `run_eval`** — you need to call `judge.score` per case (or patch the runner) for your own percentile bootstrap. `aggregate_metric` already does a seeded percentile bootstrap and is reusable.
+2. **v1 metrics are reference-free in practice** — the judge ignores `expected_answer`/`expected_contexts` (even though the schema requires them). `faithfulness` needs the generated `answer`; `context_precision` does not.
+3. **Built-in judge = local Ollama**, 1 call per `(case, run)`, cost = `len(cases) * judge_runs`. No external client to configure beyond `model`/`base_url` in the TOML.
