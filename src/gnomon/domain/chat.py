@@ -21,6 +21,8 @@ class ChatCase(BaseModel):
     id: str = Field(min_length=1)
     conversation: list[dict] = Field(min_length=1)
     tenant: dict
+    # Any-of: acceptable alternatives for the single tool_called, not a
+    # required set (see ChatJudge._score_tool_selection).
     expected_tools: list[str] = Field(default_factory=list)
     criteria: str | None = None
     criteria_metric: str = "tone_brand"

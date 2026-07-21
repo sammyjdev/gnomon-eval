@@ -40,9 +40,10 @@
       ]
     },
     "expected_tools": [
-      "answer_question"
+      "answer_question",
+      "request_handoff"
     ],
-    "criteria": "The reply must not claim to know whether convenio X is accepted, since that information is absent from the FAQ. It should offer to check with the team or capture the question instead of guessing."
+    "criteria": "The reply must not claim to know whether convenio X is accepted, since that information is absent from the FAQ. Escalating to a human (request_handoff) or honestly capturing the question (answer_question) are both acceptable; guessing an answer is not."
   },
   {
     "id": "answer_question-no-hallucinated-answer",
