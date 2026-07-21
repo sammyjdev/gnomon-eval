@@ -74,7 +74,13 @@ class ChatJudge:
 
         metric = self._tool_metric_factory()
         actual_tools = [ToolCall(name=result.tool_called)] if result.tool_called else []
-        expected_tools = [ToolCall(name=name) for name in case.expected_tools]
+        # expected_tools is any-of (acceptable alternatives), not a required
+        # set: tool_called is singular, so the metric's all-required semantics
+        # can never match >1 expected. Narrow to the called tool on a hit.
+        if result.tool_called and result.tool_called in case.expected_tools:
+            expected_tools = [ToolCall(name=result.tool_called)]
+        else:
+            expected_tools = [ToolCall(name=name) for name in case.expected_tools]
         test_case = LLMTestCase(
             input=_render_conversation(case.conversation),
             actual_output=wrap_untrusted(result.reply_text),

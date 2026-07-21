@@ -53,6 +53,33 @@ def test_tool_selection_case_only_scores_tool_selection_accuracy():
     assert [tc.name for tc in stub.measured_with.expected_tools] == ["answer_question"]
 
 
+def test_expected_tools_is_any_of_not_a_required_set():
+    # tool_called is singular, so expected_tools lists acceptable
+    # alternatives; calling any one of them must count as an exact match
+    # for the underlying all-required ToolCorrectness metric.
+    case = ChatCase(
+        id="c-anyof",
+        conversation=[{"role": "user", "content": "Voces atendem convenio X?"}],
+        tenant={"name": "Clinica Aurora", "tone": "amigavel"},
+        expected_tools=["answer_question", "request_handoff"],
+    )
+    result = ChatResult(
+        tool_called="request_handoff",
+        tool_args={},
+        reply_text="Um atendente humano entrara em contato.",
+        total_tokens=40,
+        latency_ms=350.0,
+    )
+    stub = StubToolMetric(1.0)
+    judge = ChatJudge(
+        tool_metric_factory=lambda: stub,
+        geval_factory=lambda criteria: StubGEval(1.0),
+    )
+    scores = judge.score(case, result)
+    assert scores == {"tool_selection_accuracy": 1.0}
+    assert [tc.name for tc in stub.measured_with.expected_tools] == ["request_handoff"]
+
+
 def test_case_with_criteria_also_scores_a_geval_metric():
     case = ChatCase(
         id="c2",
