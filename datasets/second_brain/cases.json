@@ -178,5 +178,112 @@
       "chore: clean up stale Prometheus references + migrate to dec-113 commands",
       "MCP global + Prometheus removido — `prometheus` MCP server quebrado"
     ]
+  },
+  {
+    "id": "sb-031",
+    "question": "No reviewer grid de julho/2026 da linha de pesquisa do FORGE sobre closed agentic loop, qual modelo bateu a barra do Opus, por qual CLI, e por que isso conta como 'folga' no plano Max sem gastar créditos?",
+    "expected_answer": "gpt-5.6-sol@high, rodado via codex exec, bateu a barra do Opus: 8 de 8, zero falhas. Custou $0 porque fatura uma assinatura (Claude Max / Codex) que já está paga e ociosa, não créditos metrados - por isso é a folga (quota relief) que a pesquisa procurava.",
+    "expected_contexts": [
+      "`gpt-5.6-sol@high` (via `codex exec`) hits the Opus bar - 8 of 8, zero failures, $0 because it bills a subscription that is already paid for and idle. This is the quota relief, and it does not cost credits."
+    ]
+  },
+  {
+    "id": "sb-032",
+    "question": "O reviewer grid do FORGE mostrou que subir o 'effort dial' de um modelo (ex: terra@high) compensa não ter o tier certo? O que aconteceu com terra@high especificamente?",
+    "expected_answer": "Não. Effort não substitui tier: terra@high queimou 80% dos tokens que sol gastou e ainda assim errou o mesmo mutante, nos dois prompts testados. A lição (que também aparece no ADR-0007 arm 4) é escalar ATRAVÉS de modelos diferentes, nunca só subir o effort dial do mesmo modelo.",
+    "expected_contexts": [
+      "**Effort does not substitute for tier.** `terra@high` burns 80% of sol's tokens and still misses the same mutant, in both prompts, on the same suite. Escalate ACROSS models, never up the effort dial (ADR-0007 arm 4 said the same thing)."
+    ]
+  },
+  {
+    "id": "sb-033",
+    "question": "A pesquisa do FORGE sobre o teto de 32k tokens do opencode concluiu que era preciso migrar para litellm? Como a Q1 dessa linha de pesquisa foi fechada?",
+    "expected_answer": "Não precisou migrar. A Q1 foi respondida e fechada em 2026-07-13: o teto é totalmente configurável, pra cima e pra baixo, via a env var OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX. Isso foi lido direto do corpo da requisição (não inferido por comportamento), então litellm não é necessário.",
+    "expected_contexts": [
+      "ANSWERED (2026-07-13): the ceiling is fully configurable, up and down, via `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`. Read off the wire, not inferred. litellm is NOT required. This question is closed."
+    ]
+  },
+  {
+    "id": "sb-034",
+    "question": "Segundo a Q4 das open-questions do FORGE, o classificador de risco do axon (.claude/loop.yaml) está de fato armado em produção?",
+    "expected_answer": "Não. O loop.yaml do axon declara as áreas de risco só pelo nome; as keywords que definiriam o que cai em cada área estão dentro de um COMENTÁRIO YAML, e o normalize_classification.py casa por keyword. Na prática o floor não casa com nada em produção, e qualquer benchmark que dizia 'o floor resolve isso' estava medindo contra uma keyword list que o próprio rig de benchmark fornecia, não uma que existe no repo real.",
+    "expected_contexts": [
+      "axon's `.claude/loop.yaml` declares its risk areas name-only, with the keywords sitting in a YAML COMMENT. `normalize_classification.py` matches on keywords. So in production the floor matches nothing, and every \"the floor handles it\" in the benchmark directory was measured against a keyword list the rig supplied and the repo does not have."
+    ]
+  },
+  {
+    "id": "sb-035",
+    "question": "Quais são as três dívidas conhecidas e ainda não pagas do harness run_grid.py, listadas na pesquisa do FORGE sobre o reviewer grid?",
+    "expected_answer": "(1) run_grid.py trata um TIMEOUT como PASS/FAIL em vez de ter status próprio - um dispatch morto por timeout com suíte parcial no disco já foi pontuado como 4/4 limpo; (2) run_grid.py descarta tokens e custo no caminho de timeout, então o gasto medido subestima o gasto real; (3) run_grid.py conta ARQUIVOS adicionados, então um reviewer que só adiciona testes a um arquivo já existente (sem criar arquivo novo) aparece como '+0f', ou seja, como se não tivesse feito nada. As três já foram corrigidas depois em analyze.py, mas não foram retroportadas pro rig.",
+    "expected_contexts": [
+      "`run_grid.py` scores a TIMEOUT as PASS/FAIL. It must be its own status - one killed dispatch had a partial suite on disk that graded a clean 4/4.",
+      "`run_grid.py` drops tokens and cost on the timeout path, so measured spend understates real spend.",
+      "`run_grid.py` counts added FILES. A reviewer that appends to the existing `test_ratelimit.py` adds zero files and still adds tests; \"+0f\" called that \"did nothing.\" Count test FUNCTIONS."
+    ]
+  },
+  {
+    "id": "sb-036",
+    "question": "No ADR-002 do gnomon-eval, qual é exatamente a chave de cache do juiz LLM, e por que a granularidade escolhida é a mais fina em vez de uma chave mais grossa que economizasse mais?",
+    "expected_answer": "A chave de cache é a tupla (caso, resposta, modelo de juiz, seed) - entrada cuja chave não bate exatamente essa tupla é sempre miss, nunca acerto aproximado. A granularidade fina foi escolhida como default porque é mais segura contra contaminação entre execuções; uma chave mais grossa economizaria mais recomputação, mas só deveria ser adotada se houver evidência de que o custo justifica afrouxar essa segurança.",
+    "expected_contexts": [
+      "A chave de cache é a tupla de identidade que define unicamente uma pontuação: caso, resposta, modelo de juiz e seed. Entrada cujo a chave não casa com essa tupla é miss, nunca acerto aproximado.",
+      "A mais fina é mais segura contra contaminação; a mais grossa economiza mais. A escolha segura é a fina, e é o default até haver evidência de que o custo justifica afrouxar."
+    ]
+  },
+  {
+    "id": "sb-037",
+    "question": "O ADR-003 do gnomon-eval (execução offline-first com Ollama) considerou usar fixtures de resposta gravadas como caminho default. Por que essa alternativa foi descartada, mesmo sendo a mais rápida e portátil?",
+    "expected_answer": "Porque rodar em qualquer lugar de forma instantânea via fixtures gravadas faz o exemplo deixar de ser 'vivo': o avaliador não vê o sistema executar de verdade, só reproduzir uma gravação, o que não cumpre o critério de portfólio que precisa mostrar o harness funcionando ao vivo. A alternativa foi mantida como possível modo de teste interno, mas não como o caminho default documentado.",
+    "expected_contexts": [
+      "Fixtures de resposta gravadas como default | Roda em qualquer lugar instantâneo, mas o exemplo deixa de ser \"vivo\"; o avaliador não vê o sistema executar de verdade, só reproduzir gravação. Mantido como possível modo de teste, não como default."
+    ]
+  },
+  {
+    "id": "sb-038",
+    "question": "O ADR-004 do gnomon-eval mede custo em tokens ou em moeda (dólar/real), e qual foi a justificativa dessa escolha?",
+    "expected_answer": "Em tokens. A justificativa é que o preço por token varia por provedor e muda com o tempo, então tokens é a unidade estável e convertível - é a base da métrica, com moeda entrando só como derivação opcional (calculada a partir dos tokens), não como a unidade nativa medida.",
+    "expected_contexts": [
+      "Medir custo só em moeda, não em tokens | Preço por token varia por provedor e muda com o tempo; tokens é a unidade estável e convertível, então é a base, com moeda como derivação opcional."
+    ]
+  },
+  {
+    "id": "sb-039",
+    "question": "No guia de defesa técnica de RAG (por tema), qual é a resposta honesta pra 'por que Louvain e não Leiden' no glyph-kg, já que Leiden costuma produzir clusters mais estáveis?",
+    "expected_answer": "A resposta honesta registrada é que a qualidade de clustering entre Louvain e Leiden nunca foi testada. Louvain foi escolhido porque veio de graça - networkx já era dependência obrigatória do projeto - enquanto Leiden exigiria trazer igraph/leidenalg como dependência nova. Foi uma decisão de superfície de dependência, não uma decisão de qualidade medida, e o documento marca essa resposta como a mais importante do guia inteiro justamente por não tentar inflar a justificativa.",
+    "expected_contexts": [
+      "Não testei qualidade de clustering entre os dois. Louvain veio de graça porque networkx já era dependência obrigatória do projeto; Leiden exigiria trazer `igraph`/`leidenalg` como dependência nova. Foi uma decisão de superfície de dependência, não uma decisão de qualidade medida — e não tenho benchmark que prove que valeria a pena trazer a dependência extra."
+    ]
+  },
+  {
+    "id": "sb-041",
+    "question": "Comparando axon, Orion-AI e Lume: qual técnica de idempotência cada um usa contra entrega duplicada de evento (at-least-once), e existe um padrão comum entre os três?",
+    "expected_answer": "O padrão comum é: nenhum dos três projetos confia que um evento chega só uma vez, todos tratam entrega duplicada como caso normal, não exceção. As implementações diferem: axon dedup por repo+git_hash; Orion-AI usa a tabela processed_events com ON CONFLICT DO NOTHING (porque o ClickUp reentrega webhook não confirmado por mais de uma hora); Lume usa outbox + dedup por messageId.",
+    "expected_contexts": [
+      "Padrão recorrente (axon: dedup por `repo+git_hash`; Orion-AI: `processed_events` + `ON CONFLICT DO NOTHING`, porque ClickUp reentrega webhook por >1h; Lume: outbox + dedup por `messageId`). Nenhum projeto seu confia que um evento chega uma vez só — todos tratam entrega duplicada como o caso normal, não exceção."
+    ]
+  },
+  {
+    "id": "sb-042",
+    "question": "Quando o axon migrou de Qdrant pra pgvector, o recall_top3 caiu de 0.90 pra 0.80. O que a investigação concluiu sobre a causa, e por que os parâmetros HNSW do pgvector nunca foram tunados por causa disso?",
+    "expected_answer": "A investigação confirmou que a queda de recall era um erro genuíno de ranking por cosseno, não uma limitação de aproximação do índice HNSW. Por isso os parâmetros HNSW do pgvector ficaram nos defaults (m=16, ef_construction=64, ef_search=40) e nunca foram tunados: alargar ef_search não teria resolvido o problema, já que o gap não vinha do índice.",
+    "expected_contexts": [
+      "**axon** (pgvector): defaults (`m=16, ef_construction=64, ef_search=40`) — nunca tunados, porque quando investigou o gap de recall (0.80 vs baseline antigo de 0.90), confirmou que o problema era erro genuíno de ranking por cosseno, não aproximação do HNSW — não adiantaria alargar `ef_search`."
+    ]
+  },
+  {
+    "id": "sb-043",
+    "question": "Segundo a nota de reunião sobre treinamento de LLMs no inbox (16/07), quais são os cinco componentes essenciais definidos pro treinamento de um LLM?",
+    "expected_answer": "Arquitetura, algoritmo de treinamento (training loss), dados, avaliação de progresso, e sistemas/infraestrutura de hardware moderno.",
+    "expected_contexts": [
+      "São definidos cinco componentes essenciais para o treinamento: arquitetura, algoritmo de treinamento, dados, avaliação de progresso e sistemas de hardware. A infraestrutura de sistemas é apontada como crucial devido ao grande tamanho dos modelos modernos."
+    ]
+  },
+  {
+    "id": "sb-044",
+    "question": "No radar de sistemas distribuídos do vault, qual é o ângulo de entrevista reutilizável recomendado pra falar de trade-offs de arquitetura distribuída?",
+    "expected_answer": "Explicar os trade-offs com clareza: consistência forte vs disponibilidade, simplicidade operacional vs flexibilidade, e como bounded contexts reduzem acoplamento organizacional e técnico.",
+    "expected_contexts": [
+      "Explique trade-offs com clareza: consistencia forte vs disponibilidade, simplicidade operacional vs flexibilidade, e como bounded contexts reduzem acoplamento organizacional e tecnico."
+    ]
   }
 ]
