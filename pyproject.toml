@@ -29,6 +29,12 @@ gnomon = "gnomon.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/gnomon"]
 
+[tool.hatch.build.targets.sdist]
+# Package sources only: the repo also holds private eval datasets
+# (datasets/second_brain is verbatim owner-vault content) and local
+# agent/session state that must never ship to PyPI.
+only-include = ["src/gnomon", "README.md", "LICENSE", "NOTICE", "pyproject.toml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
