@@ -24,6 +24,16 @@ def test_out_of_range_values_are_clamped():
     assert result.scores == {V1_METRICS[0]: 1.0, V1_METRICS[1]: 0.0}
 
 
+def test_raw_control_characters_inside_strings_are_tolerated():
+    # Hosted judges (observed with the DeepInfra panel) occasionally emit a
+    # raw newline inside a string value, which strict json.loads rejects.
+    content = '{"faithfulness": 0.9, "context_precision": 0.8, "rationale": "a\nb"}'
+
+    result = parse_v1_judge_response(content)
+
+    assert result.scores == {"faithfulness": 0.9, "context_precision": 0.8}
+
+
 def test_malformed_json_is_protocol_error():
     with pytest.raises(JudgeProtocolError):
         parse_v1_judge_response("not JSON")

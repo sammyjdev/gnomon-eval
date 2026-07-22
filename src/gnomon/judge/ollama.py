@@ -40,7 +40,10 @@ def parse_v1_judge_response(content: str, *, metrics: tuple[str, ...] = V1_METRI
     parse contract downstream (glyph ADR-G8) pins against.
     """
     try:
-        parsed = json.loads(content)
+        # strict=False: hosted judges occasionally emit raw control characters
+        # (e.g. a literal newline) inside string values; tolerate them -- the
+        # shape validation below is unchanged.
+        parsed = json.loads(content, strict=False)
         return MetricScores(
             scores={metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in metrics}
         )
