@@ -6,6 +6,8 @@ Wire format is the only thing that differs from gnomon.judge.ollama.OllamaJudge
 choices[0].message.content -- so parsing/caching reuse parse_v1_judge_response
 and JudgeCache verbatim: both judges are provably scored by the identical v1
 contract (ADR-002), only the transport differs.
+For empty-context responses, context_precision is deterministically 0.0 without asking
+the model to score it, while faithfulness is still judged normally in that same call.
 """
 
 from gnomon.domain.models import EvalCase, MetricScores, RagResponse
@@ -13,6 +15,7 @@ from gnomon.http import HttpTransport, TransportError, UrllibTransport
 from gnomon.judge.cache import JudgeCache
 from gnomon.judge.ollama import JudgeProtocolError, JudgeRuntimeError, parse_v1_judge_response
 from gnomon.judge.prompts import build_prompt
+from gnomon.metrics.names import V1_METRICS
 
 _JSON_RESPONSE_FORMAT = {"type": "json_object"}
 
@@ -50,9 +53,12 @@ class OpenAICompatJudge:
         return result
 
     def _score_all(self, case: EvalCase, response: RagResponse) -> MetricScores:
+        metrics = ("faithfulness",) if not response.contexts else V1_METRICS
         payload = {
             "model": self.model_name,
-            "messages": [{"role": "user", "content": build_prompt(case, response)}],
+            "messages": [
+                {"role": "user", "content": build_prompt(case, response, metrics=metrics)}
+            ],
             "temperature": self._temperature,
             "response_format": _JSON_RESPONSE_FORMAT,
         }
@@ -69,4 +75,7 @@ class OpenAICompatJudge:
             content = body["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
-        return parse_v1_judge_response(content)
+        result = parse_v1_judge_response(content, metrics=metrics)
+        if not response.contexts:
+            return MetricScores(scores={**result.scores, "context_precision": 0.0})
+        return result

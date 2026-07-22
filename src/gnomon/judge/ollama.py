@@ -8,6 +8,8 @@ reproducibility within measured variance, not bit-exact). Scores route through
 JudgeCache so a repeat of the same (case, response, model, seed, run) does not
 re-call the model. A model answer that is not the agreed JSON shape — or that
 omits a v1 metric — raises a named error instead of fabricating a score.
+For empty-context responses, context_precision is deterministically 0.0 without asking
+the model to score it, while faithfulness is still judged normally in that same call.
 """
 
 import json
@@ -31,7 +33,7 @@ class JudgeProtocolError(JudgeError):
     """Model answer was not the agreed JSON object keyed by metric name."""
 
 
-def parse_v1_judge_response(content: str) -> MetricScores:
+def parse_v1_judge_response(content: str, *, metrics: tuple[str, ...] = V1_METRICS) -> MetricScores:
     """Parse a v1 judge response: a JSON object keyed by V1_METRICS, each value
     clamped to [0, 1]. Raises JudgeProtocolError on any shape violation (not
     JSON, missing a v1 metric key, non-numeric value) -- the stable public
@@ -40,7 +42,7 @@ def parse_v1_judge_response(content: str) -> MetricScores:
     try:
         parsed = json.loads(content)
         return MetricScores(
-            scores={metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in V1_METRICS}
+            scores={metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in metrics}
         )
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
@@ -79,9 +81,12 @@ class OllamaJudge:
     def _score_all(
         self, case: EvalCase, response: RagResponse, *, seed: int, run: int
     ) -> MetricScores:
+        metrics = ("faithfulness",) if not response.contexts else V1_METRICS
         payload = {
             "model": self.model_name,
-            "messages": [{"role": "user", "content": build_prompt(case, response)}],
+            "messages": [
+                {"role": "user", "content": build_prompt(case, response, metrics=metrics)}
+            ],
             "format": "json",
             "stream": False,
             "options": {"seed": seed + run, "temperature": self._temperature},
@@ -99,4 +104,7 @@ class OllamaJudge:
             content = body["message"]["content"]
         except (KeyError, TypeError) as exc:
             raise JudgeProtocolError(f"judge output not parseable: {exc}") from exc
-        return parse_v1_judge_response(content)
+        result = parse_v1_judge_response(content, metrics=metrics)
+        if not response.contexts:
+            return MetricScores(scores={**result.scores, "context_precision": 0.0})
+        return result

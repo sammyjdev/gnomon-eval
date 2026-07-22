@@ -33,12 +33,26 @@ V1_PROMPT_INSTRUCTIONS = (
 V1_PROMPT_JSON_SHAPE = f"{{{_JSON_SHAPE}}}"
 
 
-def build_prompt(case: EvalCase, response: RagResponse) -> str:
+def build_prompt(
+    case: EvalCase, response: RagResponse, *, metrics: tuple[str, ...] = V1_METRICS
+) -> str:
+    if metrics == V1_METRICS:
+        instructions = V1_PROMPT_INSTRUCTIONS
+        json_shape = V1_PROMPT_JSON_SHAPE
+    else:
+        metric_lines = "\n".join(f"- {m}: {_METRIC_DESCRIPTIONS[m]}" for m in metrics)
+        json_shape_inner = ", ".join(f'"{m}": <float 0..1>' for m in metrics)
+        instructions = (
+            "You are grading a RAG answer on these metrics, each a float in [0, 1]:\n"
+            f"{metric_lines}\n\n"
+            f"{UNTRUSTED_INPUT_WARNING}"
+        )
+        json_shape = f"{{{json_shape_inner}}}"
     contexts_block = "- " + "\n- ".join(response.contexts)
     return (
-        f"{V1_PROMPT_INSTRUCTIONS}\n\n"
+        f"{instructions}\n\n"
         f"QUESTION: {case.question}\n"
         f"ANSWER:\n{wrap_untrusted(response.answer)}\n"
         f"CONTEXTS:\n{wrap_untrusted(contexts_block)}\n\n"
-        f"Return ONLY a JSON object: {V1_PROMPT_JSON_SHAPE}. No prose, no explanation."
+        f"Return ONLY a JSON object: {json_shape}. No prose, no explanation."
     )

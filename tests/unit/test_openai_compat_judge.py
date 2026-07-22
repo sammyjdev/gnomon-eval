@@ -10,6 +10,7 @@ from gnomon.metrics.names import V1_METRICS
 
 CASE = EvalCase(id="c1", question="q", expected_answer="a", expected_contexts=["c"])
 RESPONSE = RagResponse(answer="a", contexts=["c"], total_tokens=5, latency_ms=1.0)
+EMPTY_CTX_RESPONSE = RagResponse(answer="a", contexts=[], total_tokens=5, latency_ms=1.0)
 
 
 class ScriptedTransport:
@@ -69,7 +70,9 @@ def test_cache_hit_skips_transport():
 
 
 def test_unparseable_model_output_is_protocol_error():
-    transport = ScriptedTransport(body_override={"choices": [{"message": {"content": "I think 0.8"}}]})
+    transport = ScriptedTransport(
+        body_override={"choices": [{"message": {"content": "I think 0.8"}}]}
+    )
     with pytest.raises(JudgeProtocolError):
         _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
 
@@ -81,3 +84,31 @@ def test_missing_metric_key_is_protocol_error():
     )
     with pytest.raises(JudgeProtocolError):
         _judge(transport).score(CASE, RESPONSE, seed=42, run=0)
+
+
+def test_empty_contexts_short_circuit_context_precision_to_zero():
+    # Judge returns a bogus non-zero context_precision even though it wasn't
+    # asked for one - the final score must still be forced to 0.0.
+    transport = ScriptedTransport(scores={"faithfulness": 0.8, "context_precision": 0.9})
+    scores = _judge(transport).score(CASE, EMPTY_CTX_RESPONSE, seed=42, run=0).scores
+    assert scores == {"faithfulness": 0.8, "context_precision": 0.0}
+
+
+def test_empty_contexts_never_asks_model_for_context_precision():
+    # The model is never even prompted about context_precision when contexts
+    # are empty - proven by a response that omits the key entirely still
+    # succeeding (a normal call would raise JudgeProtocolError on a missing
+    # v1 metric key, see test_missing_metric_key_is_protocol_error).
+    transport = ScriptedTransport(scores={"faithfulness": 0.8})
+    scores = _judge(transport).score(CASE, EMPTY_CTX_RESPONSE, seed=42, run=0).scores
+    assert scores == {"faithfulness": 0.8, "context_precision": 0.0}
+    _, payload, _ = transport.calls[0]
+    assert "context_precision" not in payload["messages"][0]["content"]
+
+
+def test_empty_contexts_still_makes_exactly_one_real_transport_call():
+    # faithfulness is not short-circuited, it still requires a real judge
+    # call, exactly one, same as the non-empty-context path.
+    transport = ScriptedTransport(scores={"faithfulness": 0.8})
+    _judge(transport).score(CASE, EMPTY_CTX_RESPONSE, seed=42, run=0)
+    assert len(transport.calls) == 1
