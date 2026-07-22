@@ -1,5 +1,7 @@
 """Panel runner tests (ADR-0012)."""
 
+import threading
+
 import pytest
 
 from gnomon.config.config import EvalConfig
@@ -72,6 +74,37 @@ def test_panel_runner_queries_target_once_per_case():
         EvalConfig(reproducible=True, seed=42, judge_runs=2),
     )
     assert target.calls == len(CASES)
+
+
+class _BarrierJudge:
+    """Scores only if all panel members reach score() at the same time."""
+
+    def __init__(self, barrier: threading.Barrier, inner: StubJudge):
+        self.barrier = barrier
+        self.inner = inner
+
+    def score(self, case, response, *, seed, run):
+        self.barrier.wait(timeout=2.0)
+        return self.inner.score(case, response, seed=seed, run=run)
+
+
+def test_panel_runner_scores_members_concurrently():
+    barrier = threading.Barrier(3)
+    members = [
+        PanelMember(
+            f"judge-{i}", f"vendor-{i}", _BarrierJudge(barrier, StubJudge(base=b, jitter=0.0))
+        )
+        for i, b in enumerate((0.9, 0.7, 0.5))
+    ]
+    report = run_panel_eval(
+        CASES,
+        _target(),
+        members,
+        EvalConfig(reproducible=True, seed=42, judge_runs=1, deterministic_judge=True),
+    )
+    # Concurrency must not change results or ordering.
+    for member, expected in zip(report.judge_reports, (0.9, 0.7, 0.5), strict=True):
+        assert member.metric("faithfulness").mean == pytest.approx(expected)
 
 
 def test_panel_runner_denoises_runs_within_each_case():
