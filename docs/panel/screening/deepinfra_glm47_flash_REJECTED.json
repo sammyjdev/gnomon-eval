@@ -1,0 +1,30 @@
+{
+  "candidate": "zai-org/GLM-4.7-Flash (deepinfra)",
+  "passed": false,
+  "probes": [
+    {
+      "case_id": "sb-001",
+      "valid_json": false,
+      "schema_compliant": false,
+      "hallucinated_keys": [],
+      "passed": false,
+      "reason": "not valid JSON: Expecting value: line 1 column 1 (char 0)"
+    },
+    {
+      "case_id": "sb-002",
+      "valid_json": false,
+      "schema_compliant": false,
+      "hallucinated_keys": [],
+      "passed": false,
+      "reason": "not valid JSON: Expecting value: line 1 column 1 (char 0)"
+    },
+    {
+      "case_id": "sb-003",
+      "valid_json": false,
+      "schema_compliant": false,
+      "hallucinated_keys": [],
+      "passed": false,
+      "reason": "not valid JSON: Expecting value: line 1 column 1 (char 0)"
+    }
+  ]
+}

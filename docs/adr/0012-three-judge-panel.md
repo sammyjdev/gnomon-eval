@@ -69,6 +69,9 @@ schema + disagreement stats), (b) capacity-screening harness (B4), (c)
 initial panel selection run + pinning. TDD throughout; contract doc updated;
 existing 17-case dataset is the screening corpus.
 
+(c) done (issue #55): three distinct-family candidates screened and pinned
+in `config/panel.toml`; selection record and evidence in `docs/panel/`.
+
 ## Revisit triggers
 
 1. Free rails stop carrying three viable same-generation families → drop to
