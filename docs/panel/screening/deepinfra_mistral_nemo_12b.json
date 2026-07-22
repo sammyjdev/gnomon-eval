@@ -1,0 +1,30 @@
+{
+  "candidate": "mistralai/Mistral-Nemo-Instruct-2407 (deepinfra)",
+  "passed": true,
+  "probes": [
+    {
+      "case_id": "sb-001",
+      "valid_json": true,
+      "schema_compliant": true,
+      "hallucinated_keys": [],
+      "passed": true,
+      "reason": null
+    },
+    {
+      "case_id": "sb-002",
+      "valid_json": true,
+      "schema_compliant": true,
+      "hallucinated_keys": [],
+      "passed": true,
+      "reason": null
+    },
+    {
+      "case_id": "sb-003",
+      "valid_json": true,
+      "schema_compliant": true,
+      "hallucinated_keys": [],
+      "passed": true,
+      "reason": null
+    }
+  ]
+}

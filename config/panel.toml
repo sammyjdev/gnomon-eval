@@ -1,0 +1,63 @@
+# Example RunConfig with a three-judge panel (ADR-0012 / issue #55).
+#
+# Panel members are three distinct vendor families, each screened through
+# the B4 capacity bar (src/gnomon/judge/screening.py) against the
+# second_brain dataset (the ADR-0012 screening corpus) before being pinned
+# here. Meta and Mistral are size-matched (8-12B); the third slot (Alibaba
+# Qwen candidates) failed on operational grounds (latency/schema, not
+# capacity) and was replaced by GLM-4.6 -- larger than the other two members,
+# a declared deviation from "same generation" size-parity. See
+# docs/panel/selection.md for the full selection record (including rejected
+# candidates) and docs/panel/screening/*.json for the raw evidence.
+#
+# The top-level [judge] stays the offline fallback (ADR-0012 #6): a local
+# Ollama Llama-3.1-8B, single-judge mode when the hosted panel is
+# unreachable. It is not screened here (host offline at selection time);
+# treat any run using only this judge as single-judge, not panel, per ADR.
+
+dataset_path = "datasets/second_brain/cases.json"
+
+[eval]
+reproducible = true
+seed = 42
+deterministic_judge = true
+judge_runs = 1
+confidence_level = 0.95
+
+[target]
+kind = "mock"
+
+[judge]
+provider = "ollama"
+model = "llama3.1:8b"
+base_url = "http://localhost:11434"
+
+[gate]
+faithfulness = 0.5
+context_precision = 0.5
+
+[panel]
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "meta"
+screening_evidence = "docs/panel/screening/deepinfra_llama31_8b.json"
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "zai-org/GLM-4.6"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "zhipu"
+screening_evidence = "docs/panel/screening/deepinfra_glm46.json"
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "mistralai/Mistral-Nemo-Instruct-2407"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "mistral"
+screening_evidence = "docs/panel/screening/deepinfra_mistral_nemo_12b.json"
