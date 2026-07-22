@@ -20,6 +20,20 @@ def test_build_prompt_is_composed_from_the_public_constants():
     assert V1_PROMPT_JSON_SHAPE in prompt
 
 
+def test_build_prompt_with_metrics_subset_excludes_other_metrics():
+    response = RagResponse(answer="a", contexts=[], total_tokens=1, latency_ms=1.0)
+    prompt = build_prompt(CASE, response, metrics=("faithfulness",))
+    assert "context_precision" not in prompt
+    assert "faithfulness" in prompt
+
+
+def test_build_prompt_default_metrics_unchanged():
+    response = RagResponse(answer="a", contexts=["c"], total_tokens=1, latency_ms=1.0)
+    prompt = build_prompt(CASE, response)
+    assert V1_PROMPT_INSTRUCTIONS in prompt
+    assert V1_PROMPT_JSON_SHAPE in prompt
+
+
 def test_untrusted_answer_is_wrapped_in_delimiters():
     response = RagResponse(answer=INJECTION, contexts=["c"], total_tokens=1, latency_ms=1.0)
     prompt = build_prompt(CASE, response)
