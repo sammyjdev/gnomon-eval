@@ -1,0 +1,347 @@
+{
+  "arm": "off",
+  "n_cases": 34,
+  "panel": {
+    "judges": [
+      {
+        "judge_id": "deepinfra-llama31-8b",
+        "family": "meta",
+        "metrics": [
+          {
+            "metric": "faithfulness",
+            "mean": 0.5352941176470589,
+            "ci_low": 0.4411764705882353,
+            "ci_high": 0.6205882352941178,
+            "n": 34,
+            "confidence_level": 0.95
+          },
+          {
+            "metric": "context_precision",
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "n": 34,
+            "confidence_level": 0.95
+          }
+        ]
+      },
+      {
+        "judge_id": "deepinfra-glm46",
+        "family": "zhipu",
+        "metrics": [
+          {
+            "metric": "faithfulness",
+            "mean": 0.35294117647058826,
+            "ci_low": 0.20588235294117646,
+            "ci_high": 0.5294117647058824,
+            "n": 34,
+            "confidence_level": 0.95
+          },
+          {
+            "metric": "context_precision",
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "n": 34,
+            "confidence_level": 0.95
+          }
+        ]
+      },
+      {
+        "judge_id": "deepinfra-mistral-nemo-12b",
+        "family": "mistral",
+        "metrics": [
+          {
+            "metric": "faithfulness",
+            "mean": 0.04411764705882353,
+            "ci_low": 0.0,
+            "ci_high": 0.10294117647058823,
+            "n": 34,
+            "confidence_level": 0.95
+          },
+          {
+            "metric": "context_precision",
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "n": 34,
+            "confidence_level": 0.95
+          }
+        ]
+      }
+    ],
+    "disagreement": [
+      {
+        "metric": "faithfulness",
+        "case_deltas": {
+          "sb-001": 1.0,
+          "sb-002": 0.6,
+          "sb-003": 1.0,
+          "sb-004": 0.5,
+          "sb-005": 0.0,
+          "sb-006": 0.6,
+          "sb-007": 0.6,
+          "sb-008": 0.8,
+          "sb-009": 1.0,
+          "sb-010": 0.8,
+          "sb-011": 0.6,
+          "sb-012": 0.6,
+          "sb-013": 0.8,
+          "sb-014": 0.5,
+          "sb-015": 0.8,
+          "sb-016": 1.0,
+          "sb-017": 0.6,
+          "sb-018": 1.0,
+          "sb-023": 0.8,
+          "sb-026": 0.6,
+          "sb-028": 0.8,
+          "sb-031": 0.6,
+          "sb-032": 0.5,
+          "sb-033": 1.0,
+          "sb-034": 0.5,
+          "sb-035": 1.0,
+          "sb-036": 1.0,
+          "sb-037": 0.8,
+          "sb-038": 1.0,
+          "sb-039": 1.0,
+          "sb-041": 1.0,
+          "sb-042": 1.0,
+          "sb-043": 0.0,
+          "sb-044": 0.8
+        },
+        "pairwise_correlation": {
+          "deepinfra-llama31-8b|deepinfra-glm46": -0.3206921505376667,
+          "deepinfra-llama31-8b|deepinfra-mistral-nemo-12b": 0.03572345341373046,
+          "deepinfra-glm46|deepinfra-mistral-nemo-12b": -0.22975187432024508
+        }
+      },
+      {
+        "metric": "context_precision",
+        "case_deltas": {
+          "sb-001": 0.0,
+          "sb-002": 0.0,
+          "sb-003": 0.0,
+          "sb-004": 0.0,
+          "sb-005": 0.0,
+          "sb-006": 0.0,
+          "sb-007": 0.0,
+          "sb-008": 0.0,
+          "sb-009": 0.0,
+          "sb-010": 0.0,
+          "sb-011": 0.0,
+          "sb-012": 0.0,
+          "sb-013": 0.0,
+          "sb-014": 0.0,
+          "sb-015": 0.0,
+          "sb-016": 0.0,
+          "sb-017": 0.0,
+          "sb-018": 0.0,
+          "sb-023": 0.0,
+          "sb-026": 0.0,
+          "sb-028": 0.0,
+          "sb-031": 0.0,
+          "sb-032": 0.0,
+          "sb-033": 0.0,
+          "sb-034": 0.0,
+          "sb-035": 0.0,
+          "sb-036": 0.0,
+          "sb-037": 0.0,
+          "sb-038": 0.0,
+          "sb-039": 0.0,
+          "sb-041": 0.0,
+          "sb-042": 0.0,
+          "sb-043": 0.0,
+          "sb-044": 0.0
+        },
+        "pairwise_correlation": {
+          "deepinfra-llama31-8b|deepinfra-glm46": 0.0,
+          "deepinfra-llama31-8b|deepinfra-mistral-nemo-12b": 0.0,
+          "deepinfra-glm46|deepinfra-mistral-nemo-12b": 0.0
+        }
+      }
+    ],
+    "cost": {
+      "total_tokens": 16230,
+      "mean_latency_ms": 1931.7635183414334
+    },
+    "per_case": [
+      {
+        "case_id": "sb-001",
+        "total_tokens": 426,
+        "latency_ms": 685.7277089729905
+      },
+      {
+        "case_id": "sb-002",
+        "total_tokens": 483,
+        "latency_ms": 928.5330830607563
+      },
+      {
+        "case_id": "sb-003",
+        "total_tokens": 624,
+        "latency_ms": 1223.1557500781491
+      },
+      {
+        "case_id": "sb-004",
+        "total_tokens": 441,
+        "latency_ms": 708.7519580963999
+      },
+      {
+        "case_id": "sb-005",
+        "total_tokens": 175,
+        "latency_ms": 1748.072624905035
+      },
+      {
+        "case_id": "sb-006",
+        "total_tokens": 391,
+        "latency_ms": 1030.6360829854384
+      },
+      {
+        "case_id": "sb-007",
+        "total_tokens": 870,
+        "latency_ms": 3202.725625014864
+      },
+      {
+        "case_id": "sb-008",
+        "total_tokens": 598,
+        "latency_ms": 26826.106082997285
+      },
+      {
+        "case_id": "sb-009",
+        "total_tokens": 487,
+        "latency_ms": 1157.6818339526653
+      },
+      {
+        "case_id": "sb-010",
+        "total_tokens": 639,
+        "latency_ms": 1252.2727909963578
+      },
+      {
+        "case_id": "sb-011",
+        "total_tokens": 521,
+        "latency_ms": 877.9690000228584
+      },
+      {
+        "case_id": "sb-012",
+        "total_tokens": 373,
+        "latency_ms": 1197.7674170630053
+      },
+      {
+        "case_id": "sb-013",
+        "total_tokens": 862,
+        "latency_ms": 3502.3816250031814
+      },
+      {
+        "case_id": "sb-014",
+        "total_tokens": 484,
+        "latency_ms": 816.8232080060989
+      },
+      {
+        "case_id": "sb-015",
+        "total_tokens": 726,
+        "latency_ms": 2972.6475419010967
+      },
+      {
+        "case_id": "sb-016",
+        "total_tokens": 227,
+        "latency_ms": 695.4561660531908
+      },
+      {
+        "case_id": "sb-017",
+        "total_tokens": 804,
+        "latency_ms": 3220.886665978469
+      },
+      {
+        "case_id": "sb-018",
+        "total_tokens": 629,
+        "latency_ms": 1245.8154159830883
+      },
+      {
+        "case_id": "sb-023",
+        "total_tokens": 690,
+        "latency_ms": 1420.7117500482127
+      },
+      {
+        "case_id": "sb-026",
+        "total_tokens": 648,
+        "latency_ms": 1298.8403330091387
+      },
+      {
+        "case_id": "sb-028",
+        "total_tokens": 666,
+        "latency_ms": 1232.2963339975104
+      },
+      {
+        "case_id": "sb-031",
+        "total_tokens": 549,
+        "latency_ms": 1124.784417101182
+      },
+      {
+        "case_id": "sb-032",
+        "total_tokens": 542,
+        "latency_ms": 1025.612459052354
+      },
+      {
+        "case_id": "sb-033",
+        "total_tokens": 460,
+        "latency_ms": 777.559042093344
+      },
+      {
+        "case_id": "sb-034",
+        "total_tokens": 428,
+        "latency_ms": 1011.1704579321668
+      },
+      {
+        "case_id": "sb-035",
+        "total_tokens": 179,
+        "latency_ms": 487.29954205919057
+      },
+      {
+        "case_id": "sb-036",
+        "total_tokens": 631,
+        "latency_ms": 1185.416999971494
+      },
+      {
+        "case_id": "sb-037",
+        "total_tokens": 745,
+        "latency_ms": 1510.6751669663936
+      },
+      {
+        "case_id": "sb-038",
+        "total_tokens": 212,
+        "latency_ms": 441.1065831081942
+      },
+      {
+        "case_id": "sb-039",
+        "total_tokens": 59,
+        "latency_ms": 17.187500023283064
+      },
+      {
+        "case_id": "sb-041",
+        "total_tokens": 57,
+        "latency_ms": 15.506000025197864
+      },
+      {
+        "case_id": "sb-042",
+        "total_tokens": 67,
+        "latency_ms": 21.900208084844053
+      },
+      {
+        "case_id": "sb-043",
+        "total_tokens": 53,
+        "latency_ms": 16.238708049058914
+      },
+      {
+        "case_id": "sb-044",
+        "total_tokens": 484,
+        "latency_ms": 800.2435410162434
+      }
+    ]
+  },
+  "gate": {
+    "passed": false,
+    "failures": [
+      "faithfulness: 0/3 judges passed (need 2); deepinfra-llama31-8b: ci_low=0.441 (fail); deepinfra-glm46: ci_low=0.206 (fail); deepinfra-mistral-nemo-12b: ci_low=0.000 (fail)",
+      "context_precision: 0/3 judges passed (need 2); deepinfra-llama31-8b: ci_low=0.000 (fail); deepinfra-glm46: ci_low=0.000 (fail); deepinfra-mistral-nemo-12b: ci_low=0.000 (fail)"
+    ]
+  }
+}
