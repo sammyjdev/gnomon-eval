@@ -11,3 +11,6 @@ __pycache__/
 
 # Secrets
 .env
+
+# LinkedIn article draft (personal, keep local)
+docs/articles/honest-ci.md
