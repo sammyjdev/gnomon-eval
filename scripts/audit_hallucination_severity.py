@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gnomon.domain.chat import ChatCase, ChatResult  # noqa: E402
 from gnomon.judge.chat_judge import ChatJudge  # noqa: E402
 
-LINA_REPO = "<CHATEVAL_TARGET_CWD>"
+LINA_REPO = os.environ.get("LINA_REPO", ".")
 CASES_PATH = "datasets/lina_chateval/cases.json"
 DUMP_PATH = os.path.join(
     LINA_REPO, "docs/eval-runs/2026-07-07-haiku-chateval/new_178_cases_full_dump.json"

@@ -29,7 +29,7 @@ def _make_cfg() -> ChatRunConfig:
         dataset_path="datasets/lina_chateval/cases.json",
         target=ChatTargetConfig(
             script_path="gateway/scripts/run_chateval_case.py",
-            cwd="<CHATEVAL_TARGET_CWD>",
+            cwd=".",
         ),
         judge=ChatJudgeConfig(
             primary_model="meta/llama-3.3-70b-instruct",
@@ -182,7 +182,7 @@ def test_run_chat_from_config_uses_configured_seed_not_a_hardcoded_one(monkeypat
         dataset_path="datasets/lina_chateval/cases.json",
         target=ChatTargetConfig(
             script_path="gateway/scripts/run_chateval_case.py",
-            cwd="<CHATEVAL_TARGET_CWD>",
+            cwd=".",
         ),
         judge=ChatJudgeConfig(
             primary_model="meta/llama-3.3-70b-instruct",

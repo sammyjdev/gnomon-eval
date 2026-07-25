@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from gnomon.config.env import expand_env
+
 from gnomon.config.config import EvalConfig
 
 
@@ -96,7 +98,7 @@ class RunConfig(BaseModel):
     @classmethod
     def from_file(cls, path: str | Path) -> "RunConfig":
         path = Path(path)
-        data: dict[str, Any] = tomllib.loads(path.read_text(encoding="utf-8"))
+        data: dict[str, Any] = expand_env(tomllib.loads(path.read_text(encoding="utf-8")))
         gate = data.get("gate", {})
         # TOML [gate] is a flat table of metric=threshold; wrap into thresholds.
         if "thresholds" not in gate:
@@ -114,5 +116,5 @@ class SessionRunConfig(BaseModel):
     @classmethod
     def from_file(cls, path: str | Path) -> "SessionRunConfig":
         path = Path(path)
-        data: dict[str, Any] = tomllib.loads(path.read_text(encoding="utf-8"))
+        data: dict[str, Any] = expand_env(tomllib.loads(path.read_text(encoding="utf-8")))
         return cls(**data)

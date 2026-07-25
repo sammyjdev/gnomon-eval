@@ -148,7 +148,7 @@ def _patch_session_run(monkeypatch, *, quality_gate: str):
     class FakeSessionOllamaJudge:
         def __init__(self, **kwargs):
             assert kwargs["model"] == "llama3.1:8b"
-            assert kwargs["base_url"] == "http://<judge-host>:11434"
+            assert kwargs["base_url"] == "http://localhost:11434"
             assert kwargs["timeout_s"] == 60.0
             assert kwargs["cache"] is not None
 

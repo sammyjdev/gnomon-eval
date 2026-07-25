@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from gnomon.config.env import expand_env
+
 
 class ChatTargetConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -47,7 +49,7 @@ class ChatRunConfig(BaseModel):
     @classmethod
     def from_file(cls, path: str | Path) -> "ChatRunConfig":
         path = Path(path)
-        data: dict[str, Any] = tomllib.loads(path.read_text(encoding="utf-8"))
+        data: dict[str, Any] = expand_env(tomllib.loads(path.read_text(encoding="utf-8")))
         gate = data.get("gate", {})
         if "thresholds" not in gate:
             data["gate"] = {"thresholds": gate}

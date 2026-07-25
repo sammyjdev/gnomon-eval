@@ -2,7 +2,7 @@ dataset_path = "datasets/lina_chateval/cases.json"
 
 [target]
 script_path = "gateway/scripts/run_chateval_case.py"
-cwd = "<CHATEVAL_TARGET_CWD>"
+cwd = "${CHATEVAL_TARGET_CWD:-.}"
 
 [judge]
 # NIM removed 2026-07-09: shares its free-tier quota with AXON's own
