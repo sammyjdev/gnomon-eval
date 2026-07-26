@@ -12,7 +12,7 @@ VALID_TOML = textwrap.dedent(
 
     [target]
     script_path = "gateway/scripts/run_chateval_case.py"
-    cwd = "/tmp/target-repo"
+    cwd = "/opt/target-repo"
 
     [judge]
     primary_model = "meta/llama-3.3-70b-instruct"
@@ -34,7 +34,7 @@ def test_chat_run_config_loads_from_toml(tmp_path):
 
     assert cfg.dataset_path == "datasets/lina_chateval/cases.json"
     assert cfg.target.script_path == "gateway/scripts/run_chateval_case.py"
-    assert cfg.target.cwd == "/tmp/target-repo"
+    assert cfg.target.cwd == "/opt/target-repo"
     assert cfg.target.timeout_s == 60.0
     assert cfg.judge.primary_model == "meta/llama-3.3-70b-instruct"
     assert cfg.judge.fallback_model == "phi4:14b"

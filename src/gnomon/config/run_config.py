@@ -13,9 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from gnomon.config.env import expand_env
-
 from gnomon.config.config import EvalConfig
+from gnomon.config.env import expand_env
 
 
 class TargetConfig(BaseModel):
