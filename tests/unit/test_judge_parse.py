@@ -42,3 +42,17 @@ def test_malformed_json_is_protocol_error():
 def test_missing_metric_key_is_protocol_error():
     with pytest.raises(JudgeProtocolError):
         parse_v1_judge_response(json.dumps({V1_METRICS[0]: 0.8}))
+
+
+def test_trailing_commentary_after_json_object_is_tolerated():
+    # Observed with Mistral-Nemo on DeepInfra (graphify-vs-glyph bench,
+    # 2026-07-26): a valid JSON object followed by prose commentary.
+    # Deterministic per seed, so retries cannot recover — parse must.
+    content = (
+        '{"faithfulness": 0.7, "context_precision": 0.6}\n\n'
+        "Explanation: the answer is mostly grounded."
+    )
+
+    result = parse_v1_judge_response(content)
+
+    assert result.scores == {"faithfulness": 0.7, "context_precision": 0.6}

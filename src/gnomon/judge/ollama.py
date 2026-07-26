@@ -43,7 +43,14 @@ def parse_v1_judge_response(content: str, *, metrics: tuple[str, ...] = V1_METRI
         # strict=False: hosted judges occasionally emit raw control characters
         # (e.g. a literal newline) inside string values; tolerate them -- the
         # shape validation below is unchanged.
-        parsed = json.loads(content, strict=False)
+        try:
+            parsed = json.loads(content, strict=False)
+        except json.JSONDecodeError:
+            # Hosted judges also occasionally append prose commentary after
+            # the JSON object (observed with Mistral-Nemo on DeepInfra);
+            # deterministic per seed, so retries cannot recover. Take the
+            # first JSON document and ignore the trailer.
+            parsed, _end = json.JSONDecoder(strict=False).raw_decode(content.strip())
         return MetricScores(
             scores={metric: max(0.0, min(1.0, float(parsed[metric]))) for metric in metrics}
         )
