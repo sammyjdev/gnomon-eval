@@ -3,6 +3,8 @@
 **Date:** 2026-07-04
 **Status:** Accepted
 
+> **Amendment (2026-07-27 audit):** the *framework* (three named counterfactuals, never mixed) still stands and is followed in the runbooks. But the frozen measurement snapshot in this ADR (17 cases, 2026-07-04) is **superseded** — the dataset grew to N=34 and the live panel run in `docs/panel/initial-run.md` (2026-07-22) shows different results (faithfulness now fails the majority gate). Do NOT cite the old numbers; treat the runbook as the live source of truth for measured verdicts.
+
 ## Context
 
 ADR-009 established that any "AXON saves tokens" claim needs a real
