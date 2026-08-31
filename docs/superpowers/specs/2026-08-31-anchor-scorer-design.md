@@ -112,18 +112,22 @@ that reindentation does not break a match; nothing else is transformed.
 
 ### Empty inputs
 
-A case with no `expected_contexts` is **not scorable and must be excluded from
-the aggregate**, never scored 0.0 — a zero is indistinguishable from "retrieved
-nothing relevant", which is the exact confusion this spec exists to remove. The
-scorer raises rather than guessing, and the corpus is expected to have no such
-case: all 30 cases of both corpora carry anchors today, and a regression there
-should fail loudly.
+A case with no `expected_contexts` cannot occur: `EvalCase` declares
+`expected_contexts: list[str] = Field(min_length=1)`, so pydantic rejects it at
+construction. The scorer needs no branch for it.
 
-A response with no contexts at all is a legitimate 0.0 for `anchor_recall` (it
-reached none of the anchors) and is **excluded from `anchor_precision`**, whose
-denominator is the number of retrieved contexts. Reporting precision 0.0 for an
-empty retrieval would punish it twice for the same failure and would make the
-two metrics no longer independent.
+**A response with no contexts scores 0.0 on both metrics**, matching the
+convention `OpenAICompatJudge` already enforces — it forces
+`context_precision = 0.0` when `response.contexts` is empty, protected by three
+tests (`test_empty_contexts_short_circuit_context_precision_to_zero` and
+siblings).
+
+An earlier draft of this spec excluded empty retrievals from `anchor_precision`
+on the grounds that a zero denominator is undefined and that scoring 0.0 punishes
+one failure twice. That reasoning was wrong in a way worth recording: excluding a
+case from the aggregate *removes it from the mean*, which **benefits** the
+retriever that returned nothing. Returning nothing must never score better than
+returning something imperfect.
 
 ## The gate this must pass before any claim uses it
 

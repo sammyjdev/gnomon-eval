@@ -1,0 +1,17 @@
+dataset_path = "datasets/lina_chateval/cases.json"
+
+[target]
+script_path = "gateway/scripts/run_chateval_case.py"
+cwd = "/Users/samdev/dev/lina-worktrees/ablation-retry-only"
+
+[judge]
+primary_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+secondary_model = "llama-3.3-70b-versatile"
+tertiary_model = "gpt-oss-120b"
+fallback_model = "phi4:14b"
+fallback_base_url = "http://localhost:11434"
+
+[gate]
+tool_selection_accuracy = 0.756
+tone_brand = 0.672
+hallucination = 0.70
