@@ -42,8 +42,12 @@ Scored without any model:
 
 The deterministic metric separates the arms at least as sharply as three LLM
 judges, at zero cost, with no latency (the panel averages 27s/case, outliers at
-140s), and its correlation with the panel is +0.513 / +0.534 across the two arms
-— a 0.02 difference against the judges' 0.286 swing among themselves.
+140s), and its correlation with the panel is +0.513 / +0.534 across the two arms.
+
+Those two correlations are NOT comparable to the judges' 0.286: that is a swing
+in correlation-to-consensus, a different quantity on a different pair of things.
+An earlier draft set "a 0.02 difference" against it; the comparison was retracted
+from `metron/judge-calibration/RESCORE.md` and is struck here too.
 
 ## Decision
 
@@ -55,10 +59,28 @@ Two numbers, reported separately and never averaged:
 - `anchor_precision` — fraction of retrieved contexts containing at least one
   anchor.
 
-They move in opposite directions by design: a signature-level repo map scores
-0.400 precision against 0.170 recall, because it returns many short contexts of
-which a large share contain an anchor while most anchors never appear. Averaging
-them would hide exactly the trade-off the benchmark exists to expose.
+They move in opposite directions by design, and averaging them would hide
+exactly the trade-off the benchmark exists to expose.
+
+The worked example has to be stated carefully, because the obvious version of it
+is wrong. `aider-repomap` scores 0.400 precision against 0.170 recall. It does
+NOT do so by returning many short contexts of which a large share carry an
+anchor: it returns **exactly one context per case, mean 12,591 characters** (30
+cases, measured). Its 0.400 is therefore "12 of 30 cases had an anchor somewhere
+in the single blob", and its 0.170 is "17% of all anchors were reached".
+
+**`anchor_precision` is not comparable across arms that return different numbers
+of contexts.** Its denominator is the arm's own retrieval depth k, so the metric
+answers a different question at each k, and at k=1 it degenerates entirely:
+
+    anchor_precision == 1.0 if recall > 0 else 0.0
+
+which is `P(recall > 0)` once averaged over cases — a case-level hit rate
+*coupled to* recall, not a precision trading off against it. Measured contexts
+per case on the six rescorable arms: `aider-repomap` 1.0, `vector-sym-v1` 4.7,
+`vector-sym-v2` 6.7, `llamaindex-vector` / `llamaindex-java` 8.0,
+`graphify-java` 11.7. Read `anchor_precision` within an arm across corpora or
+across revisions of the same retriever; do not rank arms by it.
 
 **2. The judge keeps `faithfulness`.** It grades the answer against the contexts
 and has no answer key, so subjectivity there is legitimate. This spec does not
@@ -143,11 +165,16 @@ gson/Java):
    two arms. The equivalent number for this metric must be computed and reported,
    not assumed to be small.
 3. **Literalness bias, quantified.** Substring matching favours retrievers that
-   return verbatim code and penalises those that summarise. The measured
-   inversion — aider-repomap at 0.400 precision against llamaindex at 0.237,
-   with 4× lower recall — is consistent with that bias. The rescore of the six
-   arms shows whether it changes any ordering; if it does, the metric is not
+   return verbatim code and penalises those that summarise. The rescore of the
+   six arms shows whether it changes any ordering; if it does, the metric is not
    fit for a public claim without a paraphrase-tolerant variant.
+
+   An earlier draft offered "aider-repomap at 0.400 precision against llamaindex
+   at 0.237, with 4× lower recall" as evidence of that bias. It is not: those two
+   arms retrieve at k=1 and k=8, so per the caveat under decision 1 their
+   `anchor_precision` values are not comparable, and at k=1 the 0.400 is a
+   restatement of recall rather than an independent quantity. Only
+   `anchor_recall` can carry this gate.
 
 If the gate fails, the fallback is gnomon-eval#68 item 3: keep the judged metric
 and fix how it is asked (pass `expected_contexts`, allow a short justification

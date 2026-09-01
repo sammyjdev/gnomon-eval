@@ -30,9 +30,16 @@ def anchor_hits(anchors: list[str], contexts: list[str]) -> list[str]:
 
 
 def anchor_recall(anchors: list[str], contexts: list[str]) -> float:
-    """Fraction of expected anchors the contexts reached."""
+    """Fraction of expected anchors the contexts reached.
+
+    An empty answer key raises rather than scoring 0.0: recall over no anchors
+    is vacuous, not zero, and returning 0.0 would report a perfect-by-vacuity
+    retrieval as a total miss. EvalCase already makes this unreachable from the
+    scorer (`expected_contexts: Field(min_length=1)`); the guard is for direct
+    callers of this function.
+    """
     if not anchors:
-        return 0.0
+        raise ValueError("anchor_recall needs at least one anchor: recall over none is undefined")
     return len(anchor_hits(anchors, contexts)) / len(anchors)
 
 

@@ -41,3 +41,12 @@ def test_empty_contexts_score_zero_on_both() -> None:
     """Matches OpenAICompatJudge: an empty retrieval is 0.0, never excluded."""
     assert anchor_recall(["a()"], []) == 0.0
     assert anchor_precision(["a()"], []) == 0.0
+
+
+def test_recall_rejects_an_empty_answer_key() -> None:
+    """Vacuous recall is not zero: an empty key is a caller bug, not a total miss.
+
+    Unreachable from AnchorScorer - EvalCase.expected_contexts has min_length=1.
+    """
+    with pytest.raises(ValueError, match="at least one anchor"):
+        anchor_recall([], ["def a(): ..."])
