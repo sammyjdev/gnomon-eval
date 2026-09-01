@@ -51,8 +51,13 @@ from `metron/judge-calibration/RESCORE.md` and is struck here too.
 
 ## Decision
 
-**1. Anchor coverage becomes the primary context metric, computed with no model.**
-Two numbers, reported separately and never averaged:
+**1. Anchor coverage becomes the primary metric for answer-key coverage,
+computed with no model. It does not replace the judged `context_precision` as a
+measure of relevance.** That qualifier is not decoration: the gate found
+`anchor_recall` reproduces 4 of the 5 CI-separated panel verdicts in scope and
+reverses none, which licenses it as a coverage metric — and says nothing about
+the cases the panel could not separate, which is where relevance judgements
+actually live. Two numbers, reported separately and never averaged:
 
 - `anchor_recall` — fraction of a case's expected anchors present anywhere in the
   retrieved contexts.
