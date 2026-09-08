@@ -43,6 +43,30 @@ def anchor_recall(anchors: list[str], contexts: list[str]) -> float:
     return len(anchor_hits(anchors, contexts)) / len(anchors)
 
 
+def context_cost(contexts: list[str], *, budget_tokens: int) -> float:
+    """Fraction of the shared token budget this retrieval spent.
+
+    anchor_recall has no defence against being inflated with volume: a retriever
+    returning the whole repository scores near 1.0. The metric that would
+    normally control for that - anchor_precision - is not comparable across arms
+    with different retrieval depth, because its denominator IS that depth and at
+    k=1 it degenerates to P(recall > 0).
+
+    Measured on the METRON roundtable: naive windows scored 0.421 / 0.517 / 0.603
+    at 20 / 40 / 60 lines while recall per 1k tokens fell 0.325 -> 0.202 -> 0.167.
+    Reading recall without its cost recommends the worst arm.
+
+    A fraction rather than a raw count, for two reasons: it is what makes two
+    arms comparable, and MetricScores validates every value into [0, 1], which is
+    a guarantee worth more than the convenience of a count. Overspend clamps to
+    1.0 and reads as saturation.
+    """
+    if budget_tokens <= 0:
+        raise ValueError("budget_tokens must be positive to express a cost as a fraction")
+    estimated = sum(len(c) for c in contexts) / 4
+    return min(1.0, estimated / budget_tokens)
+
+
 def anchor_precision(anchors: list[str], contexts: list[str]) -> float:
     """Fraction of retrieved contexts carrying at least one anchor.
 

@@ -17,3 +17,9 @@ STORY_COVERAGE = "story_coverage"
 # Order is the report/display order. Never average the two - they move in
 # opposite directions by design.
 ANCHOR_METRICS: tuple[str, ...] = ("anchor_recall", "anchor_precision")
+
+#: The context cost that ships beside ANCHOR_METRICS. Deliberately NOT part of
+#: that tuple: it is a cost, not a quality, and must never be averaged with a
+#: score. It exists so a recall number cannot be read without what it cost
+#: (gnomon-eval#69).
+ANCHOR_COST = "context_tokens"

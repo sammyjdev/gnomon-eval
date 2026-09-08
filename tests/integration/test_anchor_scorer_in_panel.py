@@ -1,3 +1,4 @@
+import pytest
 """AnchorScorer through run_panel_eval, checking the "ordinary PanelMember" claim.
 
 The spec asserts the scorer "enters a panel as an ordinary PanelMember, so it
@@ -68,8 +69,12 @@ def test_panel_accepts_the_scorer_with_no_runner_change() -> None:
 
 def test_panel_aggregates_exactly_the_anchor_metrics() -> None:
     """It must not acquire the judged V1 metrics, nor lose one of its own."""
+    from gnomon.metrics.names import ANCHOR_COST
+
     metrics = {metric.metric for metric in _anchor_report(_panel_report()).metrics}
-    assert metrics == set(ANCHOR_METRICS)
+    # The cost joined the output in gnomon-eval#69 so a recall number cannot be
+    # read without it; nothing else may join, and none of the judged V1 metrics.
+    assert metrics == set(ANCHOR_METRICS) | {ANCHOR_COST}
     assert not metrics & set(V1_METRICS)
 
 
@@ -93,7 +98,14 @@ def test_extra_judge_runs_are_wasted_work_not_noise_reduction() -> None:
     """The spec's judge_runs claim: deterministic, so averaging runs changes nothing."""
     one = _anchor_report(_panel_report(judge_runs=1, deterministic_judge=True)).metrics
     many = _anchor_report(_panel_report(judge_runs=7)).metrics
-    assert {m.metric: m.mean for m in one} == {m.metric: m.mean for m in many}
+    # approx, not equality: averaging seven identical values reintroduces
+    # float rounding that a single run does not have (0.0015625 vs
+    # 0.0015624999999999999). The contract is that runs add no information.
+    one_by_metric = {m.metric: m.mean for m in one}
+    many_by_metric = {m.metric: m.mean for m in many}
+    assert one_by_metric.keys() == many_by_metric.keys()
+    for metric, mean in one_by_metric.items():
+        assert mean == pytest.approx(many_by_metric[metric])
 
 
 def test_disagreement_covers_the_anchor_metrics_too() -> None:
