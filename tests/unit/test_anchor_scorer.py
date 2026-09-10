@@ -90,9 +90,7 @@ def test_context_cost_is_the_fraction_of_the_shared_budget_spent() -> None:
     contexts = ["a" * 400, "b" * 800]  # ~300 estimated tokens
     assert context_cost(contexts, budget_tokens=1000) == pytest.approx(0.3)
 
-    scores = AnchorScorer(budget_tokens=1000).score(
-        CASE, _response(contexts), seed=1, run=0
-    ).scores
+    scores = AnchorScorer(budget_tokens=1000).score(CASE, _response(contexts), seed=1, run=0).scores
     assert scores["context_tokens"] == pytest.approx(0.3)
 
 
@@ -113,6 +111,6 @@ def test_spending_over_the_budget_clamps_rather_than_escaping_the_range() -> Non
 def test_cost_is_reported_but_never_averaged_into_the_score() -> None:
     """It is a cost, not a quality. Averaging it with recall would be meaningless
     and MetricScores would reject it anyway - it is not in [0, 1]."""
-    from gnomon.metrics.names import ANCHOR_METRICS, ANCHOR_COST
+    from gnomon.metrics.names import ANCHOR_COST, ANCHOR_METRICS
 
     assert ANCHOR_COST not in ANCHOR_METRICS

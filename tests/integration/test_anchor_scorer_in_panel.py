@@ -1,4 +1,3 @@
-import pytest
 """AnchorScorer through run_panel_eval, checking the "ordinary PanelMember" claim.
 
 The spec asserts the scorer "enters a panel as an ordinary PanelMember, so it
@@ -9,6 +8,8 @@ panel next to an LLM-contract judge and check the claim end to end.
 
 No network: MockTarget and StubJudge are both in-memory.
 """
+
+import pytest
 
 from gnomon.config.config import EvalConfig
 from gnomon.domain.models import EvalCase, MetricResult

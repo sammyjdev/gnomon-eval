@@ -31,9 +31,7 @@ class AnchorScorer:
         use the same value, which is why it is explicit rather than inferred."""
         self._budget_tokens = budget_tokens
 
-    def score(
-        self, case: EvalCase, response: RagResponse, *, seed: int, run: int
-    ) -> MetricScores:
+    def score(self, case: EvalCase, response: RagResponse, *, seed: int, run: int) -> MetricScores:
         # seed/run are part of the contract and irrelevant here: the result is a
         # pure function of the case and the response, so judge_runs > 1 buys
         # nothing.
@@ -45,8 +43,6 @@ class AnchorScorer:
                 ANCHOR_METRICS[1]: anchor_precision(anchors, response.contexts),
                 # Ships with the score, not beside it: gnomon-eval#69 exists
                 # because a recall number was readable without its cost.
-                ANCHOR_COST: context_cost(
-                    response.contexts, budget_tokens=self._budget_tokens
-                ),
+                ANCHOR_COST: context_cost(response.contexts, budget_tokens=self._budget_tokens),
             }
         )
