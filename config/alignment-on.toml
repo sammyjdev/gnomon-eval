@@ -1,0 +1,58 @@
+# Judge alignment draw (issue #75, docs/panel/alignment.md) - ON arm.
+# Identical to alignment-off.toml except target.include_context.
+# Run with scripts/run_panel_arm.py; AXON serve-http must be started with
+# AXON_COMPLETION_MODEL=deepinfra/deepseek-ai/DeepSeek-V4-Flash.
+
+dataset_path = "datasets/second_brain/cases.json"
+
+[eval]
+reproducible = true
+seed = 42
+deterministic_judge = true
+judge_runs = 1
+confidence_level = 0.95
+
+[target]
+kind = "openai_compat"
+base_url = "http://localhost:8765/v1"
+model = "axon"
+contexts_field = "contexts"
+timeout_s = 180.0
+include_context = true
+
+# Required by RunConfig; the driver scores with [panel] only.
+[judge]
+provider = "openai_compat"
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+
+[gate]
+
+# Same members as config/panel.toml, with a longer timeout: GLM-4.6 averaged
+# 27s per case with 140s outliers in METRON, above the 60s default.
+[panel]
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "meta"
+timeout_s = 180.0
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "zai-org/GLM-4.6"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "zhipu"
+timeout_s = 180.0
+
+[[panel.judges]]
+provider = "openai_compat"
+model = "mistralai/Mistral-Nemo-Instruct-2407"
+base_url = "https://api.deepinfra.com/v1/openai"
+api_key_env = "DEEPINFRA_API_KEY"
+family = "mistral"
+timeout_s = 180.0
