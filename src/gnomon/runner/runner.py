@@ -16,7 +16,7 @@ from collections import defaultdict
 
 from gnomon.config.config import EvalConfig
 from gnomon.domain.interfaces import Judge, RagTarget
-from gnomon.domain.models import CaseCost, CaseScore, EvalCase, EvalReport
+from gnomon.domain.models import CaseCost, CaseResponse, CaseScore, EvalCase, EvalReport
 from gnomon.metrics.confidence import aggregate_metric
 
 
@@ -25,6 +25,7 @@ def run_eval(
 ) -> EvalReport:
     """Run every case against the target, score with the judge, aggregate."""
     per_case_cost: list[CaseCost] = []
+    responses: list[CaseResponse] = []
     case_scores: dict[str, list[CaseScore]] = defaultdict(list)
 
     for case in cases:
@@ -34,6 +35,13 @@ def run_eval(
                 case_id=case.id,
                 total_tokens=response.total_tokens,
                 latency_ms=response.latency_ms,
+            )
+        )
+        responses.append(
+            CaseResponse(
+                case_id=case.id,
+                answer=response.answer,
+                contexts=response.contexts,
             )
         )
         # Denoise within the case: the case's score for a metric is the mean of
@@ -58,4 +66,9 @@ def run_eval(
         )
         for name, scores in case_scores.items()
     ]
-    return EvalReport(metrics=metrics, per_case_cost=per_case_cost, case_scores=dict(case_scores))
+    return EvalReport(
+        metrics=metrics,
+        per_case_cost=per_case_cost,
+        case_scores=dict(case_scores),
+        responses=responses,
+    )

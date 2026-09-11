@@ -126,6 +126,7 @@ Configured via the TOML `[judge]` block (`config/run_config.py:29-35`; wired in 
 - Helpers: `.metric(name)` (`models.py:101`), `.total_tokens` (`:107`), `.mean_latency_ms` (`:112`).
 - `per_case_cost`: cost and latency per case (`CaseCost`: `case_id, total_tokens, latency_ms`).
 - `case_scores`: per-case denoised scores, organized by metric.
+- `responses`: one `CaseResponse` (`case_id, answer, contexts`) per case, in case order, copied from the `RagResponse` the runner received. Default `[]`. `to_dict` emits it as the last top-level key. `to_text` never renders it. Runners that do not record responses (the chat runner) emit `[]`.
 
 ### 15. Per-case scores
 
@@ -212,6 +213,7 @@ This is the stable v1 surface introduced by gnomon-eval#47 so that downstream co
 - `gnomon.metrics.disagreement.compute_disagreement` (`metrics/disagreement.py:30-60`) computes per-case score deltas and pairwise Pearson correlations.
 - `gnomon.gate.panel_gate.evaluate_panel_gate` (`gate/panel_gate.py:7-32`) applies the explicit majority vote and returns the same `gnomon.gate.gate.GateResult` as the single-judge gate.
 - `gnomon.reporting.panel_report.panel_to_dict` and `panel_to_text` (`reporting/panel_report.py:6-83`) serialize the panel for machines and humans without averaging judge scores.
+- `PanelReport.responses` holds one entry per case, not one per judge, and `panel_to_dict` emits it under `responses`.
 
 This surface is additive. Existing single-judge configs, `run_eval`, and `evaluate_gate` remain unchanged and valid. CLI wiring is out of scope for this execution item.
 

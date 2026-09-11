@@ -44,6 +44,14 @@ def panel_to_dict(report: PanelReport) -> dict:
             }
             for cost in report.per_case_cost
         ],
+        "responses": [
+            {
+                "case_id": r.case_id,
+                "answer": r.answer,
+                "contexts": list(r.contexts),
+            }
+            for r in report.responses
+        ],
     }
 
 

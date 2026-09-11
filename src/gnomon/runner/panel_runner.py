@@ -8,6 +8,7 @@ from gnomon.config.config import EvalConfig
 from gnomon.domain.interfaces import Judge, RagTarget
 from gnomon.domain.models import (
     CaseCost,
+    CaseResponse,
     CaseScore,
     EvalCase,
     PanelJudgeReport,
@@ -28,6 +29,7 @@ def run_panel_eval(
 ) -> PanelReport:
     """Query each case once, score it with every judge, and aggregate per judge."""
     per_case_cost: list[CaseCost] = []
+    responses: list[CaseResponse] = []
     member_case_scores: list[dict[str, list[CaseScore]]] = [defaultdict(list) for _ in members]
 
     def _score_member(member: PanelMember, case: EvalCase, response) -> dict[str, float]:
@@ -50,6 +52,13 @@ def run_panel_eval(
                     case_id=case.id,
                     total_tokens=response.total_tokens,
                     latency_ms=response.latency_ms,
+                )
+            )
+            responses.append(
+                CaseResponse(
+                    case_id=case.id,
+                    answer=response.answer,
+                    contexts=response.contexts,
                 )
             )
             futures = [pool.submit(_score_member, member, case, response) for member in members]
@@ -78,4 +87,5 @@ def run_panel_eval(
         per_case_cost=per_case_cost,
         judge_reports=judge_reports,
         disagreement=compute_disagreement(judge_reports),
+        responses=responses,
     )

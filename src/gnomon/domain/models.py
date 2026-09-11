@@ -99,6 +99,18 @@ class CaseScore(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
 
 
+class CaseResponse(BaseModel):
+    """What the target returned for one case (issue #71): the answer and
+    contexts the judge scored, kept so a verdict can be audited after the run.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    case_id: str = Field(min_length=1)
+    answer: str
+    contexts: list[str]
+
+
 class EvalReport(BaseModel):
     """Result of one evaluation run: quality, cost and latency together.
 
@@ -112,6 +124,7 @@ class EvalReport(BaseModel):
     metrics: list[MetricResult]
     per_case_cost: list[CaseCost]
     case_scores: dict[str, list[CaseScore]] = Field(default_factory=dict)
+    responses: list[CaseResponse] = Field(default_factory=list)
 
     def metric(self, name: str) -> MetricResult:
         for result in self.metrics:
@@ -178,6 +191,7 @@ class PanelReport(BaseModel):
     per_case_cost: list[CaseCost]
     judge_reports: list[PanelJudgeReport]
     disagreement: list[DisagreementStat]
+    responses: list[CaseResponse] = Field(default_factory=list)
 
     def judge(self, judge_id: str) -> PanelJudgeReport:
         for judge_report in self.judge_reports:

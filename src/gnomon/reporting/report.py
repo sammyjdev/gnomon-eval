@@ -37,6 +37,14 @@ def to_dict(report: EvalReport) -> dict:
             metric: [{"case_id": cs.case_id, "score": cs.score} for cs in scores]
             for metric, scores in report.case_scores.items()
         },
+        "responses": [
+            {
+                "case_id": r.case_id,
+                "answer": r.answer,
+                "contexts": list(r.contexts),
+            }
+            for r in report.responses
+        ],
     }
 
 
