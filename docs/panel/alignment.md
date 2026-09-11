@@ -95,12 +95,37 @@ Commands (driver `scripts/run_panel_arm.py`, configs `config/alignment-{on,off}.
     python scripts/run_panel_arm.py -c config/alignment-on.toml  --arm on  --out $PRIVATE/run-on.json
     python scripts/run_panel_arm.py -c config/alignment-off.toml --arm off --out $PRIVATE/run-off.json
 
-To be recorded: run timestamps, AXON and gnomon commits, digests, export command.
+Draw executed 2026-09-11, AXON `c7bf107`, gnomon `cde823a`, generator pinned
+(AXON log: `router decision ... source=pinned model=deepinfra/deepseek-ai/DeepSeek-V4-Flash`).
+
+| Arm | Started (UTC) | Cases | Responses | Empty / `[LLM unavailable` | Contexts per case | SHA-256 |
+|---|---|---|---|---|---|---|
+| `on` | 15:37:49 | 34 | 34 | 0 / 0 | 5-8 | `0ad353e002bcba0a3ee67c30dd6c3b0690c47899fb20a3e5099a09fcb95a6bf5` |
+| `off` | 15:50:24 | 34 | 34 | 0 / 0 | 0 | `73d7d3c45fbdcccceb34a56fc8f3372e2dc897d02f8ea65ec6007c6ece457de7` |
+
+Both arms finished 16:04:39 UTC.
+
+Export (2026-09-11):
+
+    gnomon align -c config/alignment-on.toml --export $PRIVATE/export on=$PRIVATE/run-on.json off=$PRIVATE/run-off.json
+
+| File | Items | SHA-256 |
+|---|---|---|
+| `labels.todo.json` | 68 (34 `on`, 34 `off`), every verdict null, no score field | `08eb86ebb1e7301b750a4c7400ef352498205cdc1ca074b5f28b527183e50491` |
+| `perturbations.json` | 61 (23 `number_swap`, 4 `identifier_swap`, 34 `unsupported_claim`) | `f4c8614a837800328f507be68a41588b16782f2aa6cb27acd8e812da98d46c0b` |
 
 ## 4. Rubric history (protocol steps 4-5)
 
-Draft rubric v1 is the one in the spec. To be recorded: the 15 first-pass
-items and how they were selected, the owner's changes, and the frozen `v2`.
+Draft rubric v1 is the one in the spec.
+
+**First-pass selection (deviation D1, see section 6):** 5 real items drawn with
+`random.Random(42).sample` over the 68 real items sorted by `(arm, case_id)`,
+plus the 10 largest `faithfulness` `case_deltas` **within the `on` arm**, ties
+by `case_id`. The 15 items are presented to the owner in a seeded shuffled
+order, with no arm label beyond what the contexts show, no spread and no
+score.
+
+To be recorded: the owner's rubric notes, the changes, and the frozen `v2`.
 
 ## 5. Results (protocol steps 6-10)
 
@@ -112,3 +137,17 @@ re-label and the double run.
 Append-only.
 
 - 2026-09-11: pre-registration written; generator pinned as in section 2.
+- 2026-09-11: the draw started at 15:37:49 UTC, 29 seconds before the
+  pre-registration commit (`cc1f7db`, 15:38:18 UTC). The document was written
+  before the draw started, and the protocol requires pre-registration before
+  the first label, not before the draw. Recorded for completeness.
+- 2026-09-11, **deviation D1 (owner decision):** spec protocol step 4 selects
+  the 10 largest cross-judge spreads across both arms. On this draw that
+  selection was 10 of 10 `off` items (the largest spreads all sit in the
+  empty-context arm; 15 `off` items tie at the maximum), and 4 of the 5 random
+  items were also `off`, so the first pass would have held 14 answers with no
+  contexts. The pass exists to surface grounding ambiguities (derived claims,
+  paraphrase, partial abstention), which need contexts. The spread selection was
+  restricted to the `on` arm; the 5 random items are unchanged. The first pass
+  does not enter any statistic (every real item is labeled again under `v2`),
+  so D1 changes which ambiguities inform the rubric, not the analysis.
