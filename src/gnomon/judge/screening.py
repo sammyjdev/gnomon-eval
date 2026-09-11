@@ -1,10 +1,12 @@
 """Offline capacity screening for candidate panel judges (ADR-0012 #5)."""
 
 import json
+import math
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from gnomon.judge.ollama import JudgeProtocolError, parse_v1_judge_response
 from gnomon.metrics.names import V1_METRICS
 
 
@@ -26,10 +28,47 @@ class ScreeningResult(BaseModel):
     model_config = ConfigDict(frozen=True)
     candidate: str = Field(min_length=1)
     probes: list[ProbeVerdict]
+    known_fail_probes: list[ProbeVerdict] = Field(default_factory=list)
+    grounded_threshold: float | None = None
+    pass_floor: float | None = None
+    tnr: float | None = None
+    pass_floor_count: int | None = None
+    known_fail_grounded_count: int = 0
 
     @property
     def passed(self) -> bool:
-        return len(self.probes) > 0 and all(probe.passed for probe in self.probes)
+        return (
+            self.grounded_threshold is not None
+            and self.pass_floor is not None
+            and len(self.known_fail_probes) > 0
+            and len(self.probes) > 0
+            and all(probe.passed for probe in self.probes)
+            and all(probe.passed for probe in self.known_fail_probes)
+            and self.known_fail_grounded_count == 0
+            and self.pass_floor_count is not None
+            and self.pass_floor_count >= 1
+        )
+
+
+def _checked_floor(name: str, value: float | None) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a numeric float, got {value!r}")
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value!r}")
+    val_f = float(value)
+    if not (0.0 <= val_f <= 1.0):
+        raise ValueError(f"{name} must be in [0, 1], got {value!r}")
+    return val_f
+
+
+def _faithfulness(raw_response: str) -> float | None:
+    try:
+        scores = parse_v1_judge_response(raw_response)
+        return scores.scores.get("faithfulness")
+    except JudgeProtocolError:
+        return None
 
 
 def screen_probe(case_id: str, raw_response: str) -> ProbeVerdict:
@@ -88,11 +127,60 @@ def screen_probe(case_id: str, raw_response: str) -> ProbeVerdict:
     )
 
 
-def screen_candidate(candidate: str, probes: dict[str, str]) -> ScreeningResult:
+def screen_candidate(
+    candidate: str,
+    probes: dict[str, str],
+    *,
+    known_fail_probes: dict[str, str] | None = None,
+    grounded_threshold: float | None = None,
+    pass_floor: float | None = None,
+) -> ScreeningResult:
     """Screen every raw probe response and aggregate its capacity verdict."""
+    checked_grounded = _checked_floor("grounded_threshold", grounded_threshold)
+    checked_floor = _checked_floor("pass_floor", pass_floor)
+
+    pass_verdicts = [screen_probe(case_id, raw) for case_id, raw in probes.items()]
+
+    if known_fail_probes is not None:
+        kf_verdicts = [screen_probe(case_id, raw) for case_id, raw in known_fail_probes.items()]
+    else:
+        kf_verdicts = []
+
+    known_fail_grounded_count = 0
+    if checked_grounded is not None and known_fail_probes:
+        for verdict in kf_verdicts:
+            if verdict.passed:
+                raw = known_fail_probes[verdict.case_id]
+                f = _faithfulness(raw)
+                if f is not None and f >= checked_grounded:
+                    known_fail_grounded_count += 1
+
+    known_fail_count = len(kf_verdicts)
+    if checked_grounded is not None and known_fail_count > 0:
+        tnr = (known_fail_count - known_fail_grounded_count) / known_fail_count
+    else:
+        tnr = None
+
+    if checked_floor is not None:
+        pass_floor_count = 0
+        for verdict in pass_verdicts:
+            if verdict.passed:
+                raw = probes[verdict.case_id]
+                f = _faithfulness(raw)
+                if f is not None and f >= checked_floor:
+                    pass_floor_count += 1
+    else:
+        pass_floor_count = None
+
     return ScreeningResult(
         candidate=candidate,
-        probes=[screen_probe(case_id, raw_response) for case_id, raw_response in probes.items()],
+        probes=pass_verdicts,
+        known_fail_probes=kf_verdicts,
+        grounded_threshold=checked_grounded,
+        pass_floor=checked_floor,
+        tnr=tnr,
+        pass_floor_count=pass_floor_count,
+        known_fail_grounded_count=known_fail_grounded_count,
     )
 
 
@@ -105,6 +193,11 @@ def write_screening_evidence(result: ScreeningResult, path: str | Path) -> Path:
             {
                 "candidate": result.candidate,
                 "passed": result.passed,
+                "grounded_threshold": result.grounded_threshold,
+                "pass_floor": result.pass_floor,
+                "known_fail_count": len(result.known_fail_probes),
+                "tnr": result.tnr,
+                "pass_floor_count": result.pass_floor_count,
                 "probes": [probe.model_dump() for probe in result.probes],
             },
             indent=2,

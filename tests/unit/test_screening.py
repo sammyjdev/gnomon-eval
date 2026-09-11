@@ -95,8 +95,15 @@ def test_candidate_fails_closed_when_one_probe_has_hallucinated_key():
 
 def test_candidate_passes_when_all_probes_are_clean():
     clean = json.dumps(_valid_scores())
+    low = json.dumps({metric: 0.1 for metric in V1_METRICS})
 
-    result = screen_candidate("candidate", {"one": clean, "two": clean})
+    result = screen_candidate(
+        "candidate",
+        {"one": clean, "two": clean},
+        known_fail_probes={"kf-one": low, "kf-two": low},
+        grounded_threshold=0.5,
+        pass_floor=0.5,
+    )
 
     assert result.passed is True
 
@@ -122,5 +129,10 @@ def test_write_screening_evidence_round_trips_all_probe_fields(tmp_path):
     assert json.loads(path.read_text(encoding="utf-8")) == {
         "candidate": result.candidate,
         "passed": result.passed,
+        "grounded_threshold": None,
+        "pass_floor": None,
+        "known_fail_count": 0,
+        "tnr": None,
+        "pass_floor_count": None,
         "probes": [probe.model_dump() for probe in result.probes],
     }

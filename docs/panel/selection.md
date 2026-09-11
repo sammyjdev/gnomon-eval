@@ -22,6 +22,8 @@ that should score clean on every metric). The raw completion text (the
 no hallucinated keys), with no retries and no per-candidate prompt tuning --
 membership is earned by the bar, not adjusted to fit it (ADR-0012 #4/#5).
 
+ADR-0012 was later amended to add a known-fail TNR floor and a pass floor to B4 (`docs/adr/0012-three-judge-panel.md`, Amendment); the pinned evidence below predates both floors.
+
 ## Panel members (pinned)
 
 | Family (vendor) | Model | Size | Result | Evidence |

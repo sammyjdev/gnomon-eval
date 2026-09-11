@@ -72,6 +72,15 @@ existing 17-case dataset is the screening corpus.
 (c) done (issue #55): three distinct-family candidates screened and pinned
 in `config/panel.toml`; selection record and evidence in `docs/panel/`.
 
+## Amendment (2026-09-10): B4 known-fail TNR floor and pass floor
+
+- B4 (`gnomon.judge.screening`) now screens a second probe class - deterministic known-fail perturbations (`gnomon.judge.perturbation`: `number_swap`, `identifier_swap`, `unsupported_claim`) - alongside the pass-class probes, and enforces two declared floors.
+- **TNR floor (strict):** any known-fail probe whose parsed faithfulness `>= grounded_threshold` fails the candidate; a missing parameter or no known-fail probes fails closed. Strict because one grounded fabrication already breaks groundedness.
+- **Pass floor (deliberately weak):** the candidate fails if no pass-class probe scores faithfulness `>= pass_floor` - the always-fail signature. Weak because `expected_contexts` do not always fully ground `expected_answer`.
+- Motivation: the schema-only bar passed degenerate judges - phi-4 returned 1.0 on 30/30 cases of one METRON arm (always-pass), and an always-fail judge also cleared it.
+- **Dormant by construction:** B4 has no in-repo caller/driver; the floors bind only when a screening driver passes the new probes through `screen_candidate`.
+- The three pinned members' evidence predates both floors; **this note does not change membership**; re-screening under the floors is a separate future decision (candidate revisit trigger).
+
 ## Revisit triggers
 
 1. Free rails stop carrying three viable same-generation families → drop to
