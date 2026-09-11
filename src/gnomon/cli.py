@@ -488,6 +488,10 @@ def main(argv: list[str] | None = None) -> int:
         return session_main(argv[1:])
     if argv and argv[0] == "chat":
         return chat_main(argv[1:])
+    if argv and argv[0] == "align":
+        from gnomon.align import align_main
+
+        return align_main(argv[1:])
 
     parser = argparse.ArgumentParser(prog="gnomon", description="Run a GNOMON evaluation.")
     parser.add_argument("-c", "--config", required=True, help="path to the run config TOML")
