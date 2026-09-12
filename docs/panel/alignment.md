@@ -125,7 +125,33 @@ by `case_id`. The 15 items are presented to the owner in a seeded shuffled
 order, with no arm label beyond what the contexts show, no spread and no
 score.
 
-To be recorded: the owner's rubric notes, the changes, and the frozen `v2`.
+**First pass executed 2026-09-12** (15 items, owner labeling, item by item).
+Outcome under the strict v1 reading: 11 `pass`, 4 `fail`, the four being the
+`off` items with no contexts. Recorded honestly: the owner's raw reaction was
+`pass` on all 15, including those four; they are written as `fail` because the
+owner adopted the strict reading for this pass, and each critique keeps the
+original reaction. Ambiguities the pass surfaced, all with a candidate rule in
+the v2 proposal: what an answer with no contexts can score; whether a refusal
+that still asserts a fact is an abstention; where paraphrase stops and invented
+mechanism starts; that vault staleness and answer quality are not this metric.
+
+**`v2` frozen 2026-09-12.** The owner confirmed rule 3, so the label stays
+faithfulness. The rubric: the verdict answers only whether the answer's claims
+are supported by that item's contexts; world truth, vault staleness and answer
+quality are out and go to curation or the product backlog; with no contexts
+only a clean abstention passes; a refusal that still asserts a fact is not an
+abstention; paraphrase is support but extending a mechanism past the snippet is
+not; arithmetic over values present in the contexts is support while an
+unstated cause or mechanism is not; the critique cites the supporting context
+number on a pass and names the unsupported claim on a fail.
+
+**Deviation D3 (owner decision, 2026-09-12):** under rule 3 an `off` answer that
+asserts anything cannot pass, so the 31 `off` items that are not refusals are
+labeled `fail` by that rule in code, not by the owner. The owner labels the 34
+`on` items and the 3 `off` items that read as refusals, where the abstention
+call is a judgment. The `off` stratum is therefore rule-derived and is reported
+as such; the pre-registered primary statistics key on `on` and `negative:owner`,
+which stay owner-labeled.
 
 ## 5. Results (protocol steps 6-10)
 
@@ -141,6 +167,27 @@ Append-only.
   pre-registration commit (`cc1f7db`, 15:38:18 UTC). The document was written
   before the draw started, and the protocol requires pre-registration before
   the first label, not before the draw. Recorded for completeness.
+- 2026-09-12, **deviation D2 (owner decision):** a claim-level verifier (LLM
+  subagents, one batch each) scores every real item against its own contexts,
+  citing the context index for each claim. Its verdicts are **not owner labels
+  and are never the reference of this measurement**: a verifier is a fourth
+  judge, and judge-versus-judge cannot validate a judge. They are used for two
+  things only, both declared here: as a diagnostic of the panel, and as triage,
+  so the owner labels the items where verifier and panel disagree first. Every
+  number in section 5 still comes from owner labels.
+- 2026-09-12: verifier run (D2), 6 batches over the 68 real items, claim level.
+  Coverage complete and unique. Verdicts: `on` 28 pass / 6 fail, `off` 1 pass /
+  33 fail; 412 claims classified (201 literal, 13 paraphrase, 198 absent). Open
+  reconciliation before these numbers are used even as triage: batches differed
+  on whether a refusal that still asserts a fact (a version string, a config
+  value, "X does not exist") counts as an abstention. Diagnostic only; not a
+  label.
+- 2026-09-12, **abstention rule (owner decision):** a refusal that still asserts
+  a fact (a version string, a config value, a claim that something does not
+  exist) is not an abstention and fails; only a clean refusal passes. This is
+  the literal reading of rubric v1 and goes into v2. It touches 3 `off` items,
+  and the merged verifier output already matches it (its only `off` pass is a
+  clean refusal).
 - 2026-09-11, **deviation D1 (owner decision):** spec protocol step 4 selects
   the 10 largest cross-judge spreads across both arms. On this draw that
   selection was 10 of 10 `off` items (the largest spreads all sit in the
