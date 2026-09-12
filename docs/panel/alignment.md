@@ -125,7 +125,20 @@ by `case_id`. The 15 items are presented to the owner in a seeded shuffled
 order, with no arm label beyond what the contexts show, no spread and no
 score.
 
-To be recorded: the owner's rubric notes, the changes, and the frozen `v2`.
+**First pass executed 2026-09-12** (15 items, owner labeling, item by item).
+Outcome under the strict v1 reading: 11 `pass`, 4 `fail`, the four being the
+`off` items with no contexts. Recorded honestly: the owner's raw reaction was
+`pass` on all 15, including those four; they are written as `fail` because the
+owner adopted the strict reading for this pass, and each critique keeps the
+original reaction. Ambiguities the pass surfaced, all with a candidate rule in
+the v2 proposal: what an answer with no contexts can score; whether a refusal
+that still asserts a fact is an abstention; where paraphrase stops and invented
+mechanism starts; that vault staleness and answer quality are not this metric.
+
+`v2` is **not frozen yet**: it waits on one owner decision, whether rule 3
+(no contexts, only a clean abstention passes) stands, or whether the label is
+meant to be plausibility, which would change what this measurement measures and
+require re-registering sections 1-2.
 
 ## 5. Results (protocol steps 6-10)
 
@@ -141,6 +154,27 @@ Append-only.
   pre-registration commit (`cc1f7db`, 15:38:18 UTC). The document was written
   before the draw started, and the protocol requires pre-registration before
   the first label, not before the draw. Recorded for completeness.
+- 2026-09-12, **deviation D2 (owner decision):** a claim-level verifier (LLM
+  subagents, one batch each) scores every real item against its own contexts,
+  citing the context index for each claim. Its verdicts are **not owner labels
+  and are never the reference of this measurement**: a verifier is a fourth
+  judge, and judge-versus-judge cannot validate a judge. They are used for two
+  things only, both declared here: as a diagnostic of the panel, and as triage,
+  so the owner labels the items where verifier and panel disagree first. Every
+  number in section 5 still comes from owner labels.
+- 2026-09-12: verifier run (D2), 6 batches over the 68 real items, claim level.
+  Coverage complete and unique. Verdicts: `on` 28 pass / 6 fail, `off` 1 pass /
+  33 fail; 412 claims classified (201 literal, 13 paraphrase, 198 absent). Open
+  reconciliation before these numbers are used even as triage: batches differed
+  on whether a refusal that still asserts a fact (a version string, a config
+  value, "X does not exist") counts as an abstention. Diagnostic only; not a
+  label.
+- 2026-09-12, **abstention rule (owner decision):** a refusal that still asserts
+  a fact (a version string, a config value, a claim that something does not
+  exist) is not an abstention and fails; only a clean refusal passes. This is
+  the literal reading of rubric v1 and goes into v2. It touches 3 `off` items,
+  and the merged verifier output already matches it (its only `off` pass is a
+  clean refusal).
 - 2026-09-11, **deviation D1 (owner decision):** spec protocol step 4 selects
   the 10 largest cross-judge spreads across both arms. On this draw that
   selection was 10 of 10 `off` items (the largest spreads all sit in the
