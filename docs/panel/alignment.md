@@ -135,10 +135,23 @@ the v2 proposal: what an answer with no contexts can score; whether a refusal
 that still asserts a fact is an abstention; where paraphrase stops and invented
 mechanism starts; that vault staleness and answer quality are not this metric.
 
-`v2` is **not frozen yet**: it waits on one owner decision, whether rule 3
-(no contexts, only a clean abstention passes) stands, or whether the label is
-meant to be plausibility, which would change what this measurement measures and
-require re-registering sections 1-2.
+**`v2` frozen 2026-09-12.** The owner confirmed rule 3, so the label stays
+faithfulness. The rubric: the verdict answers only whether the answer's claims
+are supported by that item's contexts; world truth, vault staleness and answer
+quality are out and go to curation or the product backlog; with no contexts
+only a clean abstention passes; a refusal that still asserts a fact is not an
+abstention; paraphrase is support but extending a mechanism past the snippet is
+not; arithmetic over values present in the contexts is support while an
+unstated cause or mechanism is not; the critique cites the supporting context
+number on a pass and names the unsupported claim on a fail.
+
+**Deviation D3 (owner decision, 2026-09-12):** under rule 3 an `off` answer that
+asserts anything cannot pass, so the 31 `off` items that are not refusals are
+labeled `fail` by that rule in code, not by the owner. The owner labels the 34
+`on` items and the 3 `off` items that read as refusals, where the abstention
+call is a judgment. The `off` stratum is therefore rule-derived and is reported
+as such; the pre-registered primary statistics key on `on` and `negative:owner`,
+which stay owner-labeled.
 
 ## 5. Results (protocol steps 6-10)
 
