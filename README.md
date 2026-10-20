@@ -70,7 +70,7 @@ Run `pre-commit install` once per clone.
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -q          # 77 tests: unit, reproducibility, and gate smoke
+python -m pytest -q          # 532 tests: unit, reproducibility, and gate smoke
 ```
 
 ### Reproducibility (RF-11 / RNF-01)
@@ -106,12 +106,16 @@ The parameters (seed, judge runs, model, gate thresholds, target) are documented
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -q                         # full suite: 77 tests
+python -m pytest -q                         # full suite: 532 tests
 python -m pytest tests/unit -q              # unit tests only
 python -m pytest tests/reproducibility -q   # reproducibility only
 python -m pytest tests/gate -q              # gate smoke only
 ruff check src tests && ruff format --check src tests
 ```
+
+## Judge panel
+
+A single judge grades its own family too kindly. GNOMON can run a three-judge panel across distinct model vendor families, screened for capacity, and reports every verdict with disagreement statistics instead of averaging them away (ADR-0012).
 
 ## Design decisions
 
@@ -125,6 +129,7 @@ The decisions governing the project are in `docs/adr/`:
 - **ADR-006** — gate compares against the lower bound of the CI (`ci_low`), not the mean.
 - **ADR-007** — Ollama judge determinism via `seed+run`, one call per case.
 - **ADR-008** — per-case aggregation + bootstrap CI (statistical honesty of `n`).
+- **ADR-0009 to ADR-0012** — later decisions, including the three-judge panel (ADR-0012). See `docs/adr/` for the full list.
 
 Full requirements in `docs/REQUIREMENTS.md`. Product overview in `docs/PRODUCT_OVERVIEW.md`. The project development loop is in `docs/DEVELOPMENT_LOOP.md`.
 
