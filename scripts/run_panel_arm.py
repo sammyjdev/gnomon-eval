@@ -4,7 +4,10 @@ gnomon has no panel CLI command (deferred in the judge-alignment spec), so this
 is the committed driver behind the alignment draw (docs/panel/alignment.md,
 section 3). The report carries `responses`, which `gnomon align --export` reads.
 
-    python scripts/run_panel_arm.py -c config/alignment-on.toml --arm on --out PATH
+    python scripts/run_panel_arm.py -c archive/axon-chat/alignment-on.toml --arm on --out PATH
+
+The alignment-on/off files are historical. They called the retired AXON
+/v1/chat endpoint. config/panel.toml (mock target) is the live panel example.
 """
 
 import argparse

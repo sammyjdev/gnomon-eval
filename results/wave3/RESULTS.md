@@ -1,5 +1,8 @@
 # Wave 3 Extended results - 2026-07-03/04
 
+> **Historical.** Measurement of the retired AXON `/v1/chat` endpoint. Not a
+> live AXON KPI. Configs now live in `archive/axon-chat/`.
+
 Setup: same stack as 2026-07-02-ab-recall (target AXON `/v1/chat/completions`,
 completion `ollama/llama3.1:8b` on the GPU box, judge `llama3.1:8b`, seed 42,
 95% CI). Two rulers: single-turn Wave 1 harness (17 cases, judge_runs=8) for
@@ -12,12 +15,12 @@ gnomon #2/#3).
 1. Retrieval ladder (single-turn, on-arm): faithfulness 0.711 [0.665] ->
    0.775 [0.735, 0.814]; context_precision 0.752 -> 0.792 (peak 0.822 at rung
    3b). Promoted config: index hygiene + skeleton-chunk suppression +
-   AXON_HYBRID_SEARCH=1. Reproduce: `gnomon -c config/axon-recall-on.toml`.
+   AXON_HYBRID_SEARCH=1. Reproduce (historical config): `gnomon -c archive/axon-chat/axon-recall-on.toml`.
 2. Session cost vs re-sending the conversation (recall budget 500): cost
    parity - cumulative -0.079 / +0.031 / +0.167 across 3 runs (pooled +0.040),
    means mutually within CIs (stability PASS); crossover at turn 6-9; quality
    gate pass in all runs; 1200/1200 turn records usage_source=provider.
-   Reproduce: `gnomon session -c config/axon-session-b500.toml`.
+   Reproduce (historical config): `gnomon session -c archive/axon-chat/axon-session-b500.toml`.
 
 ## Per-rung artifacts
 

@@ -1,10 +1,14 @@
-"""The shipped A/B configs must parse and differ only in the recall flag."""
+"""Archived AXON recall A/B configs still parse and differ only in the recall flag.
+
+The files live under archive/axon-chat/. They targeted a retired chat endpoint
+and are not active configs.
+"""
 
 from pathlib import Path
 
 from gnomon.config.run_config import RunConfig
 
-_CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
+_CONFIG_DIR = Path(__file__).resolve().parents[2] / "archive" / "axon-chat"
 
 
 def test_recall_on_config_parses_with_flag_true():
