@@ -40,7 +40,7 @@ The 13 drafts (`sb-018`..`sb-030`) were validated against the real vault
 - **Promoted to `cases.json` (4)** - `sb-018`, `sb-023`, `sb-026`, `sb-028`,
   each rewritten to the scope the vault actually supports and with
   `expected_contexts` replaced by verbatim snippets from the source notes
-  (afya-prep-3-pilares.md, daily/2026-07-13.md, forge-closed-agentic-loop/
+  (client-prep-3-pilares.md, daily/2026-07-13.md, forge-closed-agentic-loop/
   CONTEXT.md, AXON/Decisions/dec-032.md + the 2026-05-28 session note).
   `sb-018`/`sb-026`/`sb-028` were narrowed: exact counts/dates and claims
   present only in session memories (119/34 counts, 2026-06-29 reverification,
