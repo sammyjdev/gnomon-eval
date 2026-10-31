@@ -12,7 +12,6 @@ requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.6",
     "deepeval>=2.0",
-    "litellm>=1.40",
 ]
 
 [project.optional-dependencies]
