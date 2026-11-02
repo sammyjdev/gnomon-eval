@@ -153,6 +153,10 @@ Answer relevance, context recall, temporal dashboard, multi-target comparison, a
 
 Commits follow Conventional Commits. The CI gate runs `pytest` and `ruff check` — PRs must pass both.
 
+## Author
+
+Built by [sammyjdev](https://github.com/sammyjdev), Senior AI Engineer (Forward Deployed).
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE).

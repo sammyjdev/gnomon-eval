@@ -19,6 +19,7 @@ from gnomon.dataset.loader import load_dataset
 from gnomon.dataset.session_loader import load_sessions
 from gnomon.domain.interfaces import Judge, RagTarget
 from gnomon.gate.gate import evaluate_gate
+from gnomon.http import HttpTransport, TransportError, UrllibTransport
 from gnomon.judge.cache import JudgeCache
 from gnomon.judge.chat_judge import ChatJudge
 from gnomon.judge.ollama import OllamaJudge
@@ -81,8 +82,48 @@ _logger = logging.getLogger(__name__)
 
 _JSON_RESPONSE_FORMAT = {"type": "json_object"}
 
+# Each hosted tier is an OpenAI-compatible endpoint, called over gnomon.http
+# like every other judge. These are the base URLs and key variables litellm
+# used for the deepinfra/, groq/ and cerebras/ prefixes; litellm itself went
+# because it pins filelock<4.0, which keeps 13 filelock CVEs open.
+_DEEPINFRA = ("https://api.deepinfra.com/v1/openai", "DEEPINFRA_API_KEY")
+_GROQ = ("https://api.groq.com/openai/v1", "GROQ_API_KEY")
+_CEREBRAS = ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY")
 
-def _build_judge_model(cfg):
+
+def _post(transport: HttpTransport, url: str, payload: dict, headers: dict, timeout_s: float):
+    try:
+        status, body = transport.post_json(url, payload, headers=headers, timeout_s=timeout_s)
+    except TransportError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if status != 200:
+        raise RuntimeError(f"POST {url} returned HTTP {status}: {body}")
+    return body
+
+
+def _hosted_completion(
+    transport: HttpTransport, provider: tuple[str, str], model: str, prompt: str, timeout_s: float
+) -> str:
+    base_url, key_env = provider
+    api_key = os.environ.get(key_env)
+    body = _post(
+        transport,
+        base_url + "/chat/completions",
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "response_format": _JSON_RESPONSE_FORMAT,
+        },
+        {"Authorization": f"Bearer {api_key}"} if api_key else {},
+        timeout_s,
+    )
+    try:
+        return body["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"{base_url}: no message in the response") from exc
+
+
+def _build_judge_model(cfg, transport: HttpTransport | None = None):
     """Wraps DeepEval's model interface to try DeepInfra first, then optional
     secondary (Groq) and tertiary (Cerebras) providers, then fall back to
     local Ollama on any failure -- required per this feature's design doc
@@ -105,6 +146,8 @@ def _build_judge_model(cfg):
     as the primary doing it.
     """
     from deepeval.models import DeepEvalBaseLLM
+
+    http = transport or UrllibTransport()
 
     class DeepInfraThenGroqThenCerebrasThenOllama(DeepEvalBaseLLM):
         def load_model(self):
@@ -174,53 +217,35 @@ def _build_judge_model(cfg):
             return f"{cfg.primary_model} (fallback: {cfg.fallback_model})"
 
         def _call_deepinfra(self, prompt: str) -> str:
-            import litellm
-
-            response = litellm.completion(
-                model=f"deepinfra/{cfg.primary_model}",
-                messages=[{"role": "user", "content": prompt}],
-                # A real GEval-sized prompt (conversation + rubric + JSON
-                # instructions) measured 15-23s end to end against DeepInfra's
-                # live API (2026-07-09) -- 10s (copied from NIM's own tier)
-                # was timing out nearly every real call. 30s gives headroom.
-                timeout=30,
-                response_format=_JSON_RESPONSE_FORMAT,
-            )
-            return response.choices[0].message.content
+            # A real GEval-sized prompt (conversation + rubric + JSON
+            # instructions) measured 15-23s end to end against DeepInfra's
+            # live API (2026-07-09) -- 10s (copied from NIM's own tier)
+            # was timing out nearly every real call. 30s gives headroom.
+            return _hosted_completion(http, _DEEPINFRA, cfg.primary_model, prompt, 30)
 
         def _call_groq(self, prompt: str) -> str:
-            import litellm
-
-            response = litellm.completion(
-                model=f"groq/{cfg.secondary_model}",
-                messages=[{"role": "user", "content": prompt}],
-                timeout=10,
-                response_format=_JSON_RESPONSE_FORMAT,
-            )
-            return response.choices[0].message.content
+            return _hosted_completion(http, _GROQ, cfg.secondary_model, prompt, 10)
 
         def _call_cerebras(self, prompt: str) -> str:
-            import litellm
-
-            response = litellm.completion(
-                model=f"cerebras/{cfg.tertiary_model}",
-                messages=[{"role": "user", "content": prompt}],
-                timeout=10,
-                response_format=_JSON_RESPONSE_FORMAT,
-            )
-            return response.choices[0].message.content
+            return _hosted_completion(http, _CEREBRAS, cfg.tertiary_model, prompt, 10)
 
         def _call_ollama(self, prompt: str) -> str:
-            import litellm
-
-            response = litellm.completion(
-                model=f"ollama/{cfg.fallback_model}",
-                api_base=cfg.fallback_base_url,
-                messages=[{"role": "user", "content": prompt}],
-                timeout=10,
-                response_format=_JSON_RESPONSE_FORMAT,
+            body = _post(
+                http,
+                cfg.fallback_base_url.rstrip("/") + "/api/chat",
+                {
+                    "model": cfg.fallback_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "format": "json",
+                },
+                {},
+                10,
             )
-            return response.choices[0].message.content
+            try:
+                return body["message"]["content"]
+            except (KeyError, TypeError) as exc:
+                raise RuntimeError("Ollama: no message in the response") from exc
 
     return DeepInfraThenGroqThenCerebrasThenOllama()
 

@@ -1,5 +1,4 @@
 import json
-import sys
 import types
 
 import pytest
@@ -322,18 +321,6 @@ def test_chat_main_exit_code_follows_gate(monkeypatch, gate_passed, expected_exi
     assert exit_code == expected_exit
 
 
-def _make_completion(record, deepinfra_ok):
-    def completion(**kw):
-        record.append(kw)
-        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
-            raise RuntimeError("DeepInfra down")
-        content = "DEEPINFRA-ANSWER" if kw["model"].startswith("deepinfra/") else "OLLAMA-ANSWER"
-        msg = types.SimpleNamespace(content=content)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
-
-    return completion
-
-
 def test_run_chat_from_config_wires_judge_model_into_tool_correctness_metric(monkeypatch):
     import deepeval.metrics as deepeval_metrics
 
@@ -430,49 +417,80 @@ def test_run_chat_from_config_wires_hand_written_evaluation_steps_into_geval(mon
     assert recorded_kwargs.get("model") is not None
 
 
-def test_judge_model_uses_deepinfra_when_ok(monkeypatch):
-    from gnomon.cli import _build_judge_model
+_TIER_BY_HOST = {
+    "api.deepinfra.com": "deepinfra",
+    "api.groq.com": "groq",
+    "api.cerebras.ai": "cerebras",
+    "localhost:11434": "ollama",
+}
 
-    record = []
-    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, deepinfra_ok=True))
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
 
-    cfg = ChatJudgeConfig(
+class _FakeTransport:
+    """Records every judge call; tiers in `failing` are unreachable and tiers in
+    `rejecting` answer HTTP 401, as a provider does without a valid key."""
+
+    def __init__(self, *, failing=(), rejecting=()):
+        self.calls = []
+        self._failing = set(failing)
+        self._rejecting = set(rejecting)
+
+    def post_json(self, url, payload, *, headers, timeout_s):
+        from gnomon.http import TransportError
+
+        tier = _TIER_BY_HOST[url.split("/")[2]]
+        self.calls.append(
+            {"tier": tier, "url": url, "payload": payload, "headers": headers, "timeout": timeout_s}
+        )
+        if tier in self._failing:
+            raise TransportError(f"{tier} down")
+        if tier in self._rejecting:
+            return 401, {"error": "invalid api key"}
+        content = f"{tier.upper()}-ANSWER"
+        if tier == "ollama":
+            return 200, {"message": {"role": "assistant", "content": content}}
+        return 200, {"choices": [{"message": {"content": content}}]}
+
+
+def _two_tier_cfg() -> ChatJudgeConfig:
+    return ChatJudgeConfig(
         primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         fallback_model="phi4:14b",
         fallback_base_url="http://localhost:11434",
     )
-    model = _build_judge_model(cfg)
+
+
+def test_judge_model_uses_deepinfra_when_ok():
+    from gnomon.cli import _build_judge_model
+
+    transport = _FakeTransport()
+    model = _build_judge_model(_two_tier_cfg(), transport=transport)
+
     assert model.generate("hi") == "DEEPINFRA-ANSWER"
-    assert len(record) == 1
-    assert record[0]["model"] == "deepinfra/meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["url"] == "https://api.deepinfra.com/v1/openai/chat/completions"
+    assert call["payload"]["model"] == "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    assert call["payload"]["messages"] == [{"role": "user", "content": "hi"}]
 
 
-def test_judge_model_falls_back_to_ollama_on_deepinfra_failure(monkeypatch, caplog):
+def test_judge_model_falls_back_to_ollama_on_deepinfra_failure(caplog):
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(completion=_make_completion(record, deepinfra_ok=False))
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = ChatJudgeConfig(
-        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        fallback_model="phi4:14b",
-        fallback_base_url="http://localhost:11434",
-    )
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra"})
+    model = _build_judge_model(_two_tier_cfg(), transport=transport)
     with caplog.at_level("WARNING"):
         assert model.generate("hi") == "OLLAMA-ANSWER"
-    assert len(record) == 2
-    assert record[1]["model"] == "ollama/phi4:14b"
-    assert record[1]["api_base"] == "http://localhost:11434"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "ollama"]
+    ollama = transport.calls[1]
+    assert ollama["url"] == "http://localhost:11434/api/chat"
+    assert ollama["payload"]["model"] == "phi4:14b"
     # Ollama is the last-resort tier and typically not running on this
     # machine (2026-07-09 incident: an unreachable Ollama hung the whole
     # judge chain until the underlying connection error surfaced, killing a
     # ~52min run with zero output because run_chat_eval has no per-case
     # recovery). A short explicit timeout makes "Ollama is down/cold" fail
     # fast instead of stalling the run.
-    assert record[1]["timeout"] <= 15
+    assert ollama["timeout"] <= 15
     assert any(
         "meta-llama/Llama-3.3-70B-Instruct-Turbo" in r.message and "phi4:14b" in r.message
         for r in caplog.records
@@ -480,132 +498,86 @@ def test_judge_model_falls_back_to_ollama_on_deepinfra_failure(monkeypatch, capl
     )
 
 
-def test_judge_model_propagates_when_both_fail(monkeypatch):
+def test_judge_model_propagates_when_both_fail():
     from gnomon.cli import _build_judge_model
 
-    def always_fail(**kw):
-        raise RuntimeError(f"down: {kw['model']}")
-
-    fake_litellm = types.SimpleNamespace(completion=always_fail)
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = ChatJudgeConfig(
-        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        fallback_model="phi4:14b",
-        fallback_base_url="http://localhost:11434",
-    )
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra", "ollama"})
+    model = _build_judge_model(_two_tier_cfg(), transport=transport)
     with pytest.raises(RuntimeError):
         model.generate("hi")
 
 
-def _make_completion_with_groq(record, *, deepinfra_ok, groq_ok):
-    def completion(**kw):
-        record.append(kw)
-        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
-            raise RuntimeError("DeepInfra down")
-        if kw["model"].startswith("groq/") and not groq_ok:
-            raise RuntimeError("Groq down")
-        if kw["model"].startswith("deepinfra/"):
-            content = "DEEPINFRA-ANSWER"
-        elif kw["model"].startswith("groq/"):
-            content = "GROQ-ANSWER"
-        else:
-            content = "OLLAMA-ANSWER"
-        msg = types.SimpleNamespace(content=content)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+def test_a_provider_that_rejects_the_call_falls_through_to_the_next_tier():
+    # A missing or invalid key comes back as HTTP 401, not as a network error;
+    # it must still fall through, as it did when litellm raised on it.
+    from gnomon.cli import _build_judge_model
 
-    return completion
+    transport = _FakeTransport(rejecting={"deepinfra"})
+    model = _build_judge_model(_two_tier_cfg(), transport=transport)
+
+    assert model.generate("hi") == "OLLAMA-ANSWER"
+
+
+def test_each_hosted_tier_sends_its_own_provider_key(monkeypatch):
+    from gnomon.cli import _build_judge_model
+
+    monkeypatch.setenv("DEEPINFRA_API_KEY", "di-key")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-key")
+    monkeypatch.setenv("CEREBRAS_API_KEY", "cb-key")
+    transport = _FakeTransport(failing={"deepinfra", "groq", "cerebras", "ollama"})
+    model = _build_judge_model(_cfg_with_cerebras(), transport=transport)
+    with pytest.raises(RuntimeError):
+        model.generate("hi")
+
+    headers = {c["tier"]: c["headers"] for c in transport.calls}
+    assert headers["deepinfra"] == {"Authorization": "Bearer di-key"}
+    assert headers["groq"] == {"Authorization": "Bearer groq-key"}
+    assert headers["cerebras"] == {"Authorization": "Bearer cb-key"}
+    assert headers["ollama"] == {}
+
+
+def test_gnomon_no_longer_depends_on_litellm():
+    # litellm pins filelock<4.0, which keeps 13 filelock CVEs open.
+    import importlib.metadata
+
+    requires = importlib.metadata.requires("gnomon-eval") or []
+    assert not [r for r in requires if r.lower().startswith("litellm")]
 
 
 def test_judge_model_falls_back_to_groq_when_deepinfra_fails_and_secondary_model_configured(
-    monkeypatch, caplog
+    caplog,
 ):
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=True)
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = ChatJudgeConfig(
-        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        secondary_model="llama-3.3-70b-versatile",
-        fallback_model="phi4:14b",
-        fallback_base_url="http://localhost:11434",
-    )
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra"})
+    cfg = _cfg_with_cerebras(tertiary_model=None)
+    model = _build_judge_model(cfg, transport=transport)
     with caplog.at_level("WARNING"):
         assert model.generate("hi") == "GROQ-ANSWER"
-    assert len(record) == 2
-    assert record[1]["model"] == "groq/llama-3.3-70b-versatile"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "groq"]
+    groq = transport.calls[1]
+    assert groq["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert groq["payload"]["model"] == "llama-3.3-70b-versatile"
 
 
-def test_judge_model_falls_back_to_ollama_when_deepinfra_and_groq_both_fail(monkeypatch):
+def test_judge_model_falls_back_to_ollama_when_deepinfra_and_groq_both_fail():
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=False)
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = ChatJudgeConfig(
-        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        secondary_model="llama-3.3-70b-versatile",
-        fallback_model="phi4:14b",
-        fallback_base_url="http://localhost:11434",
-    )
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra", "groq"})
+    model = _build_judge_model(_cfg_with_cerebras(tertiary_model=None), transport=transport)
     assert model.generate("hi") == "OLLAMA-ANSWER"
-    assert len(record) == 3
-    assert record[2]["model"] == "ollama/phi4:14b"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "groq", "ollama"]
 
 
-def test_judge_model_skips_groq_when_secondary_model_not_configured(monkeypatch):
+def test_judge_model_skips_groq_when_secondary_model_not_configured():
     # Backward compatibility: existing configs with no secondary_model must
     # keep the DeepInfra -> Ollama 2-tier behavior unchanged.
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_groq(record, deepinfra_ok=False, groq_ok=True)
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = ChatJudgeConfig(
-        primary_model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        fallback_model="phi4:14b",
-        fallback_base_url="http://localhost:11434",
-    )
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra"})
+    model = _build_judge_model(_two_tier_cfg(), transport=transport)
     assert model.generate("hi") == "OLLAMA-ANSWER"
-    assert len(record) == 2
-    assert record[1]["model"] == "ollama/phi4:14b"
-
-
-def _make_completion_with_cerebras(record, *, deepinfra_ok, groq_ok, cerebras_ok):
-    def completion(**kw):
-        record.append(kw)
-        if kw["model"].startswith("deepinfra/") and not deepinfra_ok:
-            raise RuntimeError("DeepInfra down")
-        if kw["model"].startswith("groq/") and not groq_ok:
-            raise RuntimeError("Groq down")
-        if kw["model"].startswith("cerebras/") and not cerebras_ok:
-            raise RuntimeError("Cerebras down")
-        if kw["model"].startswith("deepinfra/"):
-            content = "DEEPINFRA-ANSWER"
-        elif kw["model"].startswith("groq/"):
-            content = "GROQ-ANSWER"
-        elif kw["model"].startswith("cerebras/"):
-            content = "CEREBRAS-ANSWER"
-        else:
-            content = "OLLAMA-ANSWER"
-        msg = types.SimpleNamespace(content=content)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
-
-    return completion
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "ollama"]
 
 
 def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
@@ -621,23 +593,18 @@ def _cfg_with_cerebras(**overrides) -> ChatJudgeConfig:
 
 
 def test_judge_model_falls_back_to_cerebras_when_deepinfra_and_groq_fail_and_tertiary_configured(
-    monkeypatch, caplog
+    caplog,
 ):
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_cerebras(
-            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=True
-        )
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    model = _build_judge_model(_cfg_with_cerebras())
+    transport = _FakeTransport(failing={"deepinfra", "groq"})
+    model = _build_judge_model(_cfg_with_cerebras(), transport=transport)
     with caplog.at_level("WARNING"):
         assert model.generate("hi") == "CEREBRAS-ANSWER"
-    assert len(record) == 3
-    assert record[2]["model"] == "cerebras/gpt-oss-120b"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "groq", "cerebras"]
+    cerebras = transport.calls[2]
+    assert cerebras["url"] == "https://api.cerebras.ai/v1/chat/completions"
+    assert cerebras["payload"]["model"] == "gpt-oss-120b"
     assert any(
         "llama-3.3-70b-versatile" in r.message and "gpt-oss-120b" in r.message
         for r in caplog.records
@@ -645,45 +612,28 @@ def test_judge_model_falls_back_to_cerebras_when_deepinfra_and_groq_fail_and_ter
     )
 
 
-def test_judge_model_falls_back_to_ollama_when_deepinfra_groq_and_cerebras_all_fail(monkeypatch):
+def test_judge_model_falls_back_to_ollama_when_deepinfra_groq_and_cerebras_all_fail():
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_cerebras(
-            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
-        )
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    model = _build_judge_model(_cfg_with_cerebras())
+    transport = _FakeTransport(failing={"deepinfra", "groq", "cerebras"})
+    model = _build_judge_model(_cfg_with_cerebras(), transport=transport)
     assert model.generate("hi") == "OLLAMA-ANSWER"
-    assert len(record) == 4
-    assert record[3]["model"] == "ollama/phi4:14b"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "groq", "cerebras", "ollama"]
 
 
-def test_judge_model_skips_cerebras_when_tertiary_model_not_configured(monkeypatch):
+def test_judge_model_skips_cerebras_when_tertiary_model_not_configured():
     # Backward compatibility: existing configs with secondary_model but no
     # tertiary_model keep the DeepInfra -> Groq -> Ollama 3-tier behavior
     # unchanged.
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_cerebras(
-            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=True
-        )
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    cfg = _cfg_with_cerebras(tertiary_model=None)
-    model = _build_judge_model(cfg)
+    transport = _FakeTransport(failing={"deepinfra", "groq"})
+    model = _build_judge_model(_cfg_with_cerebras(tertiary_model=None), transport=transport)
     assert model.generate("hi") == "OLLAMA-ANSWER"
-    assert len(record) == 3
-    assert record[2]["model"] == "ollama/phi4:14b"
+    assert [c["tier"] for c in transport.calls] == ["deepinfra", "groq", "ollama"]
 
 
-def test_judge_model_requests_json_object_response_format_on_every_tier(monkeypatch):
+def test_judge_model_requests_json_object_response_format_on_every_tier():
     # GEval needs valid {"score", "reason"} JSON back; our custom model has no
     # native structured-output support, so DeepEval falls back to a plain-text
     # extraction path that breaks whenever a free-tier model wraps its answer
@@ -692,22 +642,17 @@ def test_judge_model_requests_json_object_response_format_on_every_tier(monkeypa
     # malformed JSON is just as bad as the primary doing it.
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_cerebras(
-            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
-        )
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    model = _build_judge_model(_cfg_with_cerebras())
+    transport = _FakeTransport(failing={"deepinfra", "groq", "cerebras"})
+    model = _build_judge_model(_cfg_with_cerebras(), transport=transport)
     model.generate("hi")
-    assert len(record) == 4
-    for call in record:
-        assert call.get("response_format") == {"type": "json_object"}, call["model"]
+    hosted, ollama = transport.calls[:3], transport.calls[3]
+    for call in hosted:
+        assert call["payload"]["response_format"] == {"type": "json_object"}, call["tier"]
+    # Ollama's native API spells JSON mode as `format`.
+    assert ollama["payload"]["format"] == "json"
 
 
-def test_judge_model_requests_a_timeout_on_every_tier(monkeypatch):
+def test_judge_model_requests_a_timeout_on_every_tier():
     # 2026-07-09 incident, part 1: no tier but Ollama had a client-side
     # timeout, so one stuck connection hung the whole 206-case run
     # indefinitely instead of falling through. Every tier needs one -- paid
@@ -725,21 +670,11 @@ def test_judge_model_requests_a_timeout_on_every_tier(monkeypatch):
     # can stay short.
     from gnomon.cli import _build_judge_model
 
-    record = []
-    fake_litellm = types.SimpleNamespace(
-        completion=_make_completion_with_cerebras(
-            record, deepinfra_ok=False, groq_ok=False, cerebras_ok=False
-        )
-    )
-    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
-
-    model = _build_judge_model(_cfg_with_cerebras())
+    transport = _FakeTransport(failing={"deepinfra", "groq", "cerebras"})
+    model = _build_judge_model(_cfg_with_cerebras(), transport=transport)
     model.generate("hi")
-    assert len(record) == 4
-    for call in record:
-        assert isinstance(call.get("timeout"), int | float), call["model"]
-
-    deepinfra_call, groq_call, cerebras_call, ollama_call = record
+    assert len(transport.calls) == 4
+    deepinfra_call, groq_call, cerebras_call, ollama_call = transport.calls
     # Above the observed 15-23s real-prompt latency, with headroom.
     assert 25 <= deepinfra_call["timeout"] <= 35
     assert groq_call["timeout"] <= 15
