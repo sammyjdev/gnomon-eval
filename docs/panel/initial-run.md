@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-22. **Dataset:** `datasets/second_brain/cases.json` (N=34,
 owner-validated). **Target:** AXON `serve-http` on `localhost:8765` (historical chat endpoint,
-retired 2026-10-26; `/v1/chat` dead since dec-138)
+dead since dec-138; configs archived 2026-10-26)
 (`openai_compat` target, same endpoint as the decisive single-judge A/B),
 arms ON (`include_context=true`) and OFF. **Eval:** `judge_runs=1`,
 `deterministic_judge=true`, seed 42, 95% CI. **Panel:** the three pinned

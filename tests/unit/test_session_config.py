@@ -10,6 +10,37 @@ from gnomon.config.run_config import SessionRunConfig
 ARCHIVE_DIR = Path(__file__).resolve().parents[2] / "archive" / "axon-chat"
 
 
+# Mirrors archive/axon-chat/axon-session-smoke.toml so the live `session` CLI
+# tests do not depend on archived files.
+SMOKE_SESSION_TOML = """
+sessions_path = "datasets/sessions/smoke.json"
+
+[eval]
+seed = 42
+judge_runs = 2
+confidence_level = 0.95
+
+[target]
+kind = "openai_compat"
+base_url = "http://localhost:8765/v1"
+model = "axon"
+timeout_s = 120.0
+recall_max_tokens = 2000
+
+[judge]
+provider = "ollama"
+model = "llama3.1:8b"
+base_url = "${GNOMON_JUDGE_BASE_URL:-http://localhost:11434}"
+timeout_s = 60.0
+"""
+
+
+def _write_smoke_config(tmp_path: Path) -> Path:
+    path = tmp_path / "session-smoke.toml"
+    path.write_text(SMOKE_SESSION_TOML, encoding="utf-8")
+    return path
+
+
 def test_session_run_config_loads_from_toml(tmp_path):
     path = tmp_path / "session.toml"
     path.write_text(
@@ -97,19 +128,19 @@ def test_archived_session_configs_parse():
     assert smoke.eval.judge_runs == 2
 
 
-def test_session_cli_prints_json_on_gate_pass(monkeypatch, capsys):
+def test_session_cli_prints_json_on_gate_pass(monkeypatch, tmp_path, capsys):
     _patch_session_run(monkeypatch, quality_gate="pass")
 
-    exit_code = cli.main(["session", "-c", str(ARCHIVE_DIR / "axon-session-smoke.toml"), "--json"])
+    exit_code = cli.main(["session", "-c", str(_write_smoke_config(tmp_path)), "--json"])
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == {"quality_gate": "pass", "ok": True}
 
 
-def test_session_cli_returns_one_on_gate_fail(monkeypatch, capsys):
+def test_session_cli_returns_one_on_gate_fail(monkeypatch, tmp_path, capsys):
     _patch_session_run(monkeypatch, quality_gate="fail")
 
-    exit_code = cli.main(["session", "-c", str(ARCHIVE_DIR / "axon-session-smoke.toml"), "--json"])
+    exit_code = cli.main(["session", "-c", str(_write_smoke_config(tmp_path)), "--json"])
 
     assert exit_code == 1
     assert json.loads(capsys.readouterr().out) == {"quality_gate": "fail", "ok": True}
