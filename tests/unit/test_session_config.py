@@ -6,7 +6,8 @@ import pytest
 from gnomon import cli
 from gnomon.config.run_config import SessionRunConfig
 
-CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
+# Historical session configs. They targeted the retired AXON chat endpoint.
+ARCHIVE_DIR = Path(__file__).resolve().parents[2] / "archive" / "axon-chat"
 
 
 def test_session_run_config_loads_from_toml(tmp_path):
@@ -84,9 +85,9 @@ timeout_s = 60.0
         cli.run_session_from_config(SessionRunConfig.from_file(path))
 
 
-def test_shipped_session_configs_parse():
-    full = SessionRunConfig.from_file(CONFIG_DIR / "axon-session.toml")
-    smoke = SessionRunConfig.from_file(CONFIG_DIR / "axon-session-smoke.toml")
+def test_archived_session_configs_parse():
+    full = SessionRunConfig.from_file(ARCHIVE_DIR / "axon-session.toml")
+    smoke = SessionRunConfig.from_file(ARCHIVE_DIR / "axon-session-smoke.toml")
 
     assert full.target.recall_max_tokens == 2000
     assert full.target.window_turns == 0
@@ -99,7 +100,7 @@ def test_shipped_session_configs_parse():
 def test_session_cli_prints_json_on_gate_pass(monkeypatch, capsys):
     _patch_session_run(monkeypatch, quality_gate="pass")
 
-    exit_code = cli.main(["session", "-c", str(CONFIG_DIR / "axon-session-smoke.toml"), "--json"])
+    exit_code = cli.main(["session", "-c", str(ARCHIVE_DIR / "axon-session-smoke.toml"), "--json"])
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == {"quality_gate": "pass", "ok": True}
@@ -108,7 +109,7 @@ def test_session_cli_prints_json_on_gate_pass(monkeypatch, capsys):
 def test_session_cli_returns_one_on_gate_fail(monkeypatch, capsys):
     _patch_session_run(monkeypatch, quality_gate="fail")
 
-    exit_code = cli.main(["session", "-c", str(CONFIG_DIR / "axon-session-smoke.toml"), "--json"])
+    exit_code = cli.main(["session", "-c", str(ARCHIVE_DIR / "axon-session-smoke.toml"), "--json"])
 
     assert exit_code == 1
     assert json.loads(capsys.readouterr().out) == {"quality_gate": "fail", "ok": True}

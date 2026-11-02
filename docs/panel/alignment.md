@@ -7,6 +7,12 @@ pre-registered)"). Tooling: `gnomon align` (issues #71-#74, master `cde823a`).
 label was made. They are not edited afterwards; any change is appended to
 section 6 as a deviation, with its date and reason.
 
+**Path A (2026-10-26):** `config/alignment-{on,off}.toml` moved to
+`archive/axon-chat/`. They called AXON `/v1/chat` on `localhost:8765`, which
+has been dead since dec-138. The commands in section 3 are the record of the
+2026-09-11 draw, not a live procedure. `scripts/run_panel_arm.py` and
+`gnomon align` are unchanged. `config/panel.toml` still uses the mock target.
+
 ## 1. Analysis plan (protocol step 1)
 
 - **Metric under test:** `faithfulness` only (spec A4).
@@ -198,3 +204,7 @@ Append-only.
   restricted to the `on` arm; the 5 random items are unchanged. The first pass
   does not enter any statistic (every real item is labeled again under `v2`),
   so D1 changes which ambiguities inform the rubric, not the analysis.
+- 2026-10-26: the alignment chat configs moved from `config/` to
+  `archive/axon-chat/` with the other retired AXON `/v1/chat` targets (Path A).
+  This does not change the draw, the labels, or the protocol. The commands in
+  section 3 record the paths used on the day of the draw.

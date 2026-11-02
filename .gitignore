@@ -12,5 +12,8 @@ __pycache__/
 # Secrets
 .env
 
+# AXON local context. A committed .axon/context.md was a leak; do not track it.
+.axon/
+
 # LinkedIn article draft (personal, keep local)
 docs/articles/honest-ci.md

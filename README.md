@@ -6,6 +6,18 @@
 
 The name is the gnomon — the rod of a sundial that casts the shadow you read — and it doubles as a backronym for what the project does: **G**ated **N**umerical **O**ffline **M**etrics **O**ver **N**-cases.
 
+## Role
+
+GNOMON is lab/infra: an offline harness that measures a target with a confidence interval, cost, latency, and a CI gate.
+
+ChatEval (Lina) remains a supported path of this harness. Judges and the CI gates are unchanged.
+
+## AXON (brief-eval, planned)
+
+The AXON evaluation planned for this lab is brief-eval: an `AxonBriefTarget` scored as brief@budget. It is not implemented. It starts after AXON produces a byte-stable brief. This repository reports no live AXON KPI.
+
+Chat and code-recall configs that called `POST /v1/chat/completions` on `localhost:8765` are retired. That endpoint has been dead since AXON dec-138. The files are in [`archive/axon-chat/`](archive/axon-chat/) as history. Faithfulness figures from that chat path are historical measurements of the retired endpoint.
+
 ## What it does
 
 Reads a versioned dataset of evaluation cases, runs each case against a target RAG (via adapter), scores the responses with an LLM judge, and reports **faithfulness** and **context precision** — each with a confidence interval — alongside token cost and latency in milliseconds. The same eval runs as a regression test in CI and fails the build when a metric drops below a configurable threshold.

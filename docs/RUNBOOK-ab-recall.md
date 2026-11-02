@@ -1,5 +1,12 @@
 # Runbook: AXON recall A/B (the honest number)
 
+> **Historical.** This runbook drove the retired AXON chat endpoint
+> (`axon serve-http` / `POST /v1/chat/completions` on port 8765), dead since
+> AXON dec-138. Configs live in `archive/axon-chat/`. It is a record of how
+> the 2026-07 recall A/B was produced, not a live procedure. Faithfulness
+> figures from it are not current AXON KPIs. The planned AXON evaluation is
+> brief-eval (`AxonBriefTarget` / brief@budget); see the repository README.
+
 Prereqs: datasets/second_brain/cases.json (15+ cases, see datasets/
 second_brain/README.md), AXON stack up (postgres/pgvector), Ollama up
 (judge model llama3 pulled), and a completion model reachable by AXON.
@@ -12,8 +19,8 @@ second_brain/README.md), AXON stack up (postgres/pgvector), Ollama up
        RecallTelemetryStore; print(RecallTelemetryStore().stats_file)')" \
        /tmp/recall-backup.jsonl 2>/dev/null || true
 3. Run both arms (gnomon-eval repo):
-       gnomon -c config/axon-recall-on.toml  --json > on.json
-       gnomon -c config/axon-recall-off.toml --json > off.json
+       gnomon -c archive/axon-chat/axon-recall-on.toml  --json > on.json
+       gnomon -c archive/axon-chat/axon-recall-off.toml --json > off.json
 4. Compare (telemetry path printed by the python one-liner above):
        python -m gnomon.reporting.compare on.json off.json \
            --telemetry <recall/requests.jsonl>
@@ -24,5 +31,5 @@ second_brain/README.md), AXON stack up (postgres/pgvector), Ollama up
      must agree within their CIs across the two runs.
 6. Record the final claim exactly as:
    "AXON recall lifts faithfulness A->B (95% CI, N cases) at a cost of
-   +E input tokens/turn. Reproduce: gnomon -c config/axon-recall-on.toml."
+   +E input tokens/turn. Reproduce: gnomon -c archive/axon-chat/axon-recall-on.toml."
    Never phrase Wave 1 as token savings (ADR 0009).
