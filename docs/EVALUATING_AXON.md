@@ -1,6 +1,13 @@
 # Evaluating AXON with GNOMON
 
-This guide explains how to evaluate AXON (a personal second-brain recall system) using GNOMON, a framework for measuring RAG system quality offline.
+> **Historical.** This guide describes the retired AXON chat and code-recall
+> path (`POST /v1/chat/completions` on `localhost:8765`). That endpoint has
+> been dead since AXON dec-138. The configs now live in
+> [`archive/axon-chat/`](../archive/axon-chat/). The AXON evaluation planned
+> for this lab is brief-eval (`AxonBriefTarget` / brief@budget); see the
+> repository README. Numbers below are not live AXON KPIs.
+
+This guide explains how the retired chat path evaluated AXON (a personal second-brain recall system) using GNOMON, a framework for measuring RAG system quality offline.
 
 ## Overview
 
@@ -8,16 +15,14 @@ This guide explains how to evaluate AXON (a personal second-brain recall system)
 - **GNOMON**: An offline evaluation harness that measures answer faithfulness and context precision.
 - **Judge**: Ollama, running on the desktop (free, no external API calls).
 
-For the current, validated evaluation (the recall A/B: does retrieved context
-actually help AXON's answers), use the real configs and follow
-[`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md):
-`config/axon-recall-on.toml` / `config/axon-recall-off.toml`, judged by
-`llama3.1:8b` at the desktop Tailscale Ollama endpoint, over the 17-case
-`datasets/second_brain/cases.json`. The rest of this document explains the
-AXON target contract GNOMON expects (unchanged) and a minimal quickstart with
-a toy config (`config/axon.toml`, localhost judge, 5-case example dataset) --
-useful to sanity-check the contract, not the configuration to reach for when
-evaluating real AXON changes.
+The recall A/B (does retrieved context help AXON's answers) was run from
+[`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md) with
+`archive/axon-chat/axon-recall-on.toml` /
+`archive/axon-chat/axon-recall-off.toml`, judged by `llama3.1:8b` at the
+desktop Tailscale Ollama endpoint, over the 17-case
+`datasets/second_brain/cases.json`. The rest of this document records the
+chat target contract that path expected and a toy quickstart
+(`archive/axon-chat/axon.toml`, localhost judge, 5-case example dataset).
 
 ## AXON Target Contract
 
@@ -112,7 +117,7 @@ For the real A/B evaluation, skip to [RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md
 ### Execute the Evaluation
 
 ```bash
-gnomon -c config/axon.toml
+gnomon -c archive/axon-chat/axon.toml
 ```
 
 This will:
@@ -146,10 +151,11 @@ Gate Status:
 
 ## Configuration
 
-The quickstart above is controlled by `config/axon.toml` (toy config). The
-real A/B configs (`config/axon-recall-on.toml` / `axon-recall-off.toml`)
-follow the same shape with a different judge and dataset -- see
-[RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md) for the actual values.
+The quickstart above is controlled by `archive/axon-chat/axon.toml` (toy
+config). The A/B configs (`archive/axon-chat/axon-recall-on.toml` /
+`axon-recall-off.toml`) follow the same shape with a different judge and
+dataset -- see [RUNBOOK-ab-recall.md](RUNBOOK-ab-recall.md) for the values
+used in the historical runs.
 
 ```toml
 [target]
@@ -229,10 +235,10 @@ Example:
 
 ## See Also
 
-- [`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md): the real, current
-  recall A/B procedure -- start here for evaluating actual AXON changes.
-- `config/axon-recall-on.toml` / `config/axon-recall-off.toml`: the real
-  configs the runbook uses.
+- [`docs/RUNBOOK-ab-recall.md`](RUNBOOK-ab-recall.md): the historical
+  recall A/B procedure. It is not a live AXON eval.
+- `archive/axon-chat/axon-recall-on.toml` /
+  `archive/axon-chat/axon-recall-off.toml`: the configs that procedure used.
 - `config/example.toml`: Example with a mock target (no external system needed).
 - `src/gnomon/domain/models.py`: Definition of EvalCase and other core types.
 - `src/gnomon/targets/openai_compat.py`: Implementation of OpenAI-compat target handler.

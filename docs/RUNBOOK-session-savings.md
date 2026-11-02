@@ -1,5 +1,12 @@
 # Runbook: Session savings measurement
 
+> **Historical.** This runbook measured multi-turn savings against the retired
+> AXON chat endpoint (`http://localhost:8765/v1`), dead since AXON dec-138.
+> Configs live in `archive/axon-chat/`. It is a record of the 2026-07 session
+> runs, not a live procedure, and it is not a current AXON KPI. The planned
+> AXON evaluation is brief-eval (`AxonBriefTarget` / brief@budget); see the
+> repository README.
+
 Prereqs: AXON endpoint reachable at `http://localhost:8765/v1`, Ollama judge
 reachable at `http://<judge-host>:11434`, and the session datasets present at
 `datasets/sessions/sessions.json` and `datasets/sessions/smoke.json`.
@@ -26,7 +33,7 @@ reachable at `http://<judge-host>:11434`, and the session datasets present at
    directory):
 
    ```bash
-   gnomon session -c config/axon-session-smoke.toml --json
+   gnomon session -c archive/axon-chat/axon-session-smoke.toml --json
    ```
 
    Verify before continuing:
@@ -38,7 +45,7 @@ reachable at `http://<judge-host>:11434`, and the session datasets present at
 3. Run the full measurement and save the JSON:
 
    ```bash
-   gnomon session -c config/axon-session.toml --json > session.json
+   gnomon session -c archive/axon-chat/axon-session.toml --json > session.json
    ```
 
    Then run the same full config a second time for stability. The two

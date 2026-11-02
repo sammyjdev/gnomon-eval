@@ -1,5 +1,8 @@
 # A/B recall results - 2026-07-02
 
+> **Historical.** Measurement of the retired AXON `/v1/chat` endpoint. Not a
+> live AXON KPI. Configs now live in `archive/axon-chat/`.
+
 Setup: dataset `datasets/second_brain/cases.json` (17 owner-validated cases), target
 AXON `/v1/chat/completions` with completion pinned to `ollama/llama3.1:8b` (GPU box),
 judge `llama3.1:8b` (same box), `judge_runs = 8`, seed 42, 95% CI. Replicates:
@@ -10,7 +13,7 @@ judge `llama3.1:8b` (same box), `judge_runs = 8`, seed 42, 95% CI. Replicates:
 AXON recall lifts faithfulness from 0.40-0.52 (no-recall baseline, means across
 replicates) to 0.72-0.76 (means across 3 replicates, 95% CI per run, N=17), at a
 measured cost of +2151 real input tokens per turn. In every paired run the on/off
-faithfulness CIs do not overlap. Reproduce: `gnomon -c config/axon-recall-on.toml`.
+faithfulness CIs do not overlap. Reproduce (historical config): `gnomon -c archive/axon-chat/axon-recall-on.toml`.
 
 ## Replicates
 

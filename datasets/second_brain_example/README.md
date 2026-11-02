@@ -52,14 +52,14 @@ Each case in `cases.json` follows the `EvalCase` schema:
 
 ## Testing with GNOMON
 
-To evaluate AXON with these cases:
+These cases were the toy dataset for the retired AXON chat config
+(`archive/axon-chat/axon.toml`), which called `POST /v1/chat/completions` on
+`localhost:8765`. That endpoint has been dead since AXON dec-138. The file is
+history, not a live AXON eval. The planned AXON evaluation is brief-eval
+(`AxonBriefTarget` / brief@budget); see the repository README.
 
-```bash
-gnomon -c config/axon.toml
-```
-
-The evaluation will measure:
-- **Faithfulness**: Does AXON's answer align with the expected answer?
-- **Context Precision**: Are the contexts AXON retrieved actually relevant?
+The harness still measures, for any target you point it at:
+- **Faithfulness**: Does the answer align with the expected answer?
+- **Context Precision**: Are the retrieved contexts relevant?
 - **Cost**: How many tokens were used per query?
-- **Latency**: How fast is AXON responding?
+- **Latency**: How fast is the response?
